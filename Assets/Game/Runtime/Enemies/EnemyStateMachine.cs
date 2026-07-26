@@ -4,36 +4,24 @@ namespace SimpleGame
 {
     public sealed class EnemyStateMachine : MonoBehaviour
     {
+        private const float ShieldDirectionLockDuration = 0.8f;
+
         private EnemyBase owner;
-        private IPrototypeDamageTarget target;
-        private bool aggroPlayer;
-        private float nextTargetSampleAt;
-        private Vector2 sampledTargetPosition;
+        private bool shielding;
+        private int pendingShieldSign;
+        private float shieldDirectionLockedUntil;
 
         public void Configure(EnemyBase enemy)
         {
             owner = enemy;
-            aggroPlayer = enemy.Archetype == EnemyArchetype.Shield;
-            nextTargetSampleAt = 0f;
+            ResetAfterReposition();
         }
 
-        public void OnPlayerHit(PlayerRoot player)
+        public void ResetAfterReposition()
         {
-            if (owner.Archetype == EnemyArchetype.Boss)
-            {
-                return;
-            }
-
-            if (owner.Archetype == EnemyArchetype.Ranged &&
-                owner.Attack != null &&
-                owner.Attack.IsBusy &&
-                owner.Attack.CurrentTarget is CastleRoot)
-            {
-                owner.Attack.Cancel();
-            }
-
-            aggroPlayer = true;
-            target = player;
+            shielding = false;
+            pendingShieldSign = 0;
+            shieldDirectionLockedUntil = 0f;
         }
 
         private void Update()
@@ -46,48 +34,23 @@ namespace SimpleGame
                 return;
             }
 
-            if (owner.Archetype == EnemyArchetype.Boss)
-            {
-                owner.BossAttack.Tick(owner.Session.Player, owner.Session.Castle);
-                return;
-            }
-
-            if (owner.Archetype == EnemyArchetype.Shield)
-            {
-                if (owner.Session.Player.IsAlive)
-                {
-                    Vector2 playerPosition = owner.Session.Player.transform.position;
-                    float shieldDistance = Vector2.Distance(
-                        transform.position,
-                        playerPosition);
-                    if (shieldDistance > owner.Definition.ApproachRange)
-                    {
-                        owner.MoveTowards(playerPosition);
-                        if (Vector2.Distance(
-                                transform.position,
-                                playerPosition) <=
-                            owner.Definition.ApproachRange)
-                        {
-                            owner.GuardTowards(playerPosition);
-                        }
-                    }
-                    else
-                    {
-                        owner.GuardTowards(playerPosition);
-                    }
-                }
-                else
-                {
-                    owner.StopMoving();
-                }
-
-                return;
-            }
-
-            SelectTarget();
-            if (target == null || !target.IsAlive)
+            PlayerRoot player = owner.Session.Player;
+            if (player == null || !player.IsAlive)
             {
                 owner.StopMoving();
+                return;
+            }
+
+            if (owner.Archetype == EnemyArchetype.Boss)
+            {
+                owner.BossAttack.Tick(player);
+                return;
+            }
+
+            Vector2 playerPosition = player.transform.position;
+            if (owner.Archetype == EnemyArchetype.Shield)
+            {
+                TickShield(playerPosition);
                 return;
             }
 
@@ -99,33 +62,74 @@ namespace SimpleGame
 
             float distance = Vector2.Distance(
                 transform.position,
-                target.TargetTransform.position);
-            if (distance <= owner.Definition.AttackRange && owner.Attack.CanStart)
+                playerPosition);
+            if (distance <= owner.Definition.AttackRange &&
+                owner.Attack.CanStart)
             {
-                owner.Attack.Begin(target);
+                owner.Attack.Begin(player);
                 return;
             }
 
-            if (Time.time >= nextTargetSampleAt)
-            {
-                sampledTargetPosition = target.TargetTransform.position;
-                nextTargetSampleAt = Time.time + 0.7f;
-            }
-
-            owner.MoveTowards(sampledTargetPosition);
+            owner.MoveTowards(playerPosition);
         }
 
-        private void SelectTarget()
+        private void TickShield(Vector2 playerPosition)
         {
-            PlayerRoot player = owner.Session.Player;
-            if (aggroPlayer && player.IsAlive)
+            float distance = Vector2.Distance(
+                transform.position,
+                playerPosition);
+            if (distance > owner.Definition.ApproachRange)
             {
-                target = player;
+                shielding = false;
+                pendingShieldSign = 0;
+                owner.MoveTowards(playerPosition);
                 return;
             }
 
-            aggroPlayer = false;
-            target = owner.Session.Castle;
+            if (!shielding)
+            {
+                shielding = true;
+                shieldDirectionLockedUntil =
+                    Time.time + ShieldDirectionLockDuration;
+                owner.GuardCurrentDirection();
+                return;
+            }
+
+            int currentSign = GetHorizontalSign(owner.Facing.Direction);
+            int desiredSign = GetHorizontalSign(
+                playerPosition - (Vector2)transform.position);
+            if (desiredSign == 0 || desiredSign == currentSign)
+            {
+                pendingShieldSign = 0;
+                owner.GuardCurrentDirection();
+                return;
+            }
+
+            if (pendingShieldSign != desiredSign)
+            {
+                pendingShieldSign = desiredSign;
+                shieldDirectionLockedUntil =
+                    Time.time + ShieldDirectionLockDuration;
+            }
+
+            if (Time.time >= shieldDirectionLockedUntil)
+            {
+                owner.GuardTowardsImmediate(playerPosition);
+                pendingShieldSign = 0;
+                return;
+            }
+
+            owner.GuardCurrentDirection();
+        }
+
+        private static int GetHorizontalSign(Vector2 direction)
+        {
+            if (Mathf.Abs(direction.x) <= 0.01f)
+            {
+                return 0;
+            }
+
+            return direction.x < 0f ? -1 : 1;
         }
     }
 }

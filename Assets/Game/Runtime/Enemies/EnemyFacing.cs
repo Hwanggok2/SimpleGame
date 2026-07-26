@@ -25,6 +25,20 @@ namespace SimpleGame
             Face(targetPosition, Time.time);
         }
 
+        public void FaceImmediate(Vector2 targetPosition)
+        {
+            Vector2 next = targetPosition - (Vector2)transform.position;
+            if (next.sqrMagnitude <= 0.0001f)
+            {
+                return;
+            }
+
+            Vector2 desiredDirection = next.normalized;
+            SetDirection(
+                desiredDirection,
+                GetHorizontalSign(desiredDirection));
+        }
+
         public void Face(Vector2 targetPosition, float currentTime)
         {
             Vector2 next = targetPosition - (Vector2)transform.position;

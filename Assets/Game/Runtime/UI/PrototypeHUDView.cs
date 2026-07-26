@@ -10,7 +10,7 @@ namespace SimpleGame
         Pause,
         CriticalCard,
         ContinueAd,
-        DamageCastle,
+        DamagePlayer,
         GrantXp,
         Count
     }
@@ -22,7 +22,6 @@ namespace SimpleGame
         PlayerLevel,
         CriticalChance,
         PlayerHp,
-        CastleHp,
         Hint,
         GameOverTitle,
         Count

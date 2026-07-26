@@ -2,16 +2,12 @@ using UnityEngine;
 
 namespace SimpleGame
 {
+    [DefaultExecutionOrder(100)]
     public sealed class CameraShakeController : MonoBehaviour
     {
-        private Vector3 restingLocalPosition;
+        private Vector3 lastOffset;
         private float activeStrength;
         private float shakeEndsAt;
-
-        private void Awake()
-        {
-            restingLocalPosition = transform.localPosition;
-        }
 
         public void Play(float strength, float duration)
         {
@@ -29,6 +25,12 @@ namespace SimpleGame
             shakeEndsAt = Time.unscaledTime + Mathf.Max(0f, duration);
         }
 
+        private void Update()
+        {
+            transform.localPosition -= lastOffset;
+            lastOffset = Vector3.zero;
+        }
+
         private void LateUpdate()
         {
             if (activeStrength <= 0f || Time.unscaledTime >= shakeEndsAt)
@@ -41,8 +43,8 @@ namespace SimpleGame
             Vector2 offset = new Vector2(
                 Mathf.Sin(time * 73f),
                 Mathf.Sin(time * 91f)) * activeStrength;
-            transform.localPosition = restingLocalPosition +
-                new Vector3(offset.x, offset.y, 0f);
+            lastOffset = new Vector3(offset.x, offset.y, 0f);
+            transform.localPosition += lastOffset;
         }
 
         private void OnDisable()
@@ -52,12 +54,8 @@ namespace SimpleGame
 
         private void ResetPosition()
         {
-            if (activeStrength <= 0f)
-            {
-                return;
-            }
-
-            transform.localPosition = restingLocalPosition;
+            transform.localPosition -= lastOffset;
+            lastOffset = Vector3.zero;
             activeStrength = 0f;
             shakeEndsAt = 0f;
         }

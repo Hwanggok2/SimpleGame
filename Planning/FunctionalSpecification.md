@@ -61,12 +61,12 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| GF-001 | 게임 세션 시작 | 시작 버튼 클릭 또는 Scene 진입 | GameBootstrap 초기화 완료, Player/Castle/맵 준비 | 저장된 계정 정보를 읽고 Player와 Castle을 초기화한 뒤 게임 타이머와 Wave 진행을 시작 | 게임 상태가 `Playing`으로 변경되고 입력과 Enemy 생성이 활성화 | 필수 데이터 또는 Entity 초기화 실패 시 플레이를 시작하지 않고 오류 표시 | 시작 연출, HUD 활성화 | `GameBootstrap`, `GameSession`, `SaveService` | 시작 후 타이머가 증가하고 Player 입력이 가능해야 함 | P0/부분 확정 |
+| GF-001 | 게임 세션 시작 | 시작 버튼 클릭 또는 Scene 진입 | GameBootstrap 초기화 완료, Player·카메라·월드 청크 준비 | 저장된 계정 정보를 읽고 Player, 3×3 활성 청크와 Enemy 스폰 시스템을 초기화한 뒤 게임 타이머를 시작 | 게임 상태가 `Playing`으로 변경되고 입력과 Enemy 생성이 활성화 | 필수 데이터 또는 Entity 초기화 실패 시 플레이를 시작하지 않고 오류 표시 | 시작 연출, HUD 활성화 | `GameBootstrap`, `GameSession`, `WorldChunkGrid`, `SaveService` | 시작 후 타이머가 증가하고 Player 입력과 카메라 추적이 가능해야 함 | P0/구현 |
 | GF-002 | 게임 시간 진행 | 게임 상태가 `Playing`인 동안 | 현재 상태에서 게임 시간 진행이 허용됨 | 경과 시간을 누적하고 Wave와 최종 보스 출현 조건에 전달 | HUD 시간과 스폰 진행 시간이 갱신 | 일시정지 중에는 증가하지 않으며 레벨업 UI 중 정지 여부는 추후 결정 | HUD 플레이 시간 | `GameSession`, `WaveSpawner`, `HUDPresenter` | 60초 경과 시 HUD에 1분이 표시되고 Pause 중 값이 유지돼야 함 | P0/부분 확정 |
 | GF-003 | 일시정지/재개 | Pause 버튼 클릭 | 게임 상태가 `Playing` 또는 `Paused` | Playing이면 시간, 입력, AI를 정지하고 Paused면 이전 상태로 복귀 | 게임 상태와 Pause UI 변경 | 게임 오버, 광고 이어하기, 클리어 중에는 실행하지 않음 | Pause 팝업 표시/숨김 | `GameSession`, `UIFlowCoordinator` | 정지 중 Player와 Enemy가 움직이지 않고 재개 후 정상 동작해야 함 | P1/부분 확정 |
-| GF-004 | 최종 보스 출현 | 게임 경과 시간 10분 도달 | 게임이 종료되지 않았고 최종 보스가 아직 생성되지 않음 | 일반 Wave 진행을 조정하고 위/아래 보스 SpawnPoint 중 하나에서 최종 보스를 생성 | 최종 보스가 활성화되고 보스전 상태 진입 | 최종 보스 레벨, 생성 방향 선택 규칙과 기존 Enemy 처리 규칙은 미정 | WARNING, Boss HP UI | `GameSession`, `WaveSpawner`, `EnemyFactory`, `BossDefinition` | 10분 이전에는 생성되지 않고 10분 도달 시 한 번만 생성돼야 함 | P1/부분 확정 |
-| GF-005 | 게임 클리어 | 최종 보스 사망 | 최종 보스전 진행 중 | Enemy 및 입력 진행을 정리하고 최종 점수와 보상을 확정 | 게임 상태가 `Clear`로 변경 | 보스 사망과 Castle 파괴가 같은 시점에 발생할 경우 우선순위 미정 | 클리어 화면, 최종 점수 | `GameSession`, `ScoreSystem`, `AccountProgression` | 최종 보스가 아닌 일반 보스 사망으로는 클리어되지 않아야 함 | P1/부분 확정 |
-| GF-006 | 게임 오버 | Castle HP가 0이 됨 | Castle이 무적 상태가 아님 | 게임 진행과 입력을 정지하고 사용 가능한 광고 이어하기 횟수를 확인 | 이어하기 또는 종료 선택 상태 진입 | 광고 이어하기 가능 횟수가 없으면 바로 최종 결과 화면으로 진행 | Continue/GameOver UI | `GameSession`, `CastleHealth`, `ContinueView` | Castle HP 0에서 Enemy 이동과 게임 시간이 정지돼야 함 | P0/확정 |
+| GF-004 | 최종 보스 출현 | 게임 경과 시간 10분 도달 | 게임이 종료되지 않았고 최종 보스가 아직 생성되지 않음 | 일반 Wave 진행을 조정하고 Player 기준 위/아래 Spawn 경계 중 하나에서 최종 보스를 생성 | 최종 보스가 활성화되고 보스전 상태 진입 | 최종 보스 레벨과 생성 방향 선택 규칙은 미정, Boss는 거리 기반 자동 재배치 제외 | WARNING, Boss HP UI | `GameSession`, `WaveSpawner`, `EnemyFactory`, `BossDefinition` | 10분 이전에는 생성되지 않고 10분 도달 시 한 번만 생성돼야 함 | P1/부분 확정 |
+| GF-005 | 게임 클리어 | 최종 보스 사망 | 최종 보스전 진행 중 | Enemy 및 입력 진행을 정리하고 최종 점수와 보상을 확정 | 게임 상태가 `Clear`로 변경 | 보스 사망과 Player 사망이 같은 시점에 발생할 경우 우선순위 미정 | 클리어 화면, 최종 점수 | `GameSession`, `ScoreSystem`, `AccountProgression` | 최종 보스가 아닌 일반 보스 사망으로는 클리어되지 않아야 함 | P1/부분 확정 |
+| GF-006 | 게임 오버 | Player HP가 0이 됨 | Player가 생존 상태였음 | 게임 진행과 입력을 정지하고 사용 가능한 광고 이어하기 횟수를 확인 | 이어하기 또는 종료 선택 상태 진입 | 광고 이어하기 가능 횟수가 없으면 바로 최종 결과 화면으로 진행 | Continue/GameOver UI | `GameSession`, `PlayerRoot`, `HealthComponent`, `ContinueView` | Player HP 0에서 Enemy 이동·스폰·게임 시간이 정지돼야 함 | P0/구현 |
 | GF-007 | 최종 결과 확정 | 클리어, 이어하기 포기 또는 이어하기 불가 | 최종 점수 계산 완료 | 점수를 계정 경험치로 변환하고 저장 요청 | 계정 경험치 및 레벨 갱신, 결과 화면 표시 | 저장 실패 처리 방식은 미정 | 점수, 획득 계정 EXP, 계정 레벨 | `ScoreSystem`, `AccountProgression`, `SaveService` | 19점 획득 시 계정 EXP가 3 증가해야 함 | P1/부분 확정 |
 
 ## 5. 입력 및 타깃 선택 기능
@@ -96,7 +96,7 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| PM-001 | 빈 공간 이동 | Enemy 타깃 없이 월드 위치 터치 | Player 입력 가능, 유효한 플레이 영역 | 터치 위치를 목적지로 설정하고 거리에 관계없이 최대 0.1초 동안 이동 모션 재생 | 목적지에 도착 후 Idle 상태 전환 | 방패병이 경로를 막으면 방패병 접근 위치까지만 이동 | 이동 모션, 터치 마커 | `PlayerMovement`, `PlayerStateMachine` | 빈 공간 터치 후 Player가 허용 경계 안의 목적지에 0.1초 이내 도착해야 함 | P0/확정 |
+| PM-001 | 빈 공간 이동 | Enemy 타깃 없이 월드 위치 터치 | Player 입력 가능, 카메라 화면 안의 유효한 월드 좌표 | 터치 위치를 목적지로 설정하고 거리에 관계없이 최대 0.1초 동안 이동 모션 재생 | 목적지 도착 후 Idle 전환, 카메라가 Player를 추적 | 방패병이 경로를 막으면 방패병 접근 위치까지만 이동. 고정 맵 경계 Clamp는 적용하지 않음 | 이동 모션, 터치 마커, 카메라 이동 | `PlayerMovement`, `PlayerStateMachine`, `CameraFollowController` | 빈 공간 터치 후 Player가 목적지에 0.1초 이내 도착하고 카메라 중심이 Player를 따라가야 함 | P0/구현 |
 | PM-002 | 공격 위치 접근 | Enemy 공격 요청 | 타깃이 살아 있고 Player 입력 가능 | Enemy가 회색 공격 사거리 밖이면 Enemy 중심이 사거리 끝에 오도록 공격 위치를 계산하여 최대 0.1초 동안 이동하고, 사거리 안이면 현재 위치를 유지 | 공격 가능 위치 도착 또는 현재 사거리 확인 후 공격 실행 | Enemy가 이미 회색 사거리 안이면 Collider가 겹쳐도 이동·분리 보정을 하지 않음. 이동 중 타깃 사망 처리 미정 | 이동 모션, 타깃 강조 | `PlayerMovement`, `PlayerCombat` | 사거리 밖에서는 0.1초 이내 접근하고 이동 완료 전에 피해가 없어야 하며, 사거리 안에서는 Collider 중첩 여부와 관계없이 이동하지 않아야 함 | P0/확정 |
 | PM-003 | 경로상 Enemy 연속 공격과 후속 이동 | Enemy 뒤쪽의 빈 공간 또는 다른 목표 터치 | Player 입력 가능, 이동 경로와 살아 있는 Enemy Collider가 겹침 | 경로에서 가장 먼저 만나는 Enemy가 공격 사거리 끝에 놓이도록 접근해 공격 1회를 처리한다. 처치하면 원래 목적지까지 남은 경로를 다시 검사하여 다음 Enemy도 같은 방식으로 공격한다 | 한 번의 터치로 일격 처치 가능한 Enemy들을 순서대로 처치하며 이동하고, 공격 1회에 생존하는 Enemy를 만나면 공격 위치에서 정지 | 피해 무효 정면 공격의 반동·입력 잠금 규칙은 그대로 적용. 터치 위치는 플레이 영역 경계 안으로 보정하며, 사망한 Enemy는 즉시 다음 경로 검사에서 제외 | 공격·피격·Death 모션, 처치 후 연속 이동 | `PlayerController`, `PlayerMovement`, `CombatResolver`, `PrototypeGameSession`, `EnemyBase` | 동일 경로의 1타 Enemy N마리는 한 번의 터치로 모두 처치하며 지나가야 하고, 그 뒤 생존 Enemy는 1회 공격 후 사거리 끝에서 Player 이동을 차단해야 함 | P0/구현 |
 | PC-001 | Player 공격 실행 | Enemy 유효 클릭마다 | Player가 공격 가능, 타깃 생존 | 클릭마다 공격 요청 1회를 생성한다. 사거리 밖 요청은 접근 후 처리하고, 접근 중 같은 Enemy에 연속 입력된 요청은 누적하여 도착 후 각각 정면/후면과 치명타를 판정한다 | 클릭 횟수와 같은 수의 Enemy 피해·피해 무효 판정 | 별도 Player 자동 공격 쿨타임 없음. 조작 불가·사망 중 입력은 무시하며 정면 반동 발생 시 남은 누적 요청을 취소 | 공격 모션, 타격 VFX/SFX | `PlayerController`, `EnemyBase`, `CombatResolver` | 동일 Enemy를 빠르게 N회 클릭하면 반동·사망 예외 전까지 공격 판정도 N회 발생해야 함 | P0/확정 |
@@ -109,20 +109,19 @@
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | PH-001 | Player 피격 | Enemy 공격 판정과 Player가 겹침 | Player 생존, 피격 가능 | Enemy 공격력만큼 HP 감소 | HP 갱신 또는 사망 | 피격 무적 시간과 Player 최대 HP 미정 | HP Bar, 피격 Flash, 흔들림 | `PlayerHealth`, `EnemyAttackBase` | 공격 판정 밖에서는 HP가 감소하지 않아야 함 | P0/부분 확정 |
-| PH-002 | Player 사망 | Player HP가 0 이하 | Player 생존 상태 | 입력과 공격을 차단하고 사망 상태로 전환, 일반 Enemy에 Player 사망 알림 | Player 비활성/사망 연출, 추적 Enemy가 Castle로 복귀 | Castle은 Player 사망으로 게임 오버되지 않음 | 사망 모션, 부활 대기 UI | `PlayerHealth`, `PlayerStateMachine`, `EnemyTargeting` | Player 사망 후 추적 중인 일반 Enemy 목표가 Castle이어야 함 | P0/확정 |
-| PH-003 | Player 자동 부활 | 사망 후 부활 대기시간 종료 | Castle이 파괴되지 않았거나 게임이 계속 진행 중 | Castle 위치에서 Player 상태와 HP를 복구하고 입력 활성화 | Player가 게임에 복귀 | 부활 대기시간과 자동 부활 HP는 미정 | 부활 연출 | `PlayerRoot`, `PlayerHealth`, `GameSession` | 대기시간 전에는 입력할 수 없고 부활 후 입력 가능해야 함 | P0/부분 확정 |
-| PH-004 | 광고 이어하기 Player 부활 | 광고 이어하기 성공 | GameOver 상태 | Player를 Castle 위치에서 최대 HP로 부활 | Player 생존 및 입력 대기 상태 | Castle 3초 무적과 GameSession 재개 순서를 따라야 함 | 부활 연출 | `PlayerRoot`, `GameSession` | 이어하기 후 Player HP가 최대치여야 함 | P1/확정 |
+| PH-002 | Player 사망 및 게임 오버 | Player HP가 0 이하 | Player 생존 상태 | 입력·이동·공격을 차단하고 Death 상태로 전환한 뒤 GameSession에 게임 오버를 전달 | Player 사망 연출과 GameOver UI 표시, Enemy·스폰·게임 시간 정지 | 자동 부활은 사용하지 않음 | Death 모션, GameOver UI | `PlayerRoot`, `HealthComponent`, `GameSession` | Player HP가 0이 된 프레임에 GameOver 상태가 한 번만 발생해야 함 | P0/구현 |
+| PH-003 | 광고 이어하기 Player 부활 | 광고 이어하기 보상 성공 | GameOver 상태, 이어하기 사용 횟수 2회 미만 | 현재 Player 위치에서 최대 HP로 부활시키고 일반 Enemy를 Spawn 경계로 재배치 | Player 생존·입력·게임 시간 재개 | Boss 재배치 여부와 부활 직후 무적 시간은 미정 | 부활 연출 | `PlayerRoot`, `GameSession`, `EnemyWorldRecycler` | 이어하기 후 Player HP가 최대치이고 일반 Enemy가 카메라 밖 Spawn 경계에 있어야 함 | P1/부분 구현 |
 
 ## 8. 일반 Enemy 공통 기능
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | EN-001 | Enemy 생성 및 초기화 | WaveSpawner 생성 요청 | EnemyDefinition, 레벨, SpawnPoint, Pool 준비 | Pool에서 인스턴스를 가져와 상태, 타깃, 쿨타임, HP와 시각 요소 초기화 | Enemy가 Spawn 상태로 활성화 | 필수 Definition 또는 Prefab 누락 시 생성 실패를 기록 | Spawn 연출 선택 | `EnemyFactory`, `PoolService`, `EnemyBase` | 재사용 Enemy에 이전 타깃·HP·이벤트가 남아 있지 않아야 함 | P0/부분 확정 |
-| EN-002 | Castle로 이동 | Enemy Spawn 완료 또는 Player 목표 해제 | Castle 생존, Enemy 이동 가능 | Castle 위치를 목표로 이동하고 진행 방향을 갱신 | Castle 공격 범위 진입 시 공격 상태 전환 | 이동속도, 회피 및 충돌 정책은 데이터 미정 | 이동 애니메이션 | `EnemyMovement`, `EnemyStateMachine` | 방해가 없으면 Enemy가 Castle 방향으로 이동해야 함 | P0/부분 확정 |
-| EN-003 | Player로 목표 변경 | 일반 Enemy가 Player 공격을 받음 | Player 생존 | 현재 타깃을 Player로 변경하고 추적 상태로 전환 | Enemy가 Player를 추적 | Boss와 ShieldEnemy에는 각 고유 규칙 적용 | 타깃 변경 표시 선택 | `EnemyTargeting`, `EnemyStateMachine` | 일반 근거리·원거리 Enemy 피격 후 Player를 추적해야 함 | P0/확정 |
-| EN-004 | Castle 목표 복귀 | 추적 대상 Player 사망 | 일반 Enemy 생존 | Player 참조를 해제하고 Castle을 목표로 설정 | Castle 이동 상태 복귀 | Boss는 원래부터 Castle 목표 유지 | 없음 | `EnemyTargeting`, `EnemyStateMachine` | Player 사망 후 일반 Enemy가 죽은 Player 위치에 머물지 않아야 함 | P0/확정 |
-| EN-005 | 추적 방향 지연 갱신 | Player 추적 중 Player 위치 변경 | Enemy 생존, Player 추적 상태 | 0.7초 동안 기존 이동 방향을 유지한 후 Player 현재 위치로 방향 갱신 | Enemy 바라보는 방향과 이동 목표 갱신 | 연속 이동 시 타이머 재설정 또는 주기 갱신 방식은 구현 시 고정 필요 | 회전/방향 전환 애니메이션 | `EnemyFacing`, `EnemyTargeting` | Player가 방향을 바꿔도 Enemy가 즉시 회전하지 않아야 함 | P0/부분 확정 |
-| EN-006 | Enemy 공격 실행 | 공격 대상이 사거리 안이고 쿨타임 완료 | Enemy 공격 가능, 대상 생존 | 공격 범위를 예고하고 공격 모션과 판정 실행 후 쿨타임 적용 | Player 또는 Castle HP 감소 | Enemy별 예고 시간, 공격력, 범위와 쿨타임 미정 | 공격 범위, 모션, SFX | `EnemyAttackBase`, `EnemyDefinition` | 사거리 밖 대상에게 피해가 적용되지 않아야 함 | P0/부분 확정 |
+| EN-002 | Player 추적 이동 | Enemy Spawn 또는 공격 종료 | Player 생존, Enemy 이동 가능 | Player의 현재 위치를 목표로 이동하고 진행 방향을 갱신 | 공격 범위 진입 시 공격 준비 상태 전환 | 이동속도, 회피 및 Enemy 간 충돌 정책은 데이터 미정 | 이동 애니메이션 | `EnemyMovement`, `EnemyStateMachine` | 방해가 없으면 모든 Enemy가 Player 방향으로 이동해야 함 | P0/구현 |
+| EN-003 | 좌우 방향 지연 전환 | Player 추적 중 Player가 Enemy 반대편으로 이동 | Enemy 생존, 방향 잠금 상태 아님 | 반대편 상태가 0.5초 유지될 때만 좌우 방향을 변경하고, 그 전에 복귀하면 예약 전환을 취소 | 추적 이동은 계속되며 바라보는 방향만 지연 갱신 | 상하 이동은 마지막 유효 좌우 방향 유지 | 방향 전환 애니메이션 | `EnemyFacing`, `EnemyStateMachine` | 좌우 변경 후 0.49초에는 기존 방향, 0.5초 이후에는 새 방향이어야 함 | P0/구현 |
+| EN-004 | 공격 방향 잠금과 해제 | 일반 근거리 Enemy 공격 예고 시작 및 실제 판정 종료 | 공격 대상이 Player, Enemy 공격 가능 | 예고 시작 방향을 실제 공격 판정까지 고정하고 판정 종료 후 Player 방향 갱신을 허용 | 공격 중 방향 흔들림 방지, 종료 후 추적 복귀 | 원거리 Enemy는 RA-001의 조준 규칙을 사용 | 공격 예고, 방향 고정 | `EnemyAttackModule`, `EnemyFacing`, `EnemyStateMachine` | 예고 중 Player가 반대편으로 가도 방향이 유지되고 판정 후에는 전환 가능해야 함 | P0/구현 |
+| EN-005 | 화면 밖 일반 Enemy 재배치 | 일반 Enemy가 PlayerWorldArea의 재배치 경계를 벗어남 | Enemy 생존, Boss 아님 | 공격·이동 상태를 취소하고 Player 기준 반대 방향의 더 작은 Spawn 경계로 이동한 뒤 추적 상태를 초기화 | Enemy 종류·레벨·누적 피해를 유지한 채 전투에 복귀 | 사망 중, 화면 안, Boss는 제외. Spawn 경계는 재배치 경계보다 작아야 함 | 화면 밖 처리로 별도 연출 없음 | `PlayerWorldArea`, `EnemyWorldRecycler`, `EnemyBase` | 재배치 직후 Enemy가 다시 재배치 조건에 걸리지 않고 원래 반대편에서 Player를 추적해야 함 | P0/구현 |
+| EN-006 | Enemy 공격 실행 | Player가 사거리 안이고 쿨타임 완료 | Enemy 공격 가능, Player 생존 | 공격 범위를 예고하고 공격 모션과 판정 실행 후 쿨타임 적용 | Player HP 감소 | Enemy별 예고 시간, 공격력, 범위와 쿨타임은 데이터로 관리 | 공격 범위, 모션, SFX | `EnemyAttackModule`, `EnemyDefinition` | 사거리 밖 Player에게 피해가 적용되지 않아야 함 | P0/부분 구현 |
 | EN-007 | Enemy 사망 | 누적 피해가 처치 기준 도달 | Enemy 생존 | 공격·이동·Collider를 즉시 중지하고 사망 이벤트를 한 번 발행한 뒤 Death 클립 종료 후 비활성화 | 점수/경험치 지급, 공격 대상 및 경로 차단에서 즉시 제외 | Death 재생 중 추가 피격 불가. ShieldEnemy 점수 없음, 최종 Boss는 클리어 연결 | 캐릭터별 Death 모션, VFX | `EnemyHealth`, `EnemyBase`, `CharacterSpriteAnimator`, `ScoreSystem`, `ExperienceSystem` | 사망 보상은 한 번만 발생하고 Death 클립이 보인 뒤 오브젝트가 비활성화돼야 함 | P0/구현 |
 | EN-008 | 이름·레벨 위험도 색상 표시 | Enemy 생성 또는 Player 레벨 상승 | Enemy 종류·레벨, Player 현재 레벨, 일반 공격 전투 규칙 | 정면·후면의 일반 공격 필요 타수를 계산한다. 방향 무관 1타면 초록색, 정면 3타·후면 1타면 흰색, 그 외에는 빨간색을 적용한다 | `EnemyId Lv.N` 라벨과 현재 위험도 색상 표시 | 치명타 확률과 현재 HP는 색상 계산에 반영하지 않으며 Boss는 빨간색으로 표시 | Enemy 머리 위 TMP 라벨 | `EnemyBase`, `CombatResolver`, `PlayerProgression` | Player 레벨 상승 직후 모든 생존 Enemy 라벨이 새 전투 관계에 맞는 색으로 갱신돼야 함 | P0/구현 |
 
@@ -130,15 +129,15 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| RA-001 | 원거리 Castle 공격 취소 | Castle 공격 모션 중 Player 공격 수신 | 원거리 Enemy의 현재 목표가 Castle | 현재 공격 모션과 판정을 취소하고 목표를 Player로 변경 | Player 추적 상태 전환 | 이미 목표가 Player면 공격 취소하지 않음 | 공격 취소 피드백 선택 | `RangedEnemy`, `RangedAttack`, `EnemyTargeting` | Castle 목표일 때만 공격이 취소돼야 함 | P0/확정 |
-| RA-002 | 원거리 공격 | Player 또는 Castle이 공격 사거리 안 | 공격 쿨타임 완료 | 정의된 원거리 공격 Strategy 실행 | 대상 HP 감소 | 투사체/즉시 피해 방식, 속도, 충돌과 공격 수치는 미정 | 공격 예고, 투사체 또는 VFX | `RangedAttack`, `EnemyDefinition` | 선택된 공격 방식에 따라 한 번만 피해가 적용돼야 함 | P0/부분 확정 |
-| ME-001 | 근거리 공격 | Player 또는 Castle이 근접 사거리 안 | 공격 쿨타임 완료 | 이동을 정지하고 근거리 공격 모션 후 범위 판정 | 대상 HP 감소 | 공격력, 범위, 예고와 쿨타임 미정 | 근거리 공격 모션과 범위 표시 | `MeleeAttack`, `EnemyDefinition` | 공격 범위 밖 대상은 피해를 받지 않아야 함 | P0/부분 확정 |
+| RA-001 | 원거리 조준·발사·방향 고정 | Player가 공격 사거리 안이고 쿨타임 완료 | 원거리 Enemy와 Player 생존 | 발사 전까지 Player를 따라 자유롭게 조준하고 발사 순간 공격 판정 후 1초간 이동·방향을 고정한다 | 발사 후 총 2초간 재공격 불가, 1~2초에는 이동·방향 전환 가능 | 방향 고정 1초는 총 쿨타임 2초에 포함. 투사체 방식은 미정이며 현재 프로토타입은 즉시 판정 | 공격 예고, 발사 모션·VFX | `EnemyAttackModule`, `EnemyFacing`, `EnemyDefinition` | 발사 전 조준은 Player를 따라가고 발사 후 1초 동안 방향이 변하지 않으며 2초 전 재공격하지 않아야 함 | P0/구현 |
+| RA-002 | 원거리 공격 피해 | 조준 완료 후 발사 시점 | Player가 판정 거리 안 | 정의된 원거리 공격 Strategy를 한 번 실행 | Player HP 감소 | 투사체/즉시 피해 방식, 속도와 충돌은 미정 | 투사체 또는 VFX | `EnemyAttackModule`, 향후 `RangedAttack` | 한 번의 발사에서 피해가 한 번만 적용돼야 함 | P0/부분 구현 |
+| ME-001 | 근거리 공격 | Player가 근접 사거리 안 | 공격 쿨타임 완료 | 이동을 정지하고 예고 시작 방향을 고정한 뒤 근거리 공격 모션과 범위 판정 | Player HP 감소, 판정 종료 후 추적·방향 갱신 재개 | 공격력, 범위와 예고 수치는 데이터로 관리 | 근거리 공격 모션과 범위 표시 | `EnemyAttackModule`, `EnemyDefinition` | 예고 중 반대편으로 이동한 Player를 따라 방향이 뒤집히지 않아야 함 | P0/구현 |
 
 ## 10. ShieldEnemy 기능
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| SH-001 | Player 추적 및 방패 전환 | ShieldEnemy Spawn, Player가 하늘색 범위 밖으로 이동하거나 범위 안에 진입 | Player 생존, Skeleton 애니메이션 로드 완료 | 범위 밖에서는 Player를 향해 이동하며 Walk 재생. Player가 하늘색 범위 안에 들어오는 즉시 이동을 멈추고 Shield 반복 재생. Player가 반대편으로 이동하면 기존 좌우 방향을 0.5초 유지한 후 전환 | Player와 하늘색 범위 경계를 유지하며 이동·공격 경로 차단 | Player가 0.5초 전에 원래 방향으로 돌아오면 예약된 전환 취소. 범위 밖이면 Walk 추격 재개. ShieldEnemy는 Player를 직접 공격하지 않음 | Skeleton Walk·Shield·Hit, 방패 방향, 하늘색 범위 표시 | `ShieldEnemy`, `EnemyFacing`, `EnemyMovement`, `EnemyStateMachine`, `CharacterSpriteAnimator` | 반대편 이동 후 0.49초에는 기존 방향, 0.5초 이후에는 새 방향이어야 하며 이동·Shield 상태는 유지돼야 함 | P0/구현 |
+| SH-001 | Player 추적 및 0.8초 Shield 방향 고정 | ShieldEnemy Spawn, Player가 하늘색 범위 밖으로 이동하거나 범위 안에 진입 | Player 생존, Skeleton 애니메이션 로드 완료 | 범위 밖에서는 Player를 향해 Walk로 이동한다. 범위 안에 들어오면 현재 방향으로 최소 0.8초 Shield를 유지하고, 그동안 Player가 반대편으로 이동하면 방향을 예약해 유지 시간 종료 후 적용한다 | Player와 하늘색 범위 경계를 유지하며 이동·공격 경로 차단 | 예약 중 Player가 원래 방향으로 복귀하면 전환 취소. Shield 중 새 반대 방향이 생기면 해당 시점부터 0.8초 유지 후 전환. 범위 밖이면 Walk 복귀 | Skeleton Walk·Shield·Hit, 방패 방향, 하늘색 범위 표시 | `ShieldEnemy`, `EnemyFacing`, `EnemyMovement`, `EnemyStateMachine`, `CharacterSpriteAnimator` | Shield 진입·반대편 변경 후 0.79초에는 기존 방향, 0.8초 이후에는 예약 방향이어야 함 | P0/구현 |
 | SH-002 | 원거리 터치 접근 | 하늘색 범위 밖 ShieldEnemy 또는 뒤쪽 목표 터치 | Player 입력 가능, ShieldEnemy가 경로 차단 | ShieldEnemy의 하늘색 범위 끝까지 이동하고 공격하지 않음 | Player가 ShieldEnemy 앞에서 정지 | 공격이 없으므로 0.5초 조작 불가도 적용하지 않음 | 차단 피드백 | `PlayerMovement`, `ShieldEnemy` | 첫 원거리 터치에서는 ShieldEnemy 타격 수가 감소하지 않아야 함 | P0/확정 |
 | SH-003 | ShieldEnemy 정면 공격 | 하늘색 범위 안에서 ShieldEnemy 정면 터치 | Player 공격 가능 | 정면 타격을 누적하고, ShieldEnemy가 Player보다 2레벨 이상 낮지 않으면 Player 넉백·0.5초 조작 불가·화면 흔들림 적용 | 3타 누적 시 처치, 조건부 Player 반동 | ShieldEnemy가 Player보다 2레벨 이상 낮으면 넉백과 조작 불가 없이 타격 피해와 일반 명중 화면 흔들림만 적용 | 방패 충돌, 화면 흔들림, Player 넉백/경직 | `ShieldEnemy`, `PlayerCombat`, `PlayerMovement`, `PlayerStateMachine` | 정면 3타 처치는 레벨과 무관하며, Player보다 최대 1레벨 낮은 방패병부터 반동이 발생해야 함 | P0/확정 |
 | SH-004 | ShieldEnemy 후면 공격 | ShieldEnemy 후면 공격 성공 | Player 공격 가능 | 후면 공격 1회를 처치 피해로 적용 | 즉시 처치 | 레벨과 관계없이 동일 | 후면 처치 VFX | `ShieldEnemy`, `CombatResolver` | 모든 레벨의 ShieldEnemy가 후면 1타에 처치돼야 함 | P0/확정 |
@@ -147,28 +146,28 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| BO-001 | Boss 생성 | 보스 Wave 또는 10분 최종 보스 Trigger | 위/아래 Boss SpawnPoint 준비 | Spawn 방향을 선택하고 WARNING 후 Boss 활성화 | Boss가 Castle 방향으로 이동 | 등장 WARNING 시간과 최종 Boss 레벨 미정 | WARNING, Boss HP Bar | `WaveSpawner`, `EnemyFactory`, `BossEnemy` | 좌우가 아닌 위/아래 지정 SpawnPoint에서 생성돼야 함 | P1/부분 확정 |
-| BO-002 | Boss 목표 유지 | Boss가 Player 공격을 받음 | Boss 생존 | 피해만 적용하고 이동 목표는 Castle로 유지 | Castle 방향 이동 지속 | 공격 행동은 Player 공격으로 취소되지 않음 | 피격 연출 | `BossEnemy`, `EnemyTargeting` | 반복 피격 후에도 Boss 기본 목표가 Castle이어야 함 | P1/확정 |
-| BO-003 | Boss 공격 주기 | Player가 Boss 공격 범위 안이고 새 주기 시작 가능 | Boss 생존 | 0~1.5초 이동하며 붉은 영역 표시, 1.5~2.0초 정지·공격, 2.0~3.0초 Castle로 이동 | 3초마다 조건부 공격 반복 | 영역 모양·크기와 예고 중 Player 이탈 처리 미정 | 붉은 영역, 공격 모션 | `BossAttack`, `BossStateMachine` | 구간별 이동/정지와 공격 판정 시간이 정의와 일치해야 함 | P1/부분 확정 |
+| BO-001 | Boss 생성 | 보스 Wave 또는 10분 최종 보스 Trigger | Player 기준 위/아래 Boss SpawnPoint 준비 | Spawn 방향을 선택하고 WARNING 후 Boss 활성화 | Boss가 Player 방향으로 이동 | 등장 WARNING 시간과 최종 Boss 레벨 미정, 거리 기반 자동 재배치 제외 | WARNING, Boss HP Bar | `WaveSpawner`, `EnemyFactory`, `BossEnemy` | 좌우가 아닌 위/아래 지정 Spawn 경계에서 생성돼야 함 | P1/부분 확정 |
+| BO-002 | Boss Player 목표 유지 | Boss가 생성되거나 Player 공격을 받음 | Boss 생존, Player 생존 | 피해와 무관하게 이동 목표를 Player로 유지 | Player 방향 이동 지속 | 공격 행동은 Player 공격으로 취소되지 않음 | 피격 연출 | `BossEnemy`, `EnemyStateMachine` | 반복 피격 후에도 Boss 기본 목표가 Player여야 함 | P1/구현 |
+| BO-003 | Boss 공격 주기 | Player가 Boss 공격 범위 안이고 새 주기 시작 가능 | Boss 생존 | 0~1.5초 Player 방향 이동·붉은 영역 표시, 1.5~2.0초 정지·공격, 2.0~3.0초 Player 추적 이동 | 3초마다 조건부 공격 반복 | 영역 모양·크기와 예고 중 Player 이탈 처리 미정 | 붉은 영역, 공격 모션 | `BossAttack`, `BossStateMachine` | 구간별 이동/정지와 공격 판정 시간이 정의와 일치해야 함 | P1/부분 구현 |
 | BO-004 | Boss 피해 처리 | Player가 Boss 공격 | 공격 방향과 치명타 결과 | HP 15 기준 정면 1, 후면 3, 정면 치명타 3, 후면 치명타 9 적용 | HP 0 이하에서 Boss 사망 | Boss 행동은 피격으로 취소하지 않음 | Boss HP Bar, 피격 VFX | `BossEnemy`, `CombatResolver` | 정면 일반 15회 또는 후면 일반 5회에 처치돼야 함 | P1/확정 |
-| BO-005 | Boss 이어하기 넉백 | 광고 이어하기 성공 | Boss 생존 | 현재 위치에서 Castle→Boss 방향 맵 경계까지 남은 거리의 50% 이동 | Boss가 Castle에서 멀어짐 | 맵 밖으로 이동하지 않음 | 넉백 연출 | `EnemyKnockbackService`, `BossEnemy` | 일반 Enemy보다 짧고 정확히 남은 거리 절반만 이동해야 함 | P1/확정 |
+| BO-005 | Boss 이어하기 처리 | 광고 이어하기 성공 | Boss 생존 | 현재는 Boss 위치를 유지하고 Player만 부활 | Boss 전투 상태 유지 | Boss 재배치·거리 보정 규칙은 미정 | 필요 시 별도 연출 | `GameSession`, `BossEnemy` | 일반 Enemy 거리 재배치에 Boss가 포함되지 않아야 함 | P1/미정 |
 
 ### 11.1 Boss 공격 시간표
 
 | 구간 | Boss 이동 | 붉은 공격 위치 | 공격 판정 |
 |---|---|---|---|
-| 0.0~1.5초 | Castle 방향 이동 | Boss 이동에 맞춰 이동 | 없음 |
+| 0.0~1.5초 | Player 방향 이동 | Boss 이동에 맞춰 이동 | 없음 |
 | 1.5~2.0초 | 정지 | 공격 위치 유지 | 활성 |
-| 2.0~3.0초 | Castle 방향 이동 | 비활성 | 없음 |
+| 2.0~3.0초 | Player 방향 이동 | 비활성 | 없음 |
 
-## 12. Castle 기능
+## 12. 카메라와 무한맵 기능
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| CA-001 | Castle 피격 | Enemy 공격 판정 명중 | Castle 생존, 무적 아님 | 공격력만큼 HP 감소 | HP 갱신 또는 Castle 파괴 | 무적 중 공격은 HP 감소 없음 | Castle HP Bar, 피격 연출 | `CastleHealth`, `EnemyAttackBase` | 3초 무적 중 같은 공격에 HP가 감소하지 않아야 함 | P0/부분 확정 |
-| CA-002 | Castle 파괴 | HP가 0 이하 | 무적 아님 | Castle 파괴 이벤트를 한 번 발행 | 게임 오버 Trigger | 동시에 여러 공격을 받아도 중복 GameOver 금지 | 파괴 연출, GameOver UI | `CastleHealth`, `GameSession` | GameOver 이벤트가 한 번만 발생해야 함 | P0/확정 |
-| CA-003 | 광고 이어하기 | ContinueAd 버튼 클릭 후 광고 성공 | 사용 횟수 2회 미만, GameOver 상태 | Castle 50% HP 복구, Player 최대 HP 부활, Castle 3초 무적, Enemy 넉백 후 게임 재개 | 사용 횟수 1 증가, Playing 복귀 | 광고 실패/취소와 재개 순서 미정 | 광고 UI, 부활 연출, 무적 표시 | `GameSession`, `AdService`, `CastleRoot`, `ContinueView` | 3회째 이어하기가 불가능하고 각 복구 값이 정확해야 함 | P1/부분 확정 |
-| CA-004 | 일반 Enemy 이어하기 넉백 | 광고 이어하기 성공 | 일반 Enemy 생존 | Castle에서 Enemy를 향한 방향과 플레이 월드 경계 교점을 구해 Enemy 이동 | Enemy가 해당 방향 맵 가장자리로 이동 | Boss는 별도 50% 규칙 적용 | 넉백 VFX | `EnemyKnockbackService`, `MapBounds` | 좌우 Enemy가 상하 Enemy보다 짧게 이동할 수 있으나 모두 경계 안에 있어야 함 | P1/확정 |
+| WM-001 | 카메라 Player 추적 | Player가 이동 | Main Camera와 Player 참조 유효 | 카메라 X/Y를 Player 위치로 부드럽게 이동하고 Z를 유지 | Player 주변 월드가 계속 화면에 표시 | CameraShake와 위치 갱신 순서가 충돌하지 않아야 함 | 부드러운 카메라 이동 | `CameraFollowController`, `CameraShakeController` | 이동 후 카메라가 Player를 추적하며 흔들림 종료 후 추적 위치로 정확히 복귀해야 함 | P0/구현 |
+| WM-002 | 3×3 활성 Tilemap 청크 유지 | 게임 시작 또는 Player가 청크 경계 통과 | 9개 WorldChunk, 동일한 청크 크기 | Player가 속한 중심 좌표 주변 3×3 좌표를 계산하고 멀어진 청크만 반대쪽 빈 좌표로 이동 | 항상 9개 청크로 카메라 주변 월드 유지 | 청크를 Instantiate/Destroy하지 않으며 한 좌표에 둘 이상 배치 금지 | 연결된 지형 표시 | `WorldChunkGrid`, `WorldChunk`, Unity `Tilemap` | 어느 방향으로 이동해도 활성 청크 수가 9개이고 중심 주변 좌표가 중복 없이 유지돼야 함 | P0/구현 |
+| WM-003 | 4종 맵 원본 반복 사용 | 3×3 청크 Scene 생성 | Ground Tile 원본 4종 | 9개 청크에 네 지형 원본을 순환 배치하고 재배치 시 해당 청크의 지형을 유지 | 최소 네 가지 지형 패턴 반복 | 최종 장식·장애물과 이음새 제약은 미정 | Ground Tilemap | `PrototypeSceneBuilder`, `WorldChunkGrid` | Scene에서 9개 Tilemap과 4종 Ground Tile 에셋을 확인할 수 있어야 함 | P0/구현 |
+| WM-004 | Spawn·재배치 이중 경계 | 카메라 크기 또는 Player 위치 변경 | PlayerWorldArea, 직교 카메라 | 카메라 바깥에 Spawn 경계를, 그보다 크게 재배치 경계를 계산 | 재배치된 Enemy가 즉시 재재배치되지 않음 | 화면 비율에 따라 X/Y 경계를 별도로 계산 | Scene Gizmo에서만 경계 표시 | `PlayerWorldArea` | 모든 화면 비율에서 `카메라 < Spawn < 재배치` 순서를 유지해야 함 | P0/구현 |
 
 ## 13. 인게임 경험치 및 카드 기능
 
@@ -185,7 +184,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | SC-001 | 일반 Enemy 처치 점수 | 일반 Enemy 사망 | 중복 보상 아님 | Enemy 레벨만큼 점수 추가 | 현재 점수 갱신 | ShieldEnemy는 점수 없음 | 점수 증가 표시 | `ScoreSystem`, `EnemyDefinition` | 4레벨 일반 Enemy 처치 시 4점 증가해야 함 | P0/확정 |
 | SC-002 | Boss 처치 점수 | Boss 사망 | 중복 보상 아님 | Boss 레벨×2 점수 추가 | 현재 점수 갱신 | 최종 Boss도 동일 공식 적용 여부는 현재 동일하게 가정 | 보스 점수 표시 | `ScoreSystem`, `BossDefinition` | 5레벨 Boss 처치 시 10점 증가해야 함 | P1/부분 확정 |
-| SC-003 | 생존 점수 | 생존 시간 증가 또는 게임 종료 | Castle 생존 시간 | 정의된 수식에 따라 시간 점수 계산 | 최종 점수에 합산 | 1분 3, 2분 5, 3분 7 예시만 존재하며 수식·누적 방식 미정 | HUD 또는 결과 화면 | `ScoreSystem`, `GameSession` | 수식 확정 전 구현 보류 | P1/미정 |
+| SC-003 | 생존 점수 | 생존 시간 증가 또는 게임 종료 | Player 생존 시간 | 정의된 수식에 따라 시간 점수 계산 | 최종 점수에 합산 | 1분 3, 2분 5, 3분 7 예시만 존재하며 수식·누적 방식 미정 | HUD 또는 결과 화면 | `ScoreSystem`, `GameSession` | 수식 확정 전 구현 보류 | P1/미정 |
 | AC-001 | 계정 경험치 변환 | 최종 결과 확정 | 최종 점수 | `floor(최종 점수÷5)` 계산, 나머지 점수 폐기 | 계정 EXP 증가 | 음수 점수 없음 | 결과 화면 획득 EXP | `AccountProgression` | 19점은 EXP 3, 20점은 EXP 4가 돼야 함 | P1/확정 |
 | AC-002 | 계정 레벨업 | 계정 EXP가 요구량 도달 | 계정 레벨별 요구 EXP | 요구 EXP를 차감하고 계정 레벨 증가 | 다음 게임 시작 레벨 성장에 사용 | 5레벨 이후 요구량, 최대 레벨과 시작 레벨 변환 규칙 미정 | 계정 레벨업 표시 | `AccountProgression`, `SaveService` | 1레벨 EXP 40 도달 시 2레벨이 돼야 함 | P1/부분 확정 |
 
@@ -207,7 +206,7 @@
 | UI-003 | Button Listener 연결 | View 활성화 또는 Presenter 초기화 | Button 바인딩 완료, Callback | enum 인덱스로 Button을 찾고 Click Listener 등록 | 클릭 시 지정 Callback 1회 실행 | 재활성화 시 중복 등록 금지, 비활성화 시 자신이 등록한 Listener만 해제 | Button 클릭 상태 | 화면별 View/Presenter | 화면을 세 번 열고 닫아도 한 번 클릭에 Callback이 한 번만 실행돼야 함 | P0/확정 |
 | UI-004 | HUD 상태 갱신 | HP, 점수, 시간, 레벨, 치명타 변경 이벤트 | HUD 활성화 | Presenter가 값을 표시 형식으로 변환하고 View의 의미 기반 메서드 호출 | 대응 TMP_Text와 Gauge 갱신 | Registry를 게임 시스템에서 직접 호출하지 않음 | HUD | `HUDPresenter`, `HUDView` | ScoreChanged 10 입력 시 HUD 점수가 10으로 표시돼야 함 | P1/확정 |
 | UI-005 | 레벨업 UI | 레벨업 발생 | 카드 3개 준비 | LevelUpView 활성화, 카드 데이터 표시, 선택 Listener 연결 | 선택 결과 전달 후 UI 닫힘 | Pause 여부와 치명타 외 카드 미정 | 카드 3개 | `LevelUpPresenter`, `LevelUpView` | 카드 하나를 선택하면 효과가 한 번 적용되고 화면이 닫혀야 함 | P1/부분 확정 |
-| UI-006 | 광고 이어하기 UI | Castle 파괴 | 남은 이어하기 횟수 계산 | ContinueAd와 포기 선택 표시, 남은 횟수 출력 | 광고 요청 또는 최종 결과 진행 | 광고 실패·취소·네트워크 오류 흐름 미정 | ContinueView | `ContinuePresenter`, `AdService` | 2회 사용 후 ContinueAd 버튼이 비활성 또는 미표시돼야 함 | P1/부분 확정 |
+| UI-006 | 광고 이어하기 UI | Player 사망 게임 오버 | 남은 이어하기 횟수 계산 | ContinueAd와 포기 선택 표시, 남은 횟수 출력 | 광고 요청 또는 최종 결과 진행 | 광고 실패·취소·네트워크 오류 흐름 미정 | ContinueView | `ContinuePresenter`, `AdService` | 2회 사용 후 ContinueAd 버튼이 비활성 또는 미표시돼야 함 | P1/부분 확정 |
 
 ## 16. 데이터 및 Spawn 기능
 
@@ -217,7 +216,7 @@
 | DA-002 | 스폰 일정 로드 | Stage 시작 | Excel 변환 결과인 `StageSpawnSchedule` | StageId에 맞는 행을 시간, WaveId, SpawnIndex 순으로 정렬해 StageSpawner에 제공 | 게임 시간 기반 Spawn 준비 완료 | 동일 Stage·Wave·SpawnIndex 조합은 중복 불가, 필수 문자열과 음수 시간은 importer에서 거부 | 없음 | `GameDataManifest`, `StageSpawnSchedule`, `StageSpawnController` | 다른 Stage 행은 제외되고 같은 시간 행은 순번대로 한 번씩 실행돼야 함 | P0/구현 |
 | DA-003 | 레벨·전역 밸런스 로드 | Player 초기화 또는 점수 정산 | Player/Account EXP 테이블, GlobalBalance | 레벨별 다음 필요 EXP와 점수→계정 EXP·치명타 공통값을 Manifest에서 전달 | Player 성장과 계정 EXP 계산이 데이터값을 사용 | 없는 레벨 행에서는 임의 보간하지 않고 오류 기록 후 레벨업 중단, Player 최종 곡선은 미확정 | 없음 | `LevelExperienceTable`, `GlobalBalance`, `PlayerProgression`, `CriticalSystem` | 19점은 계정 EXP 3, 치명타는 카드당 10%·최대 70%여야 함 | P0/구현 |
 | DA-004 | Excel→Generated SO 가져오기 | 기획 데이터 갱신 후 Editor 가져오기 실행 | 규격화된 `.xlsx` 시트 | 열 이름·타입·ID 참조·중복을 검증하고 `Assets/Game/Data/Generated` 에셋 갱신 | 검증된 데이터가 Manifest를 통해 다음 실행부터 반영 | 실제 `.xlsx` 경로와 importer는 아직 미구현, 오류가 있는 시트는 기존 정상 에셋을 덮어쓰지 않아야 함 | Editor 결과 보고서 | `GameDataAssetBuilder`, 향후 `ExcelDataImporter` | 정상 파일은 결정적으로 같은 SO를 만들고 오류 파일은 행·열을 포함해 실패해야 함 | P1/미구현 |
-| SP-001 | 시간 기반 Enemy Spawn | 게임 시간이 Spawn 행의 생성 시점에 도달 | `StageSpawnSchedule`, `SpawnPointRegistry`, `EnemyFactory` | SpawnPointId를 Scene Transform으로 변환하고 지정 EnemyId·레벨로 생성 요청 | 지정 Enemy가 지정 Scene 위치에 한 번 생성 | SpawnPoint 또는 EnemyId 누락 시 오류를 기록하고 해당 행만 건너뜀, 동시 최대 수와 재시도 규칙은 미정 | Spawn 연출 선택 | `StageSpawnController`, `SpawnPointRegistry`, `EnemyFactory` | 1초 WAVE_01 14개와 120초 보스 1개가 중복 없이 예약돼야 함 | P0/구현 |
+| SP-001 | 시간 기반 Enemy Spawn | 게임 시간이 Spawn 행의 생성 시점에 도달 | `StageSpawnSchedule`, Player를 따라가는 `SpawnPointRegistry`, `EnemyFactory` | SpawnPointId를 Player 기준 Spawn 경계 Transform으로 변환하고 지정 EnemyId·레벨로 생성 요청 | 지정 Enemy가 현재 Player 주변의 지정 방향에 한 번 생성 | SpawnPoint 또는 EnemyId 누락 시 오류를 기록하고 해당 행만 건너뜀, 동시 최대 수와 재시도 규칙은 미정 | Spawn 연출 선택 | `StageSpawnController`, `SpawnPointRegistry`, `EnemyFactory` | Player가 원점에서 멀어진 뒤에도 새 Enemy가 현재 Player 주변에서 생성돼야 함 | P0/구현 |
 | PL-001 | Enemy Pool 재사용 | Enemy 생성 또는 사망 | Prefab별 Pool | 요청 시 비활성 인스턴스를 초기화해 반환하고 사망 후 초기화하여 보관 | 반복 Instantiate/Destroy 감소 | Pool 부족 시 확장 수와 최대치 미정 | 없음 | `PoolService`, `EnemyFactory` | 재사용 Enemy에 이전 HP·타깃·Listener가 남지 않아야 함 | P1/부분 확정 |
 
 ## 17. 저장 기능
@@ -242,14 +241,14 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| MP-001 | 플레이 영역 제한 | Player/Enemy 이동 목적지 계산 | 카메라 기준 플레이 가능 월드 경계 | 목적지를 경계 안으로 제한 | Entity가 맵 밖으로 나가지 않음 | Safe Area와 해상도별 월드 경계 계산 방식 미정 | 없음 | `MapBounds`, `PlayerMovement`, `EnemyMovement` | 1080×1920 기준 모든 이동 결과가 경계 내부여야 함 | P0/부분 확정 |
-| MP-002 | 넉백 경계 교점 계산 | 광고 이어하기 Enemy 넉백 | Castle 위치, Enemy 위치, 월드 경계 | Castle→Enemy 방향 Ray와 경계의 교점을 계산 | 일반 Enemy 목적지 또는 Boss 절반 거리 반환 | Castle과 Enemy 위치가 같은 경우 대체 방향 필요 | 없음 | `MapBounds`, `EnemyKnockbackService` | 상하좌우 및 대각선 Enemy 모두 정확한 경계점을 계산해야 함 | P1/부분 확정 |
+| MP-001 | 무제한 월드 좌표 이동 | Player 이동 목적지·넉백 계산 | 터치 월드 좌표 또는 반동 방향 | 고정 MapBounds Clamp 없이 목적지와 반동 위치를 계산 | Player가 단일 화면 경계 밖으로 계속 이동 가능 | 지나치게 큰 좌표에서 Floating Origin이 필요한 시점은 추후 성능 측정 | 카메라 추적 | `PlayerController`, `PlayerMovement`, `CameraFollowController` | 기존 고정 맵 경계를 넘은 위치도 정상 이동·카메라 추적돼야 함 | P0/구현 |
+| MP-002 | 일반 Enemy 반대편 재배치 위치 계산 | Enemy가 재배치 경계 밖 | Player 중심, Enemy 현재 방향, Spawn X/Y 반경 | Player→Enemy 방향의 반대 벡터와 Spawn 사각 경계 교점을 계산하고 접선 방향 오프셋 적용 | 카메라 밖 반대편 위치 반환 | Player와 Enemy 좌표가 같으면 기본 방향 사용 | 없음 | `PlayerWorldArea`, `EnemyWorldRecycler` | 오른쪽 밖 Enemy는 왼쪽 Spawn 경계, 위쪽 밖 Enemy는 아래 Spawn 경계로 이동해야 함 | P0/구현 |
 
 ## 20. 광고 기능
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AD-001 | 광고 이어하기 요청 | ContinueAd 버튼 클릭 | GameOver, 사용 횟수 2회 미만, 앱인토스 광고 지원 환경 | `AIT.LoadFullScreenAd()`의 `loaded` 이후 `AIT.ShowFullScreenAd()`를 호출하고 `userEarnedReward` 이벤트만 GameSession에 전달 | 보상 이벤트 수신 시 CA-003 실행 | 표시·노출·닫힘만으로 보상하지 않음. 실패, 취소, No Fill과 중복 콜백 정책은 구현 전 확정 | 광고 로딩/실패 UI | 앱인토스 `AdService`, `ContinuePresenter` | `userEarnedReward` 수신 전에는 Castle과 Player가 부활하지 않고, 한 요청에서 보상이 한 번만 지급되어야 함 | P1/부분 확정 |
+| AD-001 | 광고 이어하기 요청 | ContinueAd 버튼 클릭 | Player 사망 GameOver, 사용 횟수 2회 미만, 앱인토스 광고 지원 환경 | `AIT.LoadFullScreenAd()`의 `loaded` 이후 `AIT.ShowFullScreenAd()`를 호출하고 `userEarnedReward` 이벤트만 GameSession에 전달 | 보상 이벤트 수신 시 Player 최대 HP 부활과 일반 Enemy 재배치 실행 | 표시·노출·닫힘만으로 보상하지 않음. 실패, 취소, No Fill과 중복 콜백 정책은 구현 전 확정 | 광고 로딩/실패 UI | 앱인토스 `AdService`, `ContinuePresenter` | `userEarnedReward` 수신 전에는 Player가 부활하지 않고, 한 요청에서 보상이 한 번만 지급되어야 함 | P1/부분 확정 |
 | AD-002 | 경험치 2배 광고 | 결과 화면 또는 정의된 시점 | 광고 시청 가능 | 광고 성공 시 대상 경험치를 2배 적용 | 경험치 보상 증가 | 인게임/계정 EXP 중 대상, 사용 시점과 횟수 미정 | 보상 광고 UI | `AdService`, `AccountProgression` 또는 `ExperienceSystem` | 규칙 확정 전 구현 보류 | P2/미정 |
 
 ### 20.1 앱인토스 출시 기능
@@ -264,8 +263,8 @@
 
 | 기능 ID | 기능명 | 제외 사유 | 재검토 시점 | 상태 |
 |---|---|---|---|---|
-| EX-001 | 상하좌우 확장 맵 | 초기 고정 화면 전투 검증이 우선 | 핵심 전투와 Wave 완성 후 | 범위 제외 |
-| EX-002 | 카메라 이동 대형 맵 | Enemy Spawn 및 경계 규칙 복잡도 증가 | 확장 맵 도입 시 | 범위 제외 |
+| EX-001 | Floating Origin | 현재 3×3 청크 재배치만으로 초기 플레이 검증 가능 | 장시간 플레이 좌표 정밀도 문제가 측정될 때 | 범위 제외 |
+| EX-002 | 청크별 완성형 랜덤 장애물·상호작용 | 우선 Ground Tilemap 재활용과 전투 검증이 필요 | 청크 이음새와 이동 안정성 검증 후 | 범위 제외 |
 | EX-003 | 공격력 업그레이드 | 현재 전투는 레벨 차이와 타격 횟수 중심 | 카드 시스템 확장 시 | 범위 제외 |
 | EX-004 | 다수의 완성 카드 | 초기에는 치명타 카드 효과 검증 우선 | 기본 LevelUp UI 완성 후 | 범위 제외 |
 
@@ -291,15 +290,15 @@
 
 다음 항목은 기능 구조는 정의됐지만 최종 동작 또는 수치가 필요하다.
 
-1. Player와 Castle 최대 HP
-2. Player 자동 부활 대기시간과 부활 HP
-3. 일반 Enemy별 이동속도, 공격력, 범위, 예고와 쿨타임
+1. Player 최대 HP
+2. 광고 이어하기 직후 Player 무적 시간
+3. 일반 Enemy별 이동속도, 공격력, 범위와 최종 예고 수치
 4. Player 공격 사거리, 접근 범위와 최종 터치 보정 반경
 5. 동일 우선순위 Enemy가 여러 명일 때 최종 선택 기준
 6. Player 이동 중 타깃이 사망했을 때 처리
 7. Boss 등장 WARNING 시간
 8. Boss 공격 영역 모양·크기와 예고 중 Player 이탈 처리
-9. 최종 Boss 레벨
+9. 최종 Boss 레벨과 거리 제한·재배치 여부
 10. 생존 점수 수식과 누적 방식
 11. Player 레벨별 최종 필요 EXP, 초과 EXP와 다중 레벨업 처리
 12. ShieldEnemy 경험치 지급 여부
@@ -313,6 +312,8 @@
 20. 저장 포맷, 손상 복구와 버전 마이그레이션
 21. Player 반동 넉백 거리와 이동 시간
 22. 일반 타격, 치명타와 정면 반동별 화면 흔들림 강도 및 지속시간
+23. 4종 맵 원본의 최종 장식·장애물 구성과 연결 규칙
+24. 일반 Enemy 재배치 시 누적 피해 유지의 최종 밸런스
 
 ## 24. 기능 완료 조건
 

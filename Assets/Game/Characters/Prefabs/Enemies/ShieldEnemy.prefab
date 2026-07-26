@@ -86,7 +86,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ce6adbe3872d5c2468021e6f5ab92d4e, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyHealth
   accumulatedDamage: 0
   alive: 1
@@ -100,9 +100,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7ed0ff1eb39d26e40b71f3c03281eedd, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyFacing
   direction: {x: 0, y: -1}
+  turnDelay: 0
 --- !u!114 &4986249355449880105
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -113,7 +114,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 32e4e25ee8028c0458925c304ef51673, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyMovement
   speed: 0.7
 --- !u!114 &3520207928645980976
@@ -126,7 +127,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6fe02699801e7804d86e324c0ea3903d, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyStateMachine
 --- !u!114 &156999708676173069
 MonoBehaviour:
@@ -138,7 +139,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e394c68cf0db4967a6933d87d22a2a91, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CharacterSpriteAnimator
   animator: {fileID: -2720901235676475020}
   spriteRenderer: {fileID: 5518444195299359477}
@@ -152,7 +153,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 66ac25c358ed4f90af811341547575ac, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.ShieldEnemy
   level: 1
   health: {fileID: 0}
@@ -245,7 +246,7 @@ Animator:
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage: 
+  m_WarningMessage:
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
@@ -619,7 +620,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9541d86e2fd84c1d9990edf0852d74ab, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshPro
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}

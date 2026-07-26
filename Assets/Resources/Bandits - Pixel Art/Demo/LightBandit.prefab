@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4805181885227780}
-  - component: {fileID: 95346456782871180}
   - component: {fileID: 4835660504590047549}
   - component: {fileID: 3159479525455459400}
   - component: {fileID: 1971921330339397223}
@@ -19,6 +18,7 @@ GameObject:
   - component: {fileID: 2628834054239739217}
   - component: {fileID: 50512961935941442}
   - component: {fileID: 430825011335191101}
+  - component: {fileID: 95346456782871180}
   m_Layer: 0
   m_Name: LightBandit
   m_TagString: Untagged
@@ -44,28 +44,6 @@ Transform:
   - {fileID: 3699910283181869196}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!95 &95346456782871180
-Animator:
-  serializedVersion: 7
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1689866831511430}
-  m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: b95265f99b6d90e438df1308a89c8bab, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_AnimatePhysics: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
 --- !u!114 &4835660504590047549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -76,7 +54,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 874ccc9004ab2e045a3d916e444f9088, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.HealthComponent
   maxHealth: 10
   currentHealth: 10
@@ -90,7 +68,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b2a26e81693b5244b6dee323686096b, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PlayerMovement
   moveDuration: 0.1
 --- !u!114 &1971921330339397223
@@ -103,9 +81,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a22ebf663a8cb53468de97228779a12c, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CriticalSystem
   chance: 0
+  cardIncrease: 0.1
+  maximumChance: 0.7
 --- !u!114 &9051279059685537686
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -116,10 +96,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eecb046b556308a4a9813d4e67756977, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PlayerProgression
   level: 1
   experience: 0
+  experienceTable: {fileID: 0}
 --- !u!114 &3258193069809039506
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -130,7 +111,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eeb6946d61a16504e840f9248e655931, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PlayerController
 --- !u!114 &1066357410269028450
 MonoBehaviour:
@@ -142,7 +123,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e394c68cf0db4967a6933d87d22a2a91, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CharacterSpriteAnimator
   animator: {fileID: 95346456782871180}
   spriteRenderer: {fileID: 5707163551794879029}
@@ -156,7 +137,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 759e153329694384bacdbc31ec253595, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PlayerRoot
   health: {fileID: 0}
   movement: {fileID: 0}
@@ -229,6 +210,28 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 0.34
+--- !u!95 &95346456782871180
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1689866831511430}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: b95265f99b6d90e438df1308a89c8bab, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage:
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &64429348231327707
 GameObject:
   m_ObjectHideFlags: 0
@@ -416,7 +419,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9541d86e2fd84c1d9990edf0852d74ab, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshPro
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -448,7 +451,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: -1183493901
+  m_TextStyleHashCode: 0
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2

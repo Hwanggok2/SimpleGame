@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SimpleGame;
 using TMPro;
 using UnityEditor;
@@ -7,6 +8,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.Tilemaps;
 using UnityEngine.UI;
 
 namespace SimpleGameEditor
@@ -14,6 +16,9 @@ namespace SimpleGameEditor
     public static class PrototypeSceneBuilder
     {
         private const string ScenePath = "Assets/Scenes/PrototypeScene.unity";
+        private const string WorldTilePath = "Assets/Game/World/Tiles";
+        private const int ChunkCellCount = 8;
+        private const float WorldCellSize = 2.56f;
 
         [MenuItem("SimpleGame/Build Prototype Scene %#b")]
         public static void Build()
@@ -28,26 +33,6 @@ namespace SimpleGameEditor
             CreateMainLight();
 
             var systems = new GameObject("PrototypeSystems");
-            MapBounds bounds = systems.AddComponent<MapBounds>();
-            bounds.Configure(new Vector2(-5.4f, -9.2f), new Vector2(5.4f, 9.2f));
-
-            PrototypeArenaVisual arena = systems.AddComponent<PrototypeArenaVisual>();
-            Vector2 arenaSize = bounds.Max - bounds.Min;
-            SpriteRenderer arenaBackground =
-                CharacterAssetBuilder.CreateSpriteVisual(
-                    systems.transform,
-                    "ArenaBackground",
-                    new Color(0.18f, 0.38f, 0.16f),
-                    arenaSize,
-                    -200);
-            SpriteRenderer castleLane =
-                CharacterAssetBuilder.CreateSpriteVisual(
-                    systems.transform,
-                    "CastleLane",
-                    new Color(0.62f, 0.48f, 0.25f),
-                    new Vector2(arenaSize.x * 0.28f, arenaSize.y),
-                    -190);
-            arena.Configure(bounds, arenaBackground, castleLane);
             PrototypeEnemyFactory factory = systems.AddComponent<PrototypeEnemyFactory>();
             factory.ConfigureAssets(
                 gameData.EnemyAssets,
@@ -58,28 +43,34 @@ namespace SimpleGameEditor
                 camera.GetComponent<CameraShakeController>(),
                 gameData.CombatFeedback);
             PrototypeGameSession session = systems.AddComponent<PrototypeGameSession>();
+            EnemyWorldRecycler enemyRecycler =
+                systems.AddComponent<EnemyWorldRecycler>();
             StageSpawnController stageSpawner =
                 systems.AddComponent<StageSpawnController>();
-            SpawnPointRegistry spawnPoints =
-                CreateDefaultSpawnPoints(bounds);
-            stageSpawner.Configure(gameData, spawnPoints, factory);
 
             var entities = new GameObject("Entities");
             Transform enemyRoot = new GameObject("Enemies").transform;
             enemyRoot.SetParent(entities.transform, false);
 
             PlayerRoot player = CreatePlayer(entities.transform);
-            CastleRoot castle = CreateCastle(entities.transform);
+            PlayerWorldArea worldArea =
+                player.gameObject.AddComponent<PlayerWorldArea>();
+            worldArea.Configure(camera);
+            camera.GetComponent<CameraFollowController>()
+                .Configure(player.transform);
+            CreateWorldChunks(player.transform);
+            SpawnPointRegistry spawnPoints =
+                CreateDefaultSpawnPoints(player.transform);
+            stageSpawner.Configure(gameData, spawnPoints, factory);
             PrototypeHUDPresenter presenter = CreateHud();
 
             session.ConfigureScene(
-                bounds,
                 player,
-                castle,
                 factory,
                 enemyRoot,
                 camera,
                 combatFeedback,
+                enemyRecycler,
                 presenter);
             session.ConfigureData(gameData, stageSpawner);
 
@@ -96,6 +87,7 @@ namespace SimpleGameEditor
             cameraObject.transform.position = new Vector3(0f, 0f, -10f);
 
             Camera camera = cameraObject.AddComponent<Camera>();
+            cameraObject.AddComponent<CameraFollowController>();
             cameraObject.AddComponent<CameraShakeController>();
             camera.orthographic = true;
             camera.orthographicSize = 10f;
@@ -126,49 +118,50 @@ namespace SimpleGameEditor
             var playerObject = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             playerObject.name = "Player";
             playerObject.transform.SetParent(parent, false);
-            playerObject.transform.position = new Vector3(0f, -2.8f, 0f);
+            playerObject.transform.position = Vector3.zero;
             return playerObject.GetComponent<PlayerRoot>();
         }
 
         private static SpawnPointRegistry CreateDefaultSpawnPoints(
-            MapBounds bounds)
+            Transform player)
         {
             var root = new GameObject("SpawnTransform");
+            root.transform.SetParent(player, false);
             var points = new System.Collections.Generic.List<Transform>();
             CreateVerticalSpawnGroup(
                 root.transform,
                 "LeftSpawn",
                 "LEFT",
-                bounds.Min.x - 0.8f,
-                bounds.Min.y,
-                bounds.Max.y,
+                -7f,
+                -8.5f,
+                8.5f,
                 8,
                 points);
             CreateVerticalSpawnGroup(
                 root.transform,
                 "RightSpawn",
                 "RIGHT",
-                bounds.Max.x + 0.8f,
-                bounds.Min.y,
-                bounds.Max.y,
+                7f,
+                -8.5f,
+                8.5f,
                 8,
                 points);
             CreateHorizontalSpawnGroup(
                 root.transform,
                 "TopSpawn",
                 "TOP",
-                bounds.Max.y + 0.8f,
-                bounds.Min.x,
-                bounds.Max.x,
+                11f,
+                -4.8f,
+                4.8f,
                 6,
                 points);
             CreateHorizontalSpawnGroup(
                 root.transform,
                 "BottomSpawn",
                 "BOTTOM",
-                bounds.Min.y - 0.8f,
-                bounds.Min.x,
-                bounds.Max.x,
+                -11f,
+                -4.8f,
+                4.8f,
                 6,
                 points);
 
@@ -197,7 +190,7 @@ namespace SimpleGameEditor
                     : index / (count - 1f);
                 var point = new GameObject($"{idPrefix}_{index + 1:00}");
                 point.transform.SetParent(group.transform, false);
-                point.transform.position =
+                point.transform.localPosition =
                     new Vector3(x, Mathf.Lerp(maxY, minY, progress), 0f);
                 output.Add(point.transform);
             }
@@ -222,40 +215,122 @@ namespace SimpleGameEditor
                     : index / (count - 1f);
                 var point = new GameObject($"{idPrefix}_{index + 1:00}");
                 point.transform.SetParent(group.transform, false);
-                point.transform.position =
+                point.transform.localPosition =
                     new Vector3(Mathf.Lerp(minX, maxX, progress), y, 0f);
                 output.Add(point.transform);
             }
         }
 
-        private static CastleRoot CreateCastle(Transform parent)
+        private static WorldChunkGrid CreateWorldChunks(Transform player)
         {
-            var castleObject = new GameObject("Castle");
-            castleObject.transform.SetParent(parent, false);
-            castleObject.transform.position = Vector3.zero;
-            castleObject.AddComponent<HealthComponent>();
-            Rigidbody2D body = castleObject.AddComponent<Rigidbody2D>();
-            body.bodyType = RigidbodyType2D.Static;
-            body.gravityScale = 0f;
-            BoxCollider2D collider = castleObject.AddComponent<BoxCollider2D>();
-            collider.size = new Vector2(2.1f, 1.8f);
-            collider.isTrigger = true;
+            Tile[] variants = CreateWorldTiles();
+            var worldObject = new GameObject(
+                "WorldGrid",
+                typeof(Grid),
+                typeof(WorldChunkGrid));
+            Grid grid = worldObject.GetComponent<Grid>();
+            grid.cellSize =
+                new Vector3(WorldCellSize, WorldCellSize, 0f);
 
-            CastleRoot castle = castleObject.AddComponent<CastleRoot>();
-            SpriteRenderer visual = CharacterAssetBuilder.CreateSpriteVisual(
-                castleObject.transform,
-                "CastleVisual",
-                new Color(0.72f, 0.72f, 0.78f),
-                new Vector2(2.1f, 1.8f),
-                10);
-            TMP_Text label = CharacterAssetBuilder.CreateWorldLabel(
-                castleObject.transform,
-                "CASTLE",
-                new Vector3(0f, 1.2f, 0f),
-                3f,
-                20);
-            castle.ConfigureVisuals(visual, label);
-            return castle;
+            var chunks = new List<WorldChunk>(9);
+            int variantIndex = 0;
+            for (int y = -1; y <= 1; y++)
+            {
+                for (int x = -1; x <= 1; x++)
+                {
+                    var chunkObject = new GameObject(
+                        $"MapChunk_{x}_{y}",
+                        typeof(Tilemap),
+                        typeof(TilemapRenderer),
+                        typeof(WorldChunk));
+                    chunkObject.transform.SetParent(
+                        worldObject.transform,
+                        false);
+
+                    Tilemap tilemap = chunkObject.GetComponent<Tilemap>();
+                    Tile ground = variants[variantIndex % variants.Length];
+                    variantIndex++;
+                    int half = ChunkCellCount / 2;
+                    for (int cellY = -half;
+                         cellY < half;
+                         cellY++)
+                    {
+                        for (int cellX = -half;
+                             cellX < half;
+                             cellX++)
+                        {
+                            tilemap.SetTile(
+                                new Vector3Int(cellX, cellY, 0),
+                                ground);
+                        }
+                    }
+
+                    TilemapRenderer renderer =
+                        chunkObject.GetComponent<TilemapRenderer>();
+                    renderer.sortingOrder = -200;
+                    WorldChunk chunk =
+                        chunkObject.GetComponent<WorldChunk>();
+                    chunk.Place(
+                        new Vector2Int(x, y),
+                        Vector2.one *
+                            (ChunkCellCount * WorldCellSize));
+                    chunks.Add(chunk);
+                }
+            }
+
+            WorldChunkGrid chunkGrid =
+                worldObject.GetComponent<WorldChunkGrid>();
+            chunkGrid.Configure(
+                player,
+                Vector2.one * (ChunkCellCount * WorldCellSize),
+                chunks);
+            return chunkGrid;
+        }
+
+        private static Tile[] CreateWorldTiles()
+        {
+            EnsureAssetFolder("Assets/Game/World");
+            EnsureAssetFolder(WorldTilePath);
+            var result = new Tile[4];
+            for (int index = 0; index < result.Length; index++)
+            {
+                int sourceIndex = index + 1;
+                string tilePath =
+                    $"{WorldTilePath}/Ground_{sourceIndex:00}.asset";
+                Tile tile = AssetDatabase.LoadAssetAtPath<Tile>(tilePath);
+                if (tile == null)
+                {
+                    tile = ScriptableObject.CreateInstance<Tile>();
+                    AssetDatabase.CreateAsset(tile, tilePath);
+                }
+
+                string spritePath =
+                    "Assets/Resources/PNG/" +
+                    $"Top-Down Simple Summer_Ground {sourceIndex:00}.png";
+                tile.sprite =
+                    AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
+                tile.colliderType = Tile.ColliderType.None;
+                EditorUtility.SetDirty(tile);
+                result[index] = tile;
+            }
+
+            AssetDatabase.SaveAssets();
+            return result;
+        }
+
+        private static void EnsureAssetFolder(string path)
+        {
+            if (AssetDatabase.IsValidFolder(path))
+            {
+                return;
+            }
+
+            int separator = path.LastIndexOf('/');
+            string parent = path[..separator];
+            EnsureAssetFolder(parent);
+            AssetDatabase.CreateFolder(
+                parent,
+                path[(separator + 1)..]);
         }
 
         private static PrototypeHUDPresenter CreateHud()
@@ -293,7 +368,6 @@ namespace SimpleGameEditor
             CreateText(topPanel.transform, HudTextId.PlayerLevel, "PLAYER Lv.1", 30, 20f, -136f);
             CreateText(topPanel.transform, HudTextId.CriticalChance, "CRIT 0%", 30, 20f, -176f);
             CreateText(topPanel.transform, HudTextId.PlayerHp, "PLAYER HP 10/10", 28, 20f, -216f);
-            CreateText(topPanel.transform, HudTextId.CastleHp, "CASTLE HP 30/30", 28, 540f, -216f);
 
             GameObject hintPanel = CreatePanel(
                 canvasObject.transform,
@@ -318,7 +392,7 @@ namespace SimpleGameEditor
                 new Vector2(15f, 165f),
                 new Vector2(-15f, 305f));
             CreateButton(buttonPanel.transform, HudButtonId.Pause, "PAUSE", 10f);
-            CreateButton(buttonPanel.transform, HudButtonId.DamageCastle, "CASTLE -10", 225f);
+            CreateButton(buttonPanel.transform, HudButtonId.DamagePlayer, "PLAYER -10", 225f);
             CreateButton(buttonPanel.transform, HudButtonId.GrantXp, "PLAYER XP +5", 440f);
             CreateButton(buttonPanel.transform, HudButtonId.ContinueAd, "CONTINUE (AD TEST)", 655f, 390f);
 

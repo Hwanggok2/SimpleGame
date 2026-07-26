@@ -23,7 +23,8 @@ MonoBehaviour:
     attackCooldown: 1.5
     attackAreaRadius: 0
     approachRange: 0
-    facingTurnDelay: 0
+    facingTurnDelay: 0.5
+    postAttackFacingLock: 0
     killExperience: 2
     score: 5
   - enemyId: GoblinRanged
@@ -33,10 +34,11 @@ MonoBehaviour:
     attackDamage: 2
     attackWindup: 0.8
     attackActiveDuration: 0
-    attackCooldown: 2.2
+    attackCooldown: 2
     attackAreaRadius: 0
     approachRange: 0
-    facingTurnDelay: 0
+    facingTurnDelay: 0.5
+    postAttackFacingLock: 1
     killExperience: 2
     score: 5
   - enemyId: ShieldSkeleton
@@ -50,6 +52,7 @@ MonoBehaviour:
     attackAreaRadius: 0
     approachRange: 2.25
     facingTurnDelay: 0.5
+    postAttackFacingLock: 0
     killExperience: 0
     score: 0
   - enemyId: GoblinBoss
@@ -62,6 +65,7 @@ MonoBehaviour:
     attackCooldown: 3
     attackAreaRadius: 1.35
     approachRange: 0
-    facingTurnDelay: 0
+    facingTurnDelay: 0.5
+    postAttackFacingLock: 0
     killExperience: 5
     score: 25

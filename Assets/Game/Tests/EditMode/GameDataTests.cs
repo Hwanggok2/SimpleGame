@@ -98,6 +98,21 @@ namespace SimpleGame.Tests
                     .Create(EnemyArchetype.Shield)
                     .FacingTurnDelay,
                 Is.EqualTo(0.5f));
+            Assert.That(
+                PrototypeEnemyDefinitions
+                    .Create(EnemyArchetype.Melee)
+                    .FacingTurnDelay,
+                Is.EqualTo(0.5f));
+            Assert.That(
+                PrototypeEnemyDefinitions
+                    .Create(EnemyArchetype.Ranged)
+                    .PostAttackFacingLock,
+                Is.EqualTo(1f));
+            Assert.That(
+                PrototypeEnemyDefinitions
+                    .Create(EnemyArchetype.Ranged)
+                    .AttackCooldown,
+                Is.EqualTo(2f));
         }
 
         [Test]
@@ -131,6 +146,35 @@ namespace SimpleGame.Tests
                 PrototypeGameSession.CalculateStartingCardSelectionCount(
                     accountLevel),
                 Is.EqualTo(expectedSelections));
+        }
+
+        [Test]
+        public void WorldArea_RepositionsEnemyOnOppositeInnerBoundary()
+        {
+            Vector2 result =
+                PlayerWorldArea.CalculateOppositeSpawnPosition(
+                    Vector2.zero,
+                    new Vector2(20f, 0f),
+                    new Vector2(7f, 12f),
+                    0f);
+
+            Assert.That(result.x, Is.EqualTo(-7f).Within(0.001f));
+            Assert.That(result.y, Is.EqualTo(0f).Within(0.001f));
+        }
+
+        [Test]
+        public void FacingImmediate_BypassesPendingTurnDelay()
+        {
+            var owner = new GameObject("ImmediateFacingTest");
+            EnemyFacing facing = owner.AddComponent<EnemyFacing>();
+            facing.Configure(0.5f);
+            facing.Face(Vector2.right, 0f);
+            facing.Face(Vector2.left, 0.1f);
+
+            facing.FaceImmediate(Vector2.left);
+
+            Assert.That(facing.Direction.x, Is.LessThan(0f));
+            Object.DestroyImmediate(owner);
         }
     }
 }

@@ -24,7 +24,6 @@ namespace SimpleGame
         private const float FrontRecoilMoveDuration = 0.18f;
         private const float FrontRecoilInputLockDuration = 0.5f;
 
-        private MapBounds mapBounds;
         private Coroutine inputLockRoutine;
 
         public HealthComponent Health => health;
@@ -46,7 +45,6 @@ namespace SimpleGame
         public void Configure(
             PrototypeGameSession session,
             Camera worldCamera,
-            MapBounds mapBounds,
             LevelExperienceTable experienceTable,
             GlobalBalance globalBalance)
         {
@@ -64,8 +62,6 @@ namespace SimpleGame
                 return;
             }
 
-            this.mapBounds = mapBounds;
-
             health.Configure(10);
             progression.Configure(experienceTable);
             critical.Configure(
@@ -75,7 +71,7 @@ namespace SimpleGame
             movement.Configure(
                 PlayerMovement.DefaultMoveDuration,
                 characterAnimation);
-            controller.Configure(this, session, worldCamera, mapBounds);
+            controller.Configure(this, session, worldCamera);
         }
 
         public void ReceiveDamage(int amount)
@@ -127,9 +123,9 @@ namespace SimpleGame
                 direction = Vector2.down;
             }
 
-            Vector2 destination = mapBounds.Clamp(
+            Vector2 destination =
                 (Vector2)transform.position +
-                direction.normalized * FrontRecoilDistance);
+                direction.normalized * FrontRecoilDistance;
             controller.CancelCommand();
             movement.Knockback(destination, FrontRecoilMoveDuration);
             characterAnimation.PlayHurt(

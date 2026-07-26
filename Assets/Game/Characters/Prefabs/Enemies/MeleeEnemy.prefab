@@ -96,7 +96,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9541d86e2fd84c1d9990edf0852d74ab, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshPro
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -541,7 +541,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ce6adbe3872d5c2468021e6f5ab92d4e, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyHealth
   accumulatedDamage: 0
   alive: 1
@@ -555,9 +555,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7ed0ff1eb39d26e40b71f3c03281eedd, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyFacing
   direction: {x: 0, y: -1}
+  turnDelay: 0
 --- !u!114 &1350370916082050024
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -568,7 +569,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 32e4e25ee8028c0458925c304ef51673, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyMovement
   speed: 0.7
 --- !u!114 &3827115282466677766
@@ -581,7 +582,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6fe02699801e7804d86e324c0ea3903d, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyStateMachine
 --- !u!114 &8392636543282841276
 MonoBehaviour:
@@ -593,7 +594,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e394c68cf0db4967a6933d87d22a2a91, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CharacterSpriteAnimator
   animator: {fileID: 8850217418853797975}
   spriteRenderer: {fileID: 8854860889332483175}
@@ -607,7 +608,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bae2fbdf5570264448306b77870fade1, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyAttackModule
   indicator: {fileID: 8925016050243755972}
 --- !u!114 &6321661693941511438
@@ -620,7 +621,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4f76d2cf825b4bb9b576c1e6fef4f93b, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.MeleeEnemy
   level: 1
   health: {fileID: 0}
@@ -713,7 +714,7 @@ Animator:
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage: 
+  m_WarningMessage:
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0

@@ -9,11 +9,12 @@ namespace SimpleGame
         [SerializeField] private SpriteRenderer indicator;
         private float hitAt;
         private float nextReadyAt;
+        private float facingLockedUntil;
         private bool windingUp;
 
-        public bool IsBusy => windingUp;
+        public bool IsBusy => windingUp || Time.time < facingLockedUntil;
         public IPrototypeDamageTarget CurrentTarget => currentTarget;
-        public bool CanStart => !windingUp && Time.time >= nextReadyAt;
+        public bool CanStart => !IsBusy && Time.time >= nextReadyAt;
 
         public void ConfigureIndicator(SpriteRenderer configuredIndicator)
         {
@@ -44,7 +45,15 @@ namespace SimpleGame
             }
 
             currentTarget = target;
-            owner.FaceTowards(target.TargetTransform.position);
+            if (owner.Archetype == EnemyArchetype.Ranged)
+            {
+                owner.FaceTowardsImmediate(target.TargetTransform.position);
+            }
+            else
+            {
+                owner.FaceTowards(target.TargetTransform.position);
+            }
+
             hitAt = Time.time + owner.Definition.AttackWindup;
             windingUp = true;
             indicator.enabled = true;
@@ -54,6 +63,12 @@ namespace SimpleGame
         {
             if (!windingUp)
             {
+                if (Time.time < facingLockedUntil)
+                {
+                    owner.StopMoving();
+                    return true;
+                }
+
                 return false;
             }
 
@@ -65,6 +80,12 @@ namespace SimpleGame
 
             if (Time.time < hitAt)
             {
+                if (owner.Archetype == EnemyArchetype.Ranged)
+                {
+                    owner.FaceTowardsImmediate(
+                        currentTarget.TargetTransform.position);
+                }
+
                 return true;
             }
 
@@ -73,22 +94,24 @@ namespace SimpleGame
                 currentTarget.TargetTransform.position);
             if (distance <= owner.Definition.AttackRange + 0.35f)
             {
-                owner.PlayAttack(currentTarget.TargetTransform.position);
+                owner.PlayAttackFacingDirection();
                 currentTarget.ReceiveDamage(owner.Definition.AttackDamage);
             }
 
             windingUp = false;
             indicator.enabled = false;
-            nextReadyAt = Time.time + Mathf.Max(
-                0.1f,
-                owner.Definition.AttackCooldown - owner.Definition.AttackWindup);
+            facingLockedUntil =
+                Time.time + owner.Definition.PostAttackFacingLock;
+            nextReadyAt =
+                Time.time + Mathf.Max(0.1f, owner.Definition.AttackCooldown);
             currentTarget = null;
-            return false;
+            return Time.time < facingLockedUntil;
         }
 
         public void Cancel()
         {
             windingUp = false;
+            facingLockedUntil = 0f;
             currentTarget = null;
             if (indicator != null)
             {

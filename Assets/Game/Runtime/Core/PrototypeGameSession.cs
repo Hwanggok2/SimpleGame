@@ -7,13 +7,12 @@ namespace SimpleGame
     public sealed class PrototypeGameSession : MonoBehaviour
     {
         [Header("Scene References")]
-        [SerializeField] private MapBounds mapBounds;
         [SerializeField] private PlayerRoot player;
-        [SerializeField] private CastleRoot castle;
         [SerializeField] private PrototypeEnemyFactory enemyFactory;
         [SerializeField] private Transform enemyRoot;
         [SerializeField] private Camera worldCamera;
         [SerializeField] private CombatFeedbackController combatFeedback;
+        [SerializeField] private EnemyWorldRecycler enemyRecycler;
         [SerializeField] private PrototypeHUDPresenter hudPresenter;
         [Header("Game Data")]
         [SerializeField] private string stageId = "Stage01";
@@ -32,9 +31,8 @@ namespace SimpleGame
         public event Action<bool> CriticalCardVisibilityChanged;
         public event Action<bool> GameOverVisibilityChanged;
 
-        public MapBounds Bounds => mapBounds;
         public PlayerRoot Player => player;
-        public CastleRoot Castle => castle;
+        public IReadOnlyList<EnemyBase> Enemies => enemies;
         public int Score { get; private set; }
         public int AccountExperience =>
             gameData != null && gameData.GlobalBalance != null
@@ -44,22 +42,20 @@ namespace SimpleGame
         public bool IsPlaying => state == GameRunState.Playing;
 
         public void ConfigureScene(
-            MapBounds configuredBounds,
             PlayerRoot configuredPlayer,
-            CastleRoot configuredCastle,
             PrototypeEnemyFactory configuredFactory,
             Transform configuredEnemyRoot,
             Camera configuredCamera,
             CombatFeedbackController configuredCombatFeedback,
+            EnemyWorldRecycler configuredEnemyRecycler,
             PrototypeHUDPresenter configuredPresenter)
         {
-            mapBounds = configuredBounds;
             player = configuredPlayer;
-            castle = configuredCastle;
             enemyFactory = configuredFactory;
             enemyRoot = configuredEnemyRoot;
             worldCamera = configuredCamera;
             combatFeedback = configuredCombatFeedback;
+            enemyRecycler = configuredEnemyRecycler;
             hudPresenter = configuredPresenter;
         }
 
@@ -76,34 +72,34 @@ namespace SimpleGame
             Time.timeScale = 1f;
             if (gameData == null ||
                 !gameData.IsConfigured ||
-                stageSpawner == null)
+                stageSpawner == null ||
+                enemyRecycler == null)
             {
                 Debug.LogError(
                     "PrototypeGameSession requires GameDataManifest " +
-                    "and StageSpawnController.",
+                    "StageSpawnController, and EnemyWorldRecycler.",
                     this);
                 enabled = false;
                 return;
             }
 
             EnsureCombatFeedback();
-            castle.Configure(30);
             player.Configure(
                 this,
                 worldCamera,
-                mapBounds,
                 gameData.PlayerLevelExperience,
                 gameData.GlobalBalance);
             enemyFactory.ConfigureAssets(
                 gameData.EnemyAssets,
                 gameData.EnemyBalance);
             enemyFactory.Configure(this, enemyRoot);
+            enemyRecycler.Configure(this, player.GetComponent<PlayerWorldArea>());
             hudPresenter.Initialize(this);
 
-            castle.Health.Depleted += OnCastleDepleted;
+            player.Health.Depleted += OnPlayerDepleted;
             player.Progression.LevelUpCardRequested += OnPlayerLevelUp;
             stageSpawner.Begin(stageId);
-            ShowHint("Tap the field to move. Tap an enemy to test the combat rules.");
+            ShowHint("Survive. Tap the field to move and tap enemies to attack.");
             QueueCardSelections(
                 CalculateStartingCardSelectionCount(accountLevel),
                 true);
@@ -111,9 +107,11 @@ namespace SimpleGame
 
         private void Update()
         {
-            if (state != GameRunState.GameOver && castle != null && !castle.IsAlive)
+            if (state != GameRunState.GameOver &&
+                player != null &&
+                !player.IsAlive)
             {
-                OnCastleDepleted();
+                OnPlayerDepleted();
             }
 
             if (IsPlaying)
@@ -126,9 +124,9 @@ namespace SimpleGame
         private void OnDestroy()
         {
             Time.timeScale = 1f;
-            if (castle != null && castle.Health != null)
+            if (player != null && player.Health != null)
             {
-                castle.Health.Depleted -= OnCastleDepleted;
+                player.Health.Depleted -= OnPlayerDepleted;
             }
 
             if (player != null && player.Progression != null)
@@ -283,27 +281,22 @@ namespace SimpleGame
             }
 
             continueCount++;
-            castle.RestoreAfterContinue();
             player.RestoreAfterContinue();
-            foreach (EnemyBase enemy in enemies)
-            {
-                if (enemy != null && enemy.IsAlive)
-                {
-                    enemy.ApplyContinueKnockback(mapBounds, castle.transform.position);
-                }
-            }
+            enemyRecycler.RepositionAllNormalEnemies();
 
             state = GameRunState.Playing;
             GameOverVisibilityChanged?.Invoke(false);
-            ShowHint($"Rewarded ad simulated: Continue {continueCount}/2, Castle invulnerable for 3s.");
+            ShowHint(
+                $"Rewarded ad simulated: Continue {continueCount}/2, " +
+                "Player restored to full HP.");
         }
 
-        public void DebugDamageCastle()
+        public void DebugDamagePlayer()
         {
             if (IsPlaying)
             {
-                castle.ReceiveDamage(10);
-                ShowHint("Debug: Castle took 10 damage.");
+                player.ReceiveDamage(10);
+                ShowHint("Debug: Player took 10 damage.");
             }
         }
 
@@ -318,7 +311,7 @@ namespace SimpleGame
             ShowHint("Debug: Player EXP +5.");
         }
 
-        private void OnCastleDepleted()
+        private void OnPlayerDepleted()
         {
             if (state == GameRunState.GameOver)
             {
@@ -331,7 +324,8 @@ namespace SimpleGame
             Time.timeScale = 1f;
             CriticalCardVisibilityChanged?.Invoke(false);
             GameOverVisibilityChanged?.Invoke(true);
-            ShowHint("Castle destroyed. CONTINUE simulates a successful rewarded ad.");
+            ShowHint(
+                "Player defeated. CONTINUE simulates a successful rewarded ad.");
         }
 
         private void OnPlayerLevelUp()

@@ -21,7 +21,7 @@ namespace SimpleGame
             view.Bind(HudButtonId.Pause, session.TogglePause);
             view.Bind(HudButtonId.CriticalCard, session.SelectCriticalCard);
             view.Bind(HudButtonId.ContinueAd, session.SimulateRewardedContinue);
-            view.Bind(HudButtonId.DamageCastle, session.DebugDamageCastle);
+            view.Bind(HudButtonId.DamagePlayer, session.DebugDamagePlayer);
             view.Bind(HudButtonId.GrantXp, session.DebugGrantPlayerExperience);
 
             session.HintChanged += OnHintChanged;
@@ -71,9 +71,6 @@ namespace SimpleGame
             view.SetText(
                 HudTextId.PlayerHp,
                 $"PLAYER HP {session.Player.Health.CurrentHealth}/{session.Player.Health.MaxHealth}");
-            view.SetText(
-                HudTextId.CastleHp,
-                $"CASTLE HP {session.Castle.Health.CurrentHealth}/{session.Castle.Health.MaxHealth}");
             view.SetText(
                 HudTextId.GameOverTitle,
                 $"GAME OVER\nScore {session.Score} / Account EXP {session.AccountExperience}");

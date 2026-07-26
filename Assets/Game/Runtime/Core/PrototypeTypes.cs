@@ -78,6 +78,7 @@ namespace SimpleGame
         [SerializeField] private float attackAreaRadius;
         [SerializeField] private float approachRange;
         [SerializeField] private float facingTurnDelay;
+        [SerializeField] private float postAttackFacingLock;
         [SerializeField] private int killExperience;
         [SerializeField] private int score;
 
@@ -93,6 +94,7 @@ namespace SimpleGame
             float attackAreaRadius,
             float approachRange,
             float facingTurnDelay,
+            float postAttackFacingLock,
             int killExperience,
             int score)
         {
@@ -107,6 +109,7 @@ namespace SimpleGame
             this.attackAreaRadius = attackAreaRadius;
             this.approachRange = approachRange;
             this.facingTurnDelay = facingTurnDelay;
+            this.postAttackFacingLock = postAttackFacingLock;
             this.killExperience = killExperience;
             this.score = score;
         }
@@ -122,6 +125,7 @@ namespace SimpleGame
         public float AttackAreaRadius => attackAreaRadius;
         public float ApproachRange => approachRange;
         public float FacingTurnDelay => facingTurnDelay;
+        public float PostAttackFacingLock => postAttackFacingLock;
         public int KillExperience => killExperience;
         public int Score => score;
     }
@@ -158,6 +162,7 @@ namespace SimpleGame
                     1.5f,
                     0f,
                     0f,
+                    0.5f,
                     0f,
                     2,
                     5),
@@ -169,10 +174,11 @@ namespace SimpleGame
                     2,
                     0.8f,
                     0f,
-                    2.2f,
+                    2f,
                     0f,
                     0f,
-                    0f,
+                    0.5f,
+                    1f,
                     2,
                     5),
                 EnemyArchetype.Shield => new EnemyDefinition(
@@ -187,6 +193,7 @@ namespace SimpleGame
                     0f,
                     2.25f,
                     0.5f,
+                    0f,
                     0,
                     0),
                 EnemyArchetype.Boss => new EnemyDefinition(
@@ -200,6 +207,7 @@ namespace SimpleGame
                     3f,
                     1.35f,
                     0f,
+                    0.5f,
                     0f,
                     5,
                     25),

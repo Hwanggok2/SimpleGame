@@ -105,6 +105,13 @@ namespace SimpleGame
             movement.Stop();
         }
 
+        public void FaceTowardsImmediate(Vector2 position)
+        {
+            facing.FaceImmediate(position);
+            characterAnimation.Face(facing.Direction);
+            movement.Stop();
+        }
+
         public void StopMoving()
         {
             movement.Stop();
@@ -116,10 +123,27 @@ namespace SimpleGame
             characterAnimation.SetGuard(facing.Direction);
         }
 
+        public void GuardCurrentDirection()
+        {
+            movement.Stop();
+            characterAnimation.SetGuard(facing.Direction);
+        }
+
+        public void GuardTowardsImmediate(Vector2 position)
+        {
+            facing.FaceImmediate(position);
+            characterAnimation.SetGuard(facing.Direction);
+        }
+
         public void PlayAttack(Vector2 targetPosition)
         {
             characterAnimation.PlayAttack(
                 targetPosition - (Vector2)transform.position);
+        }
+
+        public void PlayAttackFacingDirection()
+        {
+            characterAnimation.PlayAttack(facing.Direction);
         }
 
         public void RefreshLevelLabel()
@@ -186,18 +210,17 @@ namespace SimpleGame
                 characterAnimation.PlayHurt(hitDirection);
             }
 
-            stateMachine.OnPlayerHit(attacker);
             return damaged;
         }
 
-        public void ApplyContinueKnockback(MapBounds bounds, Vector2 castlePosition)
+        public void Reposition(Vector2 position, Vector2 targetPosition)
         {
-            Vector2 direction = (Vector2)transform.position - castlePosition;
-            Vector2 edge = bounds.GetBoundaryPoint(transform.position, direction);
-            Vector2 destination = Archetype == EnemyArchetype.Boss
-                ? Vector2.Lerp(transform.position, edge, 0.5f)
-                : edge;
-            movement.Knockback(destination, 0.55f);
+            attack?.Cancel();
+            bossAttack?.Cancel();
+            movement.StopImmediately();
+            transform.position = position;
+            facing.FaceImmediate(targetPosition);
+            stateMachine.ResetAfterReposition();
         }
 
         private void BuildVisual()

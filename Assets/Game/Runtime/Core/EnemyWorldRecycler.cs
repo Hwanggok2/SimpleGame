@@ -1,0 +1,75 @@
+using UnityEngine;
+
+namespace SimpleGame
+{
+    public sealed class EnemyWorldRecycler : MonoBehaviour
+    {
+        private const float CheckInterval = 0.2f;
+
+        [SerializeField] private PrototypeGameSession session;
+        [SerializeField] private PlayerWorldArea worldArea;
+        private float nextCheckAt;
+
+        public void Configure(
+            PrototypeGameSession gameSession,
+            PlayerWorldArea area)
+        {
+            session = gameSession;
+            worldArea = area;
+        }
+
+        public void RepositionAllNormalEnemies()
+        {
+            if (session == null || worldArea == null)
+            {
+                return;
+            }
+
+            foreach (EnemyBase enemy in session.Enemies)
+            {
+                if (CanReposition(enemy))
+                {
+                    Reposition(enemy);
+                }
+            }
+        }
+
+        private void Update()
+        {
+            if (session == null ||
+                worldArea == null ||
+                !session.IsPlaying ||
+                Time.time < nextCheckAt)
+            {
+                return;
+            }
+
+            nextCheckAt = Time.time + CheckInterval;
+            foreach (EnemyBase enemy in session.Enemies)
+            {
+                if (CanReposition(enemy) &&
+                    worldArea.IsOutsideRecycleArea(
+                        enemy.transform.position))
+                {
+                    Reposition(enemy);
+                }
+            }
+        }
+
+        private static bool CanReposition(EnemyBase enemy)
+        {
+            return enemy != null &&
+                enemy.IsAlive &&
+                enemy.Archetype != EnemyArchetype.Boss;
+        }
+
+        private void Reposition(EnemyBase enemy)
+        {
+            Vector2 position = worldArea.GetOppositeSpawnPosition(
+                enemy.transform.position);
+            enemy.Reposition(
+                position,
+                session.Player.transform.position);
+        }
+    }
+}

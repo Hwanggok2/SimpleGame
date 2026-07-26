@@ -39,7 +39,7 @@ namespace SimpleGame
             }
         }
 
-        public void Tick(PlayerRoot player, CastleRoot castle)
+        public void Tick(PlayerRoot player)
         {
             if (cycleStartedAt < 0f)
             {
@@ -53,7 +53,7 @@ namespace SimpleGame
                 }
                 else
                 {
-                    owner.MoveTowards(castle.transform.position);
+                    owner.MoveTowards(player.transform.position);
                 }
 
                 return;
@@ -66,7 +66,7 @@ namespace SimpleGame
             if (elapsed < owner.Definition.AttackWindup)
             {
                 indicator.enabled = true;
-                owner.MoveTowards(castle.transform.position);
+                owner.MoveTowards(player.transform.position);
                 return;
             }
 
@@ -91,7 +91,7 @@ namespace SimpleGame
             indicator.enabled = false;
             if (elapsed < owner.Definition.AttackCooldown)
             {
-                owner.MoveTowards(castle.transform.position);
+                owner.MoveTowards(player.transform.position);
                 return;
             }
 

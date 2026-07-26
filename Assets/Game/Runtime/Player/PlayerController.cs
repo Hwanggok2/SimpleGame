@@ -12,7 +12,6 @@ namespace SimpleGame
         private PlayerRoot root;
         private PrototypeGameSession session;
         private Camera worldCamera;
-        private MapBounds mapBounds;
         private EnemyBase pendingEnemy;
         private Vector2 destination;
         private bool hasDestination;
@@ -22,13 +21,11 @@ namespace SimpleGame
         public void Configure(
             PlayerRoot playerRoot,
             PrototypeGameSession gameSession,
-            Camera camera,
-            MapBounds bounds)
+            Camera camera)
         {
             root = playerRoot;
             session = gameSession;
             worldCamera = camera;
-            mapBounds = bounds;
         }
 
         private void Update()
@@ -74,7 +71,7 @@ namespace SimpleGame
 
             Vector3 world = worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, -worldCamera.transform.position.z));
-            destination = mapBounds.Clamp(world);
+            destination = world;
             EnemyBase directEnemy = session.FindEnemyNear(
                 destination,
                 EnemySelectionRadius);

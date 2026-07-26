@@ -172,10 +172,10 @@ GameBootstrap
 World
 ├─ Player
 │  └─ PlayerRoot 및 기능 컴포넌트
-├─ Castle
-│  └─ CastleRoot 및 기능 컴포넌트
-└─ Enemies
-   └─ EnemyBase 인스턴스
+├─ WorldGrid
+│  └─ 3×3 WorldChunk/Tilemap 인스턴스
+└─ EnemyRoot
+   └─ 청크와 독립된 EnemyBase 인스턴스
 
 UI
 ├─ HUDView
@@ -185,6 +185,7 @@ UI
 └─ ClearView
 
 Presentation
+├─ CameraFollowController
 ├─ CombatFeedbackController
 └─ CameraShakeController
 ```
@@ -218,7 +219,7 @@ Entity Facade
 
 ### 5.1 부모의 역할
 
-`EnemyBase`, `PlayerRoot`, `CastleRoot`는 해당 Entity의 Facade이자 Coordinator다.
+`EnemyBase`, `PlayerRoot`는 해당 Entity의 Facade이자 Coordinator다.
 
 부모가 담당한다.
 
@@ -315,9 +316,9 @@ public abstract class EnemyBase : MonoBehaviour
 | 클래스 | 차별화되는 핵심 규칙 |
 |---|---|
 | `MeleeEnemy` | 근거리 레벨 차이 공격 규칙과 근접 행동 |
-| `RangedEnemy` | 원거리 공격 취소와 플레이어 타깃 전환 |
-| `ShieldEnemy` | Player 추격, 하늘색 범위 끝 정지, 경로 차단, 조건부 정면 반동, 직접 공격 없음 |
-| `BossEnemy` | Castle 목표 유지, 고유 공격 주기, 넉백 저항 |
+| `RangedEnemy` | 발사 전 자유 조준, 발사 후 1초 방향 고정과 2초 쿨타임 |
+| `ShieldEnemy` | Player 추격, 하늘색 범위 끝 정지, 0.8초 Shield 방향 고정, 조건부 정면 반동 |
+| `BossEnemy` | Player 목표 유지, 고유 3초 공격 주기, 일반 Enemy 재배치 제외 |
 
 파생 클래스에는 해당 Enemy에서만 달라지는 규칙만 둔다.
 
@@ -327,8 +328,8 @@ public abstract class EnemyBase : MonoBehaviour
 |---|---|
 | `EnemyHealth` | 현재 체력 또는 남은 피해량, 피격, 사망 |
 | `EnemyMovement` | 목표 위치 이동, 정지 거리 판정, 이동 재개 |
-| `EnemyTargeting` | Castle 및 Player 목표 선택 |
-| `EnemyFacing` | 바라보는 방향, 정면 및 후면 판정 |
+| `EnemyTargeting` | 생존한 Player 목표 유지 |
+| `EnemyFacing` | 바라보는 방향, 0.5초 좌우 전환 지연, 정면 및 후면 판정 |
 | `EnemyAttackBase` | 공격 가능 여부, 준비, 판정, 쿨타임 |
 | `EnemyStateMachine` | 행동 상태와 전환 |
 | `EnemyVisual` | SpriteRenderer, 피격 Flash, 사망 연출 |
@@ -382,23 +383,22 @@ EnemyAttackBase
 ```text
 Spawn
   ↓
-MoveToCastle
-  ├─ Castle이 사거리 안 → AttackCastle
-  ├─ Player에게 공격받음 → ChasePlayer
-  └─ 사망 → Dead
-
 ChasePlayer
-  ├─ Player가 사거리 안 → AttackPlayer
-  ├─ Player 사망 → MoveToCastle
+  ├─ Player가 사거리 안 → AttackTelegraph
+  ├─ 재배치 경계 통과 → Reposition
   └─ 사망 → Dead
 
-AttackPlayer
-  ├─ 공격 종료 → ChasePlayer
-  ├─ Player 사망 → MoveToCastle
+AttackTelegraph
+  ├─ 실제 공격 판정 → AttackRecovery
+  ├─ Player 사망 → Hold
+  └─ 사망 → Dead
+
+AttackRecovery
+  ├─ 방향 고정 종료 → ChasePlayer
   └─ 사망 → Dead
 ```
 
-방패병은 일반 Enemy의 Castle 목표 상태를 사용하지 않고 다음 흐름을 사용한다.
+방패병은 공격 상태 대신 다음 흐름을 사용한다.
 
 ```text
 Spawn
@@ -410,6 +410,7 @@ ChasePlayer
 
 HoldApproachBoundary
   ├─ Player가 하늘색 범위 밖으로 이동 → ChasePlayer
+  ├─ Player가 반대편에 0.8초 유지 → ApplyPendingFacing
   ├─ Player 사망 → Hold
   └─ 사망 → Dead
 ```
@@ -419,7 +420,7 @@ HoldApproachBoundary
 보스의 공격 상태:
 
 ```text
-MoveToCastle
+ChasePlayer
   ↓
 AttackTelegraph 1.5초
   ↓
@@ -427,7 +428,7 @@ AttackActive 0.5초
   ↓
 AttackRecovery 1초
   ↓
-MoveToCastle
+ChasePlayer
 ```
 
 초기 구현은 명시적인 enum 상태와 전환으로 시작한다. 상태마다 독립 데이터와 로직이 커질 때만 상태별 클래스로 분리한다.
@@ -509,7 +510,7 @@ Assets/Game/Characters/
 
 `PrototypeEnemyFactory`는 런타임에 GameObject와 컴포넌트를 조립하지 않고 직렬화된 Enemy Prefab을 Instantiate한다. 각 Prefab은 고정된 컴포넌트, SpriteRenderer, AnimatorController 참조를 Inspector에서 확인할 수 있어야 한다.
 
-Player와 Enemy Prefab의 `Rigidbody2D`, `Collider2D`, Animator, 공격 범위, 공격 예고, 방향 마커, 레벨 라벨은 모두 Prefab에 직렬화한다. Castle의 물리·충돌·시각 요소와 Arena 배경, CameraShake, CombatFeedback도 Scene에 미리 저장한다. 런타임 코드는 `AddComponent`나 고정 자식 GameObject 생성을 수행하지 않고 저장된 참조의 값과 활성 상태만 변경한다.
+Player와 Enemy Prefab의 `Rigidbody2D`, `Collider2D`, Animator, 공격 범위, 공격 예고, 방향 마커, 레벨 라벨은 모두 Prefab에 직렬화한다. `CameraFollowController`, `CameraShakeController`, `PlayerWorldArea`, `EnemyWorldRecycler`, `WorldChunkGrid`와 9개 Tilemap 청크도 Scene에 미리 저장한다. 런타임 코드는 `AddComponent`나 고정 자식 GameObject 생성을 수행하지 않고 저장된 참조의 값과 활성 상태만 변경한다.
 
 LightBandit 원본 Sprite는 X Scale `+1`에서 왼쪽을 향하고 Goblin·Skeleton 원본 Sprite는 X Scale `+1`에서 오른쪽을 향한다. 따라서 동일한 `FaceLeft` 파라미터를 사용하되 Player Facing Clip은 Left `+1`/Right `-1`, Enemy Facing Clip은 Left `-1`/Right `+1`로 분리한다. 이 차이는 AnimationClip과 AnimatorController 자산에서 해결하며 런타임 방향 반전 코드를 추가하지 않는다.
 
@@ -531,33 +532,47 @@ PlayerCombat
 
 Player보다 2레벨 이상 낮은 방패병은 정면 공격 피해를 받지만 Player 반동은 발생시키지 않는다. 반동 넉백 거리와 이동 시간은 데이터로 관리한다.
 
-## 9. Castle 구조
+## 9. 카메라와 무한 월드 구조
 
 ```text
-Castle
-├─ CastleRoot
-├─ CastleHealth
-├─ CastleInvincibility
-└─ CastleVisual
+Player
+├─ PlayerRoot
+└─ PlayerWorldArea
+
+Main Camera
+├─ CameraFollowController
+└─ CameraShakeController
+
+WorldGrid
+├─ WorldChunkGrid
+└─ WorldChunk × 9
+   ├─ Tilemap
+   └─ TilemapRenderer
+
+PrototypeSystems
+└─ EnemyWorldRecycler
 ```
 
-`CastleRoot`는 게임 오버와 광고 이어하기에 필요한 공통 API를 제공한다.
+- `CameraFollowController`가 Player 실제 월드 좌표를 추적한다.
+- `CameraShakeController`는 추적 위치 위에 일시적인 오프셋만 합성하고 종료 시 추적 위치로 복귀한다.
+- `WorldChunkGrid`는 Player가 속한 청크를 중심으로 3×3 좌표를 유지한다.
+- `WorldChunk` 9개는 삭제·생성하지 않고 멀어진 행·열을 진행 방향 앞으로 재배치한다.
+- 지형 원본은 현재 4종 Tile을 사용하며 활성 인스턴스 수와 원본 종류 수를 구분한다.
+- `PlayerWorldArea`는 카메라보다 큰 Spawn 경계와 그보다 큰 재배치 경계를 계산한다.
+- `EnemyWorldRecycler`는 `GameSession`에 등록된 일반 Enemy만 검사하고 청크와 독립된 `EnemyRoot` 안에서 반대편 Spawn 경계로 재배치한다.
+- Tag 문자열은 보조 필터로만 사용할 수 있으며 청크·Enemy 재배치 책임은 명시적인 컴포넌트가 소유한다.
 
 이어하기 처리 흐름:
 
 ```text
 GameSession
   ↓ Continue 승인
-CastleRoot.Restore(50%)
+PlayerRoot.RestoreAfterContinue(MaxHP)
   ↓
-CastleInvincibility.Activate(3초)
+EnemyWorldRecycler.RepositionAllNormalEnemies()
   ↓
-PlayerRoot.Respawn(MaxHP)
-  ↓
-EnemyKnockbackService.PushToMapBounds()
+Playing 복귀
 ```
-
-광고 SDK의 성공 여부는 `GameSession` 또는 별도 광고 서비스가 처리하고 Castle은 광고 시스템을 직접 알지 않는다.
 
 ## 10. 이벤트와 직접 호출 기준
 
@@ -585,7 +600,6 @@ PlayerCombat → PlayerStateMachine.LockInput()
 - `PlayerLevelChanged`
 - `CriticalChanceChanged`
 - `ScoreChanged`
-- `CastleDestroyed`
 - `GameOver`
 - `PlayerAttackResolved`
 
@@ -615,6 +629,8 @@ EnemyDefinition
 ├─ AttackRange
 ├─ AttackDamage
 ├─ AttackCooldown
+├─ FacingTurnDelay
+├─ PostAttackFacingLock
 ├─ Score
 ├─ Experience
 └─ Prefab
@@ -869,7 +885,9 @@ Unity 수동 설정
 GameDataManifest
 
 PrototypeScene
-  └─ SpawnPointRegistry (SpawnPointId ↔ Transform)
+  ├─ SpawnPointRegistry (Player 기준 SpawnPointId ↔ Transform)
+  ├─ WorldChunkGrid (3×3 Tilemap)
+  └─ PlayerWorldArea (Spawn/재배치 경계)
 ```
 
 ### 15.1 자동 생성 ScriptableObject
@@ -896,9 +914,9 @@ Unity Object 참조와 Unity에서 직접 조정하는 연출값은 Excel에 넣
 
 ### 15.3 Scene 데이터
 
-스폰 위치의 좌표는 Scene에서 디자이너가 편집한다. `SpawnPointRegistry`가
+스폰 위치의 좌표는 Scene에서 디자이너가 Player 기준 로컬 좌표로 편집한다. `SpawnPointRegistry`가
 `LEFT_01`, `RIGHT_01`, `TOP_01`, `BOTTOM_01` 같은 ID를 실제 Transform에
-연결한다. Excel에는 좌표 대신 `SpawnPointId`만 기록한다.
+연결한다. Spawn Transform은 Player를 따라가므로 장시간 이동 후에도 현재 카메라 주변에서 생성된다. Excel에는 좌표 대신 `SpawnPointId`만 기록한다.
 
 ### 15.4 진입점과 검증
 
@@ -941,7 +959,7 @@ Assets/Game/
 │  │  ├─ Ranged/
 │  │  ├─ Shield/
 │  │  └─ Boss/
-│  ├─ Castle/
+│  ├─ World/
 │  ├─ Spawning/
 │  ├─ Progression/
 │  ├─ Presentation/
@@ -997,8 +1015,14 @@ GameObject와 시간 흐름이 필요한 규칙:
 - Player 반동 넉백과 0.5초 입력 차단
 - 일반 타격, 치명타와 정면 반동별 화면 흔들림
 - Enemy 목표 변경
-- 플레이어 사망 및 부활
-- Castle 광고 이어하기
+- Player 추적과 0.5초 좌우 방향 전환 지연
+- 근거리 공격 예고 방향 고정과 판정 후 해제
+- 원거리 발사 전 조준, 발사 후 1초 방향 고정과 2초 쿨타임
+- Shield 0.8초 방향 고정과 예약 전환
+- 플레이어 사망 게임 오버와 광고 부활
+- 카메라 추적과 CameraShake 합성
+- 3×3 Tilemap 청크 재배치
+- 일반 Enemy 반대편 Spawn 경계 재배치
 - 보스 3초 공격 주기
 - Object Pool 재사용
 - UI enum 자동 바인딩과 Listener 중복 방지
@@ -1036,7 +1060,7 @@ GameObject와 시간 흐름이 필요한 규칙:
 | 공격력이 높은 원거리 Enemy | 데이터만 추가 |
 | 독 투사체를 사용하는 원거리 Enemy | `PoisonProjectileAttack` 추가 |
 | 같은 독 공격이지만 Sprite만 다름 | 데이터만 추가 |
-| Castle을 무시하고 Player만 추적 | Targeting Strategy 또는 파생 Enemy 검토 |
+| 일반 Enemy가 Player만 추적 | 공통 `EnemyStateMachine` 규칙 |
 | 다단계 고유 상태를 가진 보스 | `BossEnemy` 및 전용 상태 머신 |
 
 ## 21. 구현 순서
@@ -1048,12 +1072,13 @@ GameObject와 시간 흐름이 필요한 규칙:
 5. `MeleeEnemy`와 `RangedEnemy`
 6. Player 이동, 타깃 선택과 공격
 7. `ShieldEnemy`
-8. Castle과 게임 상태
+8. Player 사망 게임 오버와 게임 상태
 9. 인게임 경험치와 치명타 카드
 10. Boss 상태와 공격 주기
 11. UI View, Presenter와 enum 자동 바인딩
 12. Factory, Object Pool과 WaveSpawner
-13. 저장, 계정 성장과 광고 연결
+13. 카메라 추적, 3×3 청크와 Enemy 재배치
+14. 저장, 계정 성장과 광고 연결
 
 각 단계는 현재 단계에 필요한 최소 클래스만 추가하며 이후 기능을 예상해 불필요한 범용 프레임워크를 먼저 만들지 않는다.
 
