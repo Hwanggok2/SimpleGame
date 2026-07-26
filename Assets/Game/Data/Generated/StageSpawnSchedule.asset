@@ -109,12 +109,110 @@ MonoBehaviour:
     spawnTimeSec: 1
     spawnIndex: 14
     spawnPointId: LEFT_03
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_02
+    spawnTimeSec: 5
+    spawnIndex: 1
+    spawnPointId: TOP_02
+    enemyId: GoblinMelee
+    enemyLevel: 2
+  - stageId: Stage01
+    waveId: WAVE_02
+    spawnTimeSec: 5
+    spawnIndex: 2
+    spawnPointId: TOP_03
+    enemyId: GoblinMelee
+    enemyLevel: 2
+  - stageId: Stage01
+    waveId: WAVE_02
+    spawnTimeSec: 5
+    spawnIndex: 3
+    spawnPointId: TOP_04
+    enemyId: GoblinMelee
+    enemyLevel: 2
+  - stageId: Stage01
+    waveId: WAVE_02
+    spawnTimeSec: 5
+    spawnIndex: 4
+    spawnPointId: BOTTOM_02
+    enemyId: GoblinMelee
+    enemyLevel: 2
+  - stageId: Stage01
+    waveId: WAVE_02
+    spawnTimeSec: 5
+    spawnIndex: 5
+    spawnPointId: BOTTOM_03
+    enemyId: GoblinMelee
+    enemyLevel: 2
+  - stageId: Stage01
+    waveId: WAVE_02
+    spawnTimeSec: 5
+    spawnIndex: 6
+    spawnPointId: BOTTOM_04
+    enemyId: GoblinMelee
+    enemyLevel: 2
+  - stageId: Stage01
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 1
+    spawnPointId: TOP_01
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 2
+    spawnPointId: TOP_02
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 3
+    spawnPointId: TOP_05
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 4
+    spawnPointId: BOTTOM_02
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 5
+    spawnPointId: BOTTOM_04
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 6
+    spawnPointId: BOTTOM_05
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 7
+    spawnPointId: LEFT_03
     enemyId: ShieldSkeleton
     enemyLevel: 1
   - stageId: Stage01
-    waveId: WAVE_05
-    spawnTimeSec: 120
-    spawnIndex: 15
-    spawnPointId: TOP_03
-    enemyId: GoblinBoss
-    enemyLevel: 5
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 8
+    spawnPointId: LEFT_05
+    enemyId: ShieldSkeleton
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_03
+    spawnTimeSec: 7
+    spawnIndex: 9
+    spawnPointId: RIGHT_03
+    enemyId: ShieldSkeleton
+    enemyLevel: 2

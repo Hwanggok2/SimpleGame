@@ -104,6 +104,12 @@ The current prototype reads balance and schedule data through
   - `WorldGrid` with nine active Tilemaps
   - four Tile assets under `Assets/Game/World/Tiles`
 
+The source workbook is `Planning/GameData.xlsx`. After saving Excel, run
+`SimpleGame > Data > Import Excel` in Edit Mode. The importer validates every
+required sheet before changing any generated asset; a failed import reports the
+sheet, row, and column where possible and preserves the previously valid SO data.
+`Import Excel From...` can be used for an alternate `.xlsx` file.
+
 `StageSpawnController` reads elapsed game time, resolves each `SpawnPointId` through
 the Scene registry, and asks `PrototypeEnemyFactory` to create the configured Enemy
 Prefab. Fixed components remain serialized in the Scene or Prefab; none of these

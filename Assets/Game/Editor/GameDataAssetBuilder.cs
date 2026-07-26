@@ -118,35 +118,60 @@ namespace SimpleGameEditor
             EnsureFolder(ProfilePath);
 
             EnemyBalanceTable enemyBalance =
-                CreateOrLoad<EnemyBalanceTable>(EnemyBalancePath);
-            enemyBalance.Configure(Enum.GetValues(typeof(EnemyArchetype))
-                .Cast<EnemyArchetype>()
-                .Select(PrototypeEnemyDefinitions.Create));
+                CreateOrLoad<EnemyBalanceTable>(
+                    EnemyBalancePath,
+                    out bool enemyBalanceCreated);
+            if (enemyBalanceCreated || enemyBalance.Definitions.Count == 0)
+            {
+                enemyBalance.Configure(Enum.GetValues(typeof(EnemyArchetype))
+                    .Cast<EnemyArchetype>()
+                    .Select(PrototypeEnemyDefinitions.Create));
+            }
 
             StageSpawnSchedule spawnSchedule =
-                CreateOrLoad<StageSpawnSchedule>(SpawnSchedulePath);
-            spawnSchedule.Configure(CreatePrototypeSpawnRows());
+                CreateOrLoad<StageSpawnSchedule>(
+                    SpawnSchedulePath,
+                    out bool spawnScheduleCreated);
+            if (spawnScheduleCreated || spawnSchedule.Entries.Count == 0)
+            {
+                spawnSchedule.Configure(CreatePrototypeSpawnRows());
+            }
 
             LevelExperienceTable playerLevels =
-                CreateOrLoad<LevelExperienceTable>(PlayerLevelPath);
-            playerLevels.Configure(
-                Enumerable.Range(1, 20)
-                    .Select(level =>
-                        new LevelExperienceRow(level, 3 + level * 2)));
+                CreateOrLoad<LevelExperienceTable>(
+                    PlayerLevelPath,
+                    out bool playerLevelsCreated);
+            if (playerLevelsCreated || playerLevels.Rows.Count == 0)
+            {
+                playerLevels.Configure(
+                    Enumerable.Range(1, 20)
+                        .Select(level =>
+                            new LevelExperienceRow(level, 3 + level * 2)));
+            }
 
             LevelExperienceTable accountLevels =
-                CreateOrLoad<LevelExperienceTable>(AccountLevelPath);
-            accountLevels.Configure(new[]
+                CreateOrLoad<LevelExperienceTable>(
+                    AccountLevelPath,
+                    out bool accountLevelsCreated);
+            if (accountLevelsCreated || accountLevels.Rows.Count == 0)
             {
-                new LevelExperienceRow(1, 40),
-                new LevelExperienceRow(2, 60),
-                new LevelExperienceRow(3, 100),
-                new LevelExperienceRow(4, 200)
-            });
+                accountLevels.Configure(new[]
+                {
+                    new LevelExperienceRow(1, 40),
+                    new LevelExperienceRow(2, 60),
+                    new LevelExperienceRow(3, 100),
+                    new LevelExperienceRow(4, 200)
+                });
+            }
 
             GlobalBalance globalBalance =
-                CreateOrLoad<GlobalBalance>(GlobalBalancePath);
-            globalBalance.Configure(5, 1, 0.1f, 0.7f);
+                CreateOrLoad<GlobalBalance>(
+                    GlobalBalancePath,
+                    out bool globalBalanceCreated);
+            if (globalBalanceCreated)
+            {
+                globalBalance.Configure(5, 1, 0.1f, 0.7f);
+            }
 
             EnemyAssetCatalog enemyCatalog =
                 CreateOrLoad<EnemyAssetCatalog>(

@@ -900,8 +900,17 @@ PrototypeScene
 - `AccountLevelExperience`: 계정 레벨별 다음 레벨 필요 EXP
 - `GlobalBalance`: 점수→계정 EXP 환산식과 치명타 공통값
 
-Excel importer가 완성되면 이 에셋들은 수동 편집하지 않고 가져오기 결과로만
-취급한다. 현재 값은 프로토타입과 작성된 스폰 시트를 바탕으로 생성한 초기값이다.
+이 에셋들은 수동 편집하지 않고 `Planning/GameData.xlsx` 가져오기 결과로만
+취급한다. Excel 저장 후 Unity 메뉴 `SimpleGame > Data > Import Excel`을
+실행하면 Editor 전용 importer가 5개 필수 시트를 모두 메모리에서 검증한 뒤
+정상일 때만 기존 에셋에 일괄 적용한다. 오류가 하나라도 있으면 기존 정상
+에셋은 변경되지 않는다.
+
+`.xlsx`는 Editor에서만 Open XML로 읽으며 런타임 빌드에는 Excel 파서가
+포함되지 않는다. 현재 단계에서는 `.bytes`를 추가 생성하지 않고, 가져온
+ScriptableObject를 Player 빌드에서도 그대로 읽는다. `Build Prototype Scene`
+또는 `Create or Update Data Assets`는 누락된 데이터 에셋만 초기값으로
+생성하며 이미 가져온 Excel 값은 덮어쓰지 않는다.
 
 ### 15.2 수동 ScriptableObject
 
@@ -982,11 +991,13 @@ Assets/Game/
 
 ```text
 SimpleGame.Runtime
+SimpleGame.Editor
 SimpleGame.Tests.EditMode
 SimpleGame.Tests.PlayMode
 ```
 
-Editor 전용 도구가 추가되면 `SimpleGame.Editor`를 별도로 추가한다.
+`SimpleGame.Editor`에는 Excel importer와 Scene/Prefab 생성 도구만 두며
+WebGL Player 빌드에는 포함하지 않는다.
 
 ## 18. 테스트 기준
 

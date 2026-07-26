@@ -1,9 +1,11 @@
 {
-  "name": "SimpleGame.Tests.EditMode",
-  "rootNamespace": "SimpleGame.Tests",
+  "name": "SimpleGame.Editor",
+  "rootNamespace": "SimpleGameEditor",
   "references": [
     "SimpleGame.Runtime",
-    "SimpleGame.Editor"
+    "Unity.InputSystem",
+    "Unity.TextMeshPro",
+    "UnityEngine.UI"
   ],
   "includePlatforms": [
     "Editor"
@@ -12,11 +14,8 @@
   "allowUnsafeCode": false,
   "overrideReferences": false,
   "precompiledReferences": [],
-  "autoReferenced": false,
+  "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": false,
-  "optionalUnityReferences": [
-    "TestAssemblies"
-  ]
+  "noEngineReferences": false
 }
