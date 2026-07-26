@@ -41,7 +41,19 @@ namespace SimpleGame
                     : rearDamage * 3;
             }
 
-            return new CombatResult(damage > 0, damage, durability);
+            bool causesRecoil = side == AttackSide.Front &&
+                ((archetype == EnemyArchetype.Shield &&
+                    enemyLevel >= playerLevel - 1) ||
+                 ((archetype == EnemyArchetype.Melee ||
+                   archetype == EnemyArchetype.Ranged) &&
+                  damage == 0));
+
+            return new CombatResult(
+                damage,
+                durability,
+                causesRecoil
+                    ? PlayerAttackReaction.Recoil
+                    : PlayerAttackReaction.None);
         }
 
         private static void GetDamageModel(

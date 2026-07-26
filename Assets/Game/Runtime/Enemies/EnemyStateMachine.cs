@@ -56,7 +56,29 @@ namespace SimpleGame
             {
                 if (owner.Session.Player.IsAlive)
                 {
-                    owner.MoveTowards(owner.Session.Player.transform.position);
+                    Vector2 playerPosition = owner.Session.Player.transform.position;
+                    float shieldDistance = Vector2.Distance(
+                        transform.position,
+                        playerPosition);
+                    if (shieldDistance > owner.Definition.ApproachRange)
+                    {
+                        owner.MoveTowards(playerPosition);
+                        if (Vector2.Distance(
+                                transform.position,
+                                playerPosition) <=
+                            owner.Definition.ApproachRange)
+                        {
+                            owner.GuardTowards(playerPosition);
+                        }
+                    }
+                    else
+                    {
+                        owner.GuardTowards(playerPosition);
+                    }
+                }
+                else
+                {
+                    owner.StopMoving();
                 }
 
                 return;
@@ -65,6 +87,7 @@ namespace SimpleGame
             SelectTarget();
             if (target == null || !target.IsAlive)
             {
+                owner.StopMoving();
                 return;
             }
 

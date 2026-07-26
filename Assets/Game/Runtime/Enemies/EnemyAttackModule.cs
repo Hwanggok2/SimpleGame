@@ -35,6 +35,7 @@ namespace SimpleGame
             }
 
             currentTarget = target;
+            owner.FaceTowards(target.TargetTransform.position);
             hitAt = Time.time + owner.Definition.AttackWindup;
             windingUp = true;
             indicator.enabled = true;
@@ -63,6 +64,7 @@ namespace SimpleGame
                 currentTarget.TargetTransform.position);
             if (distance <= owner.Definition.AttackRange + 0.35f)
             {
+                owner.PlayAttack(currentTarget.TargetTransform.position);
                 currentTarget.ReceiveDamage(owner.Definition.AttackDamage);
             }
 

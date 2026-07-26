@@ -31,6 +31,9 @@ namespace SimpleGameEditor
             PrototypeArenaVisual arena = systems.AddComponent<PrototypeArenaVisual>();
             arena.Configure(bounds);
             PrototypeEnemyFactory factory = systems.AddComponent<PrototypeEnemyFactory>();
+            CombatFeedbackController combatFeedback =
+                systems.AddComponent<CombatFeedbackController>();
+            combatFeedback.Configure(camera.GetComponent<CameraShakeController>());
             PrototypeGameSession session = systems.AddComponent<PrototypeGameSession>();
 
             var entities = new GameObject("Entities");
@@ -48,6 +51,7 @@ namespace SimpleGameEditor
                 factory,
                 enemyRoot,
                 camera,
+                combatFeedback,
                 presenter);
 
             EditorSceneManager.MarkSceneDirty(scene);
@@ -63,6 +67,7 @@ namespace SimpleGameEditor
             cameraObject.transform.position = new Vector3(0f, 0f, -10f);
 
             Camera camera = cameraObject.AddComponent<Camera>();
+            cameraObject.AddComponent<CameraShakeController>();
             camera.orthographic = true;
             camera.orthographicSize = 10f;
             camera.clearFlags = CameraClearFlags.SolidColor;

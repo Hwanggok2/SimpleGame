@@ -8,7 +8,6 @@ namespace SimpleGame
         [SerializeField] private int level = 1;
         [SerializeField] private int experience;
 
-        public event Action<int> LevelChanged;
         public event Action LevelUpCardRequested;
 
         public int Level => level;
@@ -22,7 +21,6 @@ namespace SimpleGame
             {
                 experience -= required;
                 level++;
-                LevelChanged?.Invoke(level);
                 LevelUpCardRequested?.Invoke();
                 required = RequiredExperience(level);
             }

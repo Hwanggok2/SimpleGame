@@ -6,6 +6,9 @@ namespace SimpleGame
 {
     public sealed class PlayerController : MonoBehaviour
     {
+        public const float AttackRange = 0.72f;
+        private const float EnemySelectionRadius = 1.5f;
+
         private PlayerRoot root;
         private PrototypeGameSession session;
         private Camera worldCamera;
@@ -13,7 +16,8 @@ namespace SimpleGame
         private EnemyBase pendingEnemy;
         private Vector2 destination;
         private bool hasDestination;
-        private float nextAttackTime;
+        private bool shieldApproachOnly;
+        private int pendingAttackCount;
 
         public void Configure(
             PlayerRoot playerRoot,
@@ -40,17 +44,14 @@ namespace SimpleGame
 
         private void ReadPointer()
         {
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-            {
-                return;
-            }
-
             Vector2 screenPosition;
             bool pressed;
+            int pointerId = -1;
             if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
             {
                 pressed = true;
                 screenPosition = Touchscreen.current.primaryTouch.position.ReadValue();
+                pointerId = Touchscreen.current.primaryTouch.touchId.ReadValue();
             }
             else
             {
@@ -65,11 +66,38 @@ namespace SimpleGame
                 return;
             }
 
+            if (EventSystem.current != null &&
+                EventSystem.current.IsPointerOverGameObject(pointerId))
+            {
+                return;
+            }
+
             Vector3 world = worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, -worldCamera.transform.position.z));
             destination = mapBounds.Clamp(world);
-            pendingEnemy = session.FindEnemyNear(destination, 1.1f);
+            EnemyBase selectedEnemy = session.FindEnemyNear(
+                destination,
+                EnemySelectionRadius);
+            if (selectedEnemy != null &&
+                hasDestination &&
+                pendingEnemy == selectedEnemy)
+            {
+                if (!shieldApproachOnly)
+                {
+                    pendingAttackCount++;
+                }
+
+                return;
+            }
+
+            pendingEnemy = selectedEnemy;
+            pendingAttackCount = pendingEnemy == null ? 0 : 1;
+            shieldApproachOnly = pendingEnemy != null &&
+                pendingEnemy.Archetype == EnemyArchetype.Shield &&
+                Vector2.Distance(transform.position, pendingEnemy.transform.position) >
+                    pendingEnemy.Definition.ApproachRange;
             hasDestination = true;
+            root.Movement.BeginMove();
         }
 
         private void TickCommand()
@@ -85,51 +113,84 @@ namespace SimpleGame
                 return;
             }
 
-            float stoppingDistance = pendingEnemy.Archetype == EnemyArchetype.Shield
-                ? 2.25f
-                : 0.72f;
+            float stoppingDistance = shieldApproachOnly
+                ? pendingEnemy.Definition.ApproachRange
+                : AttackRange;
             bool reached = root.Movement.StepTowards(
                 pendingEnemy.transform.position,
                 stoppingDistance);
-            if (!reached || Time.time < nextAttackTime)
+            if (!reached)
             {
                 return;
             }
 
-            if (pendingEnemy.Archetype == EnemyArchetype.Shield &&
-                Vector2.Distance(transform.position, pendingEnemy.transform.position) > 1f)
+            if (shieldApproachOnly)
             {
                 session.ShowHint("Shield approach reached. Tap the Shield again for a close attack.");
-                hasDestination = false;
+                CancelCommand();
                 return;
             }
 
-            AttackSide side = CombatResolver.GetAttackSide(
-                pendingEnemy.Facing.Direction,
-                pendingEnemy.transform.position,
-                transform.position);
-            bool critical = root.Critical.Roll();
-            CombatResult result = CombatResolver.Resolve(
-                pendingEnemy.Archetype,
-                root.Progression.Level,
-                pendingEnemy.Level,
-                side,
-                critical);
-
-            pendingEnemy.ReceivePlayerAttack(result, root, side, critical);
-            nextAttackTime = Time.time + 0.28f;
-            if (pendingEnemy.Archetype == EnemyArchetype.Shield &&
-                side == AttackSide.Front &&
-                pendingEnemy.Level > root.Progression.Level - 2)
+            EnemyBase targetEnemy = pendingEnemy;
+            while (pendingAttackCount > 0 && targetEnemy.IsAlive)
             {
-                root.LockInput(0.5f);
+                pendingAttackCount--;
+                AttackSide side = CombatResolver.GetAttackSide(
+                    targetEnemy.Facing.Direction,
+                    targetEnemy.transform.position,
+                    transform.position);
+                bool critical = root.Critical.Roll();
+                CombatResult result = CombatResolver.Resolve(
+                    targetEnemy.Archetype,
+                    root.Progression.Level,
+                    targetEnemy.Level,
+                    side,
+                    critical);
+
+                root.PlayAttack(targetEnemy.transform.position);
+                bool damageApplied = targetEnemy.ReceivePlayerAttack(
+                    result,
+                    root,
+                    side,
+                    critical);
+                if (result.PlayerReaction == PlayerAttackReaction.Recoil)
+                {
+                    root.ApplyFrontRecoil(targetEnemy.transform.position);
+                }
+
+                session.PlayCombatFeedback(
+                    damageApplied,
+                    critical,
+                    result.PlayerReaction);
+
+                if (result.PlayerReaction == PlayerAttackReaction.Recoil)
+                {
+                    CancelCommand();
+                    return;
+                }
             }
 
-            if (!pendingEnemy.IsAlive)
+            bool defeated = !targetEnemy.IsAlive;
+            if (!defeated)
             {
-                pendingEnemy = null;
-                hasDestination = true;
+                CancelCommand();
+                return;
             }
+
+            pendingEnemy = null;
+            shieldApproachOnly = false;
+            pendingAttackCount = 0;
+            hasDestination = true;
+            root.Movement.BeginMove();
+        }
+
+        public void CancelCommand()
+        {
+            pendingEnemy = null;
+            hasDestination = false;
+            shieldApproachOnly = false;
+            pendingAttackCount = 0;
+            root?.Movement.CancelMove();
         }
     }
 }

@@ -9,7 +9,6 @@ namespace SimpleGame
         [SerializeField] private int currentHealth = 10;
         private float invulnerableUntil;
 
-        public event Action<int, int> Changed;
         public event Action Depleted;
 
         public int MaxHealth => maxHealth;
@@ -22,7 +21,6 @@ namespace SimpleGame
             maxHealth = Mathf.Max(1, value);
             currentHealth = maxHealth;
             invulnerableUntil = 0f;
-            Changed?.Invoke(currentHealth, maxHealth);
         }
 
         public bool ApplyDamage(int amount)
@@ -33,7 +31,6 @@ namespace SimpleGame
             }
 
             currentHealth = Mathf.Max(0, currentHealth - amount);
-            Changed?.Invoke(currentHealth, maxHealth);
             if (currentHealth == 0)
             {
                 Depleted?.Invoke();
@@ -45,7 +42,6 @@ namespace SimpleGame
         public void RestoreFull()
         {
             currentHealth = maxHealth;
-            Changed?.Invoke(currentHealth, maxHealth);
         }
 
         public void RestoreFraction(float fraction)
@@ -54,7 +50,6 @@ namespace SimpleGame
                 Mathf.CeilToInt(maxHealth * fraction),
                 1,
                 maxHealth);
-            Changed?.Invoke(currentHealth, maxHealth);
         }
 
         public void MakeInvulnerable(float seconds)

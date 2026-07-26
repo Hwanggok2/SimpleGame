@@ -15,6 +15,30 @@
 
 게임 규칙은 [GameDesignDocument.md](GameDesignDocument.md)를 기준으로 한다.
 
+### 1.1 최종 출시 대상과 플랫폼 경계
+
+최종 제품은 앱인토스에서 실행되는 Unity WebGL 게임이다. Unity Editor와 일반 브라우저는 개발 환경으로만 취급한다.
+
+- Unity 버전은 현재 Unity 6을 유지한다.
+- 배포는 앱인토스 공식 Unity SDK의 WebGL 빌드와 `.ait` 패키징 흐름을 사용한다.
+- SDK 버전은 설치 시점의 검증된 릴리스 태그로 고정한다.
+- 게임 규칙, 전투, 이동과 상태 머신은 앱인토스 SDK를 참조하지 않는다.
+- 광고, 가시성, 계정·기기 정보와 공유처럼 호스트 기능이 필요한 코드만 플랫폼 경계에서 SDK를 호출한다.
+- SDK API는 `async/await` 기반으로 호출하고 Unity 메인 스레드를 동기 대기로 막지 않는다.
+- WebGL 전용 조건부 컴파일은 플랫폼 경계 내부에만 둔다.
+- 화면이 가려지거나 백그라운드로 전환되면 게임 시간과 오디오를 정지하고, 이벤트 구독은 비활성화 시 반드시 해제한다.
+- 보상형 광고 보상은 광고 표시 성공이 아니라 `userEarnedReward` 이벤트를 받은 뒤 한 번만 지급한다.
+- 매 프레임 할당, 불필요한 `Resources` 상주, 런타임 대량 생성과 WebGL에서 지원되지 않는 스레드·파일 시스템 의존을 피한다.
+
+현재 프로젝트에는 앱인토스 Unity SDK가 설치되어 있지 않다. 앱 ID, 아이콘 URL과 광고 그룹 ID가 준비되면 공식 SDK를 설치하고 플랫폼 경계를 구현한다. 그 전에는 `SimulateRewardedContinue`처럼 이름에 테스트 용도가 드러나는 로컬 대체 흐름만 사용한다.
+
+공식 기준:
+
+- [Unity SDK 연동](https://developers-apps-in-toss.toss.im/unity/sdk/getting-started.html)
+- [빌드 프로필](https://developers-apps-in-toss.toss.im/unity/sdk/build-profiles.html)
+- [화면 가시성 처리](https://developers-apps-in-toss.toss.im/unity/sdk/visibility.html)
+- [Unity 인앱 광고](https://developers-apps-in-toss.toss.im/unity/porting-tutorials/iaa.html)
+
 ## 2. 채택할 기본 구조
 
 프로젝트의 기본 아키텍처는 다음 패턴을 조합한다.
@@ -307,7 +331,8 @@ public abstract class EnemyBase : MonoBehaviour
 | `EnemyFacing` | 바라보는 방향, 정면 및 후면 판정 |
 | `EnemyAttackBase` | 공격 가능 여부, 준비, 판정, 쿨타임 |
 | `EnemyStateMachine` | 행동 상태와 전환 |
-| `EnemyVisual` | Animator, 피격 Flash, 사망 연출 |
+| `EnemyVisual` | SpriteRenderer, 피격 Flash, 사망 연출 |
+| `CharacterSpriteAnimator` | Player와 공유하는 상태 프레임 재생, 좌우 방향 반전, 지속 상태(Idle/Move/Guard)와 일회성 Attack/Hit 복귀 |
 
 ### 6.4 공격 Strategy
 
@@ -437,6 +462,7 @@ Player
 | `PlayerLevel` | 인게임 경험치와 레벨 |
 | `CriticalSystem` | 치명타 확률과 Roll |
 | `PlayerStateMachine` | 이동, 공격, 조작 불가, 사망 상태 |
+| `CharacterSpriteAnimator` | Player/Enemy 공용 Idle·Move·Guard·Attack·Hit 프레임 재생과 좌우 방향 반전 |
 
 ### 8.2 공격 위치 계산
 
@@ -454,6 +480,14 @@ Enemy가 회색 공격 사거리 안
 ```
 
 두 Collider가 겹쳐 있어도 Enemy가 회색 공격 사거리 안이라면 분리 이동이나 위치 보정을 수행하지 않는다. 공격 위치 계산은 거리 조건만 결정하고 물리 충돌 해결을 대신하지 않는다.
+
+`PlayerMovement`는 고정 속도 대신 명령별 시작 위치와 시작 시간을 저장한다. 빈 공간 목적지, Enemy 공격 접근 위치, 방패병 접근 위치까지의 이동 진행률을 0.1초 기준으로 계산하므로 거리가 달라도 한 이동 구간은 최대 0.1초 안에 끝난다. 새 빈 공간 또는 다른 타깃을 터치하면 현재 위치에서 시간을 다시 시작하고, 일격 처치 후 원래 터치 지점으로 이동하는 구간도 별도의 0.1초 명령으로 취급한다. 넉백 이동은 이 시간 규칙과 분리한다.
+
+`PlayerController`는 Enemy 클릭마다 공격 요청을 한 개 생성하고 Player 공격 쿨타임을 두지 않는다. 같은 Enemy에게 접근하는 동안 들어온 추가 클릭은 이동 시작 시간을 초기화하지 않고 요청 수만 누적한다. 공격 위치에 도착하면 누적된 요청을 각각 독립된 공격으로 처리한다. Enemy가 이미 회색 공격 사거리 안이라면 이동 명령 없이 해당 클릭의 공격을 즉시 처리한다.
+
+`PlayerMovement`와 `EnemyMovement`는 이동 여부와 방향만 `CharacterSpriteAnimator`에 전달한다. 공격 모듈은 실제 공격 판정 시점에, 체력 모듈을 조정하는 Facade는 실제 피해 적용 시점에 각각 Attack과 Hit 재생을 요청한다. `CharacterSpriteAnimator`는 두 캐릭터가 공유하며 리소스 프레임 배열을 정적 캐시하여 Enemy마다 같은 Sprite 목록을 다시 로드하지 않는다.
+
+방패병도 별도 애니메이터 클래스를 만들지 않고 같은 `CharacterSpriteAnimator`를 사용한다. `EnemyBase`가 Archetype에 따라 일반/Boss Enemy에는 Goblin 프로필, `ShieldEnemy`에는 Skeleton 프로필을 설정한다. `EnemyStateMachine`은 하늘색 범위 밖에서 Move(Walk), 범위 안에서 Guard(Shield)를 요청한다. Attack/Hit은 일회성 상태이고 완료되면 마지막으로 요청된 Idle·Move·Guard 상태로 복귀하므로, 방패병은 피격 후에도 범위 안이라면 Shield를 이어서 재생한다.
 
 ### 8.3 Player 공격 반동
 
@@ -519,6 +553,7 @@ PlayerCombat → PlayerStateMachine.LockInput()
 ### 10.2 이벤트
 
 여러 외부 시스템에 알려야 하는 상태 변화만 이벤트로 발행한다.
+아래 목록은 소비자가 생겼을 때 도입할 이벤트 후보이며, 구독자가 없는 이벤트를 미리 선언하지 않는다.
 
 - `HealthChanged`
 - `Died`
@@ -540,7 +575,7 @@ EnemyHealth.Died
 └─ PoolService
 ```
 
-`PlayerAttackResolved`는 공격 결과를 시각·청각 시스템에 전달하는 타입이 명확한 이벤트다. `CombatFeedbackController`는 이 결과를 받아 일반 타격, 치명타와 정면 반동을 구분하고 `CameraShakeController`에 서로 다른 흔들림 설정을 요청한다. 피해 무효 정면 공격 중 반동 조건에 해당하지 않는 결과에는 화면 흔들림을 재생하지 않는다.
+`PlayerAttackResolved`는 공격 결과를 시각·청각 시스템에 전달하는 타입이 명확한 이벤트다. `CombatFeedbackController`는 이 결과를 받아 일반 타격, 치명타와 정면 반동을 구분하고 `CameraShakeController`에 서로 다른 흔들림 설정을 요청한다. 한 공격에서 여러 조건이 겹치면 흔들림을 합산하지 않고 `치명타 > 정면 반동 > 일반 타격` 우선순위에 따라 가장 큰 흔들림 하나만 요청한다. 피해 무효 정면 공격 중 반동 조건에 해당하지 않는 결과에는 화면 흔들림을 재생하지 않는다.
 
 전역 범용 EventBus는 사용하지 않는다. 발행자와 구독자를 쉽게 추적할 수 있는 타입이 명확한 C# 이벤트를 사용한다.
 

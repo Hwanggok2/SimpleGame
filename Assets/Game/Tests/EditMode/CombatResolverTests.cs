@@ -46,6 +46,72 @@ namespace SimpleGame.Tests
             Assert.That(result.RequiredDurability, Is.EqualTo(15));
         }
 
+        [TestCase(EnemyArchetype.Shield, 3, 1, AttackSide.Front, false)]
+        [TestCase(EnemyArchetype.Shield, 2, 1, AttackSide.Front, true)]
+        [TestCase(EnemyArchetype.Shield, 1, 1, AttackSide.Front, true)]
+        [TestCase(EnemyArchetype.Shield, 1, 2, AttackSide.Front, true)]
+        [TestCase(EnemyArchetype.Shield, 1, 2, AttackSide.Rear, false)]
+        [TestCase(EnemyArchetype.Melee, 1, 2, AttackSide.Front, true)]
+        [TestCase(EnemyArchetype.Ranged, 1, 3, AttackSide.Front, true)]
+        [TestCase(EnemyArchetype.Melee, 1, 1, AttackSide.Front, false)]
+        [TestCase(EnemyArchetype.Ranged, 1, 2, AttackSide.Front, false)]
+        [TestCase(EnemyArchetype.Boss, 1, 5, AttackSide.Front, false)]
+        public void Resolve_AssignsFrontRecoilOnlyToDesignedCases(
+            EnemyArchetype archetype,
+            int playerLevel,
+            int enemyLevel,
+            AttackSide side,
+            bool expectedRecoil)
+        {
+            CombatResult result = CombatResolver.Resolve(
+                archetype,
+                playerLevel,
+                enemyLevel,
+                side,
+                false);
+
+            Assert.That(
+                result.PlayerReaction == PlayerAttackReaction.Recoil,
+                Is.EqualTo(expectedRecoil));
+        }
+
+        [Test]
+        public void Resolve_CriticalFrontHitBypassesDamageImmunityAndRecoil()
+        {
+            CombatResult result = CombatResolver.Resolve(
+                EnemyArchetype.Melee,
+                1,
+                2,
+                AttackSide.Front,
+                true);
+
+            Assert.That(result.Damage, Is.GreaterThan(0));
+            Assert.That(result.PlayerReaction, Is.EqualTo(PlayerAttackReaction.None));
+        }
+
+        [TestCase(true, true, PlayerAttackReaction.Recoil, CombatFeedbackLevel.CriticalHit)]
+        [TestCase(false, false, PlayerAttackReaction.Recoil, CombatFeedbackLevel.FrontRecoil)]
+        [TestCase(true, false, PlayerAttackReaction.None, CombatFeedbackLevel.NormalHit)]
+        [TestCase(false, false, PlayerAttackReaction.None, CombatFeedbackLevel.None)]
+        public void FeedbackResolver_SelectsOnlyTheLargestFeedback(
+            bool damageApplied,
+            bool critical,
+            PlayerAttackReaction reaction,
+            CombatFeedbackLevel expected)
+        {
+            Assert.That(
+                CombatFeedbackResolver.Resolve(damageApplied, critical, reaction),
+                Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ShieldDefinition_UsesCyanApproachRange()
+        {
+            Assert.That(
+                PrototypeEnemyDefinitions.Create(EnemyArchetype.Shield).ApproachRange,
+                Is.EqualTo(2.25f));
+        }
+
         [Test]
         public void GetAttackSide_UsesEnemyFacing()
         {

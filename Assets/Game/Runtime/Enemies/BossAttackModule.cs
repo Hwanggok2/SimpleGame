@@ -55,6 +55,7 @@ namespace SimpleGame
                 if (!damageApplied)
                 {
                     damageApplied = true;
+                    owner.PlayAttack(player.transform.position);
                     Vector2 attackCenter = indicator.transform.position;
                     if (player.IsAlive &&
                         Vector2.Distance(player.transform.position, attackCenter) <= 1.35f)

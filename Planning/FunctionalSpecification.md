@@ -75,7 +75,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | IN-001 | 월드 터치 입력 | 플레이 영역 터치 | 게임 상태 `Playing`, Player가 입력 가능 | 터치 화면 좌표를 월드 좌표로 변환하고 UI 터치 여부를 확인한 뒤 타깃 선택에 전달 | 이동 또는 공격 요청 생성 | UI 위 터치, 사망, 조작 불가, 일시정지 중에는 월드 명령을 생성하지 않음 | 터치 위치 피드백 | `InputReader`, `PlayerRoot` | UI 버튼 클릭이 Player 이동으로 이어지지 않아야 함 | P0/확정 |
 | IN-002 | 입력 차단 | Player가 사망, 공격 불가, UI 전용 상태 또는 Pause 진입 | 현재 Player 상태 | 이동과 공격 요청을 무시 | Player 상태 유지 | 입력을 버릴지 버퍼링할지 중 현재는 버리는 방식으로 정의 | 조작 불가 표시 필요 여부 미정 | `PlayerStateMachine`, `InputReader` | PC-004 반동 발생 후 0.5초 동안 연속 터치해도 이동·공격하지 않아야 함 | P0/확정 |
-| TS-001 | 터치 보정 후보 수집 | 유효한 월드 터치 발생 | 터치 월드 위치, 터치 보정 반경 | 터치 위치 주변의 살아 있는 Enemy를 수집 | 타깃 후보 목록 생성 | 보정 반경과 Collider 판정 방식은 데이터 미정 | 후보 또는 선택 타깃 강조 | `PlayerTargetSelector`, `PlayerData` | 보정 반경 밖 Enemy는 후보에 포함되지 않아야 함 | P0/부분 확정 |
+| TS-001 | 터치 보정 후보 수집 | 유효한 월드 터치 발생 | 터치 월드 위치, 터치 보정 반경 | 터치 위치 주변의 살아 있는 Enemy를 수집 | 타깃 후보 목록 생성 | 프로토타입 반경은 월드 좌표 1.5, 최종 반경과 Collider 판정 방식은 데이터 확정 필요 | 후보 또는 선택 타깃 강조 | `PlayerTargetSelector`, `PlayerData` | 보정 반경 밖 Enemy는 후보에 포함되지 않아야 함 | P0/부분 확정 |
 | TS-002 | 타깃 우선순위 선택 | 후보 Enemy가 1개 이상 | Enemy 종류, Player와 Enemy 레벨 | 정의된 우선순위로 후보를 정렬하고 최상위 Enemy 선택 | 의도 타깃 1개 결정 | 같은 우선순위 Enemy가 여러 명일 때 거리/터치 근접도 기준은 미정 | 선택 타깃 표시 | `PlayerTargetSelector`, `CombatResolver` | 낮은 원거리와 방패병이 동시에 후보면 낮은 원거리가 선택돼야 함 | P0/부분 확정 |
 | TS-003 | 경로상 방패병 차단 | 이동 또는 공격 목표 결정 후 | Player 위치, 목적지, 살아 있는 방패병 Collider | Player부터 목적지까지 경로를 검사하고 가장 먼저 막는 방패병을 찾음 | 목적지가 방패병 접근 위치로 변경 | 방패병이 여러 명일 때 Player와 가장 가까운 차단 대상을 사용 | 차단된 경로 또는 방패병 강조 | `PlayerTargetSelector`, `ShieldEnemy` | 일반 Enemy를 선택해도 경로에 방패병이 있으면 방패병 앞에서 멈춰야 함 | P0/확정 |
 
@@ -96,10 +96,10 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| PM-001 | 빈 공간 이동 | Enemy 타깃 없이 월드 위치 터치 | Player 입력 가능, 유효한 플레이 영역 | 터치 위치를 목적지로 설정하고 바라보는 방향으로 이동 모션 재생 | 목적지에 도착 후 Idle 상태 전환 | 방패병이 경로를 막으면 방패병 접근 위치까지만 이동 | 이동 모션, 터치 마커 | `PlayerMovement`, `PlayerStateMachine` | 빈 공간 터치 후 Player가 허용 경계 안의 목적지에 도착해야 함 | P0/부분 확정 |
-| PM-002 | 공격 위치 접근 | Enemy 공격 요청 | 타깃이 살아 있고 Player 입력 가능 | Enemy가 회색 공격 사거리 밖이면 Enemy가 사거리 끝에 걸치는 공격 위치를 계산하여 이동하고, 사거리 안이면 현재 위치를 유지 | 공격 가능 위치 도착 또는 현재 사거리 확인 후 공격 실행 | Enemy가 이미 회색 사거리 안이면 Collider가 겹쳐도 이동·분리 보정을 하지 않음. 이동 중 타깃 사망 처리 미정 | 이동 모션, 타깃 강조 | `PlayerMovement`, `PlayerCombat` | 사거리 밖에서는 이동 완료 전에 피해가 없어야 하고, 사거리 안에서는 Collider 중첩 여부와 관계없이 이동하지 않아야 함 | P0/확정 |
-| PM-003 | 일격 처치 후 터치 지점 이동 | 한 번에 처치 가능한 Enemy의 뒤쪽을 터치 | 경로 차단 없음, 타깃 1타 처치 가능 | 공격 위치를 지나 Enemy를 처치하고 원래 터치 지점까지 이동 | Enemy 사망, Player가 터치 위치 도착 | 터치 위치가 플레이 영역 밖이면 경계 안으로 보정 | 처치 이펙트와 연속 이동 | `PlayerMovement`, `PlayerCombat`, `CombatResolver` | 낮은 레벨 Enemy 뒤를 터치하면 Enemy 앞에서 멈추지 않아야 함 | P0/확정 |
-| PC-001 | Player 공격 실행 | 공격 위치 도착 또는 사거리 내 Enemy 재터치 | Player가 공격 가능, 타깃 생존 | 정면/후면과 치명타를 판정하고 `CombatResolver` 결과를 Enemy에 적용 | Enemy 피해, 처치 또는 피해 무효 | 조작 불가, 사망, 공격 중복 요청 시 동작하지 않음 | 공격 모션, 타격 VFX/SFX | `PlayerCombat`, `EnemyBase`, `CombatResolver` | 동일 조건에서 기획 타격 수 표와 같은 결과가 나와야 함 | P0/확정 |
+| PM-001 | 빈 공간 이동 | Enemy 타깃 없이 월드 위치 터치 | Player 입력 가능, 유효한 플레이 영역 | 터치 위치를 목적지로 설정하고 거리에 관계없이 최대 0.1초 동안 이동 모션 재생 | 목적지에 도착 후 Idle 상태 전환 | 방패병이 경로를 막으면 방패병 접근 위치까지만 이동 | 이동 모션, 터치 마커 | `PlayerMovement`, `PlayerStateMachine` | 빈 공간 터치 후 Player가 허용 경계 안의 목적지에 0.1초 이내 도착해야 함 | P0/확정 |
+| PM-002 | 공격 위치 접근 | Enemy 공격 요청 | 타깃이 살아 있고 Player 입력 가능 | Enemy가 회색 공격 사거리 밖이면 Enemy 중심이 사거리 끝에 오도록 공격 위치를 계산하여 최대 0.1초 동안 이동하고, 사거리 안이면 현재 위치를 유지 | 공격 가능 위치 도착 또는 현재 사거리 확인 후 공격 실행 | Enemy가 이미 회색 사거리 안이면 Collider가 겹쳐도 이동·분리 보정을 하지 않음. 이동 중 타깃 사망 처리 미정 | 이동 모션, 타깃 강조 | `PlayerMovement`, `PlayerCombat` | 사거리 밖에서는 0.1초 이내 접근하고 이동 완료 전에 피해가 없어야 하며, 사거리 안에서는 Collider 중첩 여부와 관계없이 이동하지 않아야 함 | P0/확정 |
+| PM-003 | 일격 처치 후 터치 지점 이동 | 한 번에 처치 가능한 Enemy의 뒤쪽을 터치 | 경로 차단 없음, 타깃 1타 처치 가능 | 공격 위치를 지나 Enemy를 처치하고, 처치 위치에서 새 0.1초 이동 구간을 시작하여 원래 터치 지점까지 이동 | Enemy 사망, Player가 터치 위치 도착 | 터치 위치가 플레이 영역 밖이면 경계 안으로 보정 | 처치 이펙트와 연속 이동 | `PlayerMovement`, `PlayerCombat`, `CombatResolver` | 낮은 레벨 Enemy 뒤를 터치하면 Enemy 앞에서 멈추지 않고 처치 후 0.1초 이내 원래 터치 위치에 도착해야 함 | P0/확정 |
+| PC-001 | Player 공격 실행 | Enemy 유효 클릭마다 | Player가 공격 가능, 타깃 생존 | 클릭마다 공격 요청 1회를 생성한다. 사거리 밖 요청은 접근 후 처리하고, 접근 중 같은 Enemy에 연속 입력된 요청은 누적하여 도착 후 각각 정면/후면과 치명타를 판정한다 | 클릭 횟수와 같은 수의 Enemy 피해·피해 무효 판정 | 별도 Player 자동 공격 쿨타임 없음. 조작 불가·사망 중 입력은 무시하며 정면 반동 발생 시 남은 누적 요청을 취소 | 공격 모션, 타격 VFX/SFX | `PlayerController`, `EnemyBase`, `CombatResolver` | 동일 Enemy를 빠르게 N회 클릭하면 반동·사망 예외 전까지 공격 판정도 N회 발생해야 함 | P0/확정 |
 | PC-002 | 정면/후면 판정 | Player 공격 직전 | Enemy 바라보는 방향, Player 위치 | Enemy 기준 앞 180도는 정면, 뒤 180도는 후면으로 판정 | 공격 방향 결과 반환 | 정확히 측면 경계에 위치할 때 판정 기준은 구현 시 고정 필요 | 후면 공격 성공 표시 검토 | `EnemyFacing`, `CombatResolver` | Enemy의 뒤쪽 좌표에서는 후면, 앞쪽 좌표에서는 정면이어야 함 | P0/부분 확정 |
 | PC-003 | 치명타 판정 | 유효한 Player 공격마다 | 현재 치명타 확률 0~70% | 공격당 한 번 난수를 판정하고 성공 시 방향별 치명타 피해 적용 | 정면은 후면 일반 1회분, 후면은 후면 일반 3회분 적용 | 치명타 확률은 70% 초과 불가 | 치명타 VFX, 강조 텍스트 또는 SFX | `CriticalSystem`, `CombatResolver` | 0%에서는 발생하지 않고 70% 이상으로 증가하지 않아야 함 | P0/확정 |
 | PC-004 | 정면 공격 반동 | 조건부 ShieldEnemy 정면 공격 또는 정면 피해 면역 Enemy 공격 | ShieldEnemy가 Player보다 2레벨 이상 낮지 않거나, 고레벨 근거리·원거리 Enemy의 정면 피해 면역 발동 | 전투 결과 적용 후 Player를 Enemy 반대 방향으로 넉백하고 0.5초간 조작 불가 상태로 전환 | 반동 이동, 0.5초 동안 이동·공격 불가 | 2레벨 이상 낮은 ShieldEnemy, 후면 공격, 피해 면역이 아닌 일반 정면 공격과 Boss에는 반동을 적용하지 않음 | 화면 흔들림, 넉백/경직 모션, 입력 불가 피드백 | `PlayerCombat`, `PlayerMovement`, `PlayerStateMachine`, `CombatResolver` | 해당 두 반동 조건에서만 넉백·0.5초 입력 차단·화면 흔들림이 함께 발생해야 함 | P0/확정 |
@@ -137,7 +137,7 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| SH-001 | Player 추적 및 경로 차단 | ShieldEnemy Spawn 또는 Player가 하늘색 범위 밖으로 이동 | Player 생존 | Player를 향해 이동하고, Player가 ShieldEnemy 중심의 하늘색 범위 끝에 닿으면 정지 | Player와 하늘색 범위 경계를 유지하며 이동·공격 경로를 차단 | Player가 경계에서 멀어지면 추격 재개. ShieldEnemy는 Player를 직접 공격하지 않음 | 방패 방향과 하늘색 범위 표시 | `ShieldEnemy`, `EnemyMovement`, `EnemyStateMachine`, `PlayerTargetSelector` | ShieldEnemy가 경계 밖에서는 추격하고 경계에 도달하면 멈추며 공격 행동을 하지 않아야 함 | P0/확정 |
+| SH-001 | Player 추적 및 방패 전환 | ShieldEnemy Spawn, Player가 하늘색 범위 밖으로 이동하거나 범위 안에 진입 | Player 생존, Skeleton 애니메이션 로드 완료 | 범위 밖에서는 Player를 향해 이동하며 Walk 재생. Player가 하늘색 범위 안에 들어오는 즉시 이동을 멈추고 Player를 향한 채 Shield 반복 재생 | Player와 하늘색 범위 경계를 유지하며 이동·공격 경로 차단 | Player가 범위 밖으로 벗어나면 Walk 추격 재개. ShieldEnemy는 Player를 직접 공격하지 않음. 피격 Hit 종료 후에도 범위 안이면 Shield로 복귀 | Skeleton Walk·Shield·Hit, 방패 방향, 하늘색 범위 표시 | `ShieldEnemy`, `EnemyMovement`, `EnemyStateMachine`, `CharacterSpriteAnimator`, `PlayerTargetSelector` | 범위 밖에서는 Walk, 범위 진입 프레임에는 정지·Shield, 피격 후에는 Shield로 복귀하고 직접 공격하지 않아야 함 | P0/구현 |
 | SH-002 | 원거리 터치 접근 | 하늘색 범위 밖 ShieldEnemy 또는 뒤쪽 목표 터치 | Player 입력 가능, ShieldEnemy가 경로 차단 | ShieldEnemy의 하늘색 범위 끝까지 이동하고 공격하지 않음 | Player가 ShieldEnemy 앞에서 정지 | 공격이 없으므로 0.5초 조작 불가도 적용하지 않음 | 차단 피드백 | `PlayerMovement`, `ShieldEnemy` | 첫 원거리 터치에서는 ShieldEnemy 타격 수가 감소하지 않아야 함 | P0/확정 |
 | SH-003 | ShieldEnemy 정면 공격 | 하늘색 범위 안에서 ShieldEnemy 정면 터치 | Player 공격 가능 | 정면 타격을 누적하고, ShieldEnemy가 Player보다 2레벨 이상 낮지 않으면 Player 넉백·0.5초 조작 불가·화면 흔들림 적용 | 3타 누적 시 처치, 조건부 Player 반동 | ShieldEnemy가 Player보다 2레벨 이상 낮으면 넉백과 조작 불가 없이 타격 피해와 일반 명중 화면 흔들림만 적용 | 방패 충돌, 화면 흔들림, Player 넉백/경직 | `ShieldEnemy`, `PlayerCombat`, `PlayerMovement`, `PlayerStateMachine` | 정면 3타 처치는 레벨과 무관하며, Player보다 최대 1레벨 낮은 방패병부터 반동이 발생해야 함 | P0/확정 |
 | SH-004 | ShieldEnemy 후면 공격 | ShieldEnemy 후면 공격 성공 | Player 공격 가능 | 후면 공격 1회를 처치 피해로 적용 | 즉시 처치 | 레벨과 관계없이 동일 | 후면 처치 VFX | `ShieldEnemy`, `CombatResolver` | 모든 레벨의 ShieldEnemy가 후면 1타에 처치돼야 함 | P0/확정 |
@@ -228,10 +228,11 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| FX-001 | 일반 타격 피드백 | Player 공격으로 Enemy에게 실제 피해 적용 | 대상 생존 또는 처치 직전 | 대상 흰색 Flash, 타격 이펙트, 모션과 일반 강도의 화면 흔들림 실행 | 명중 여부를 시각·청각적으로 전달 | 치명타는 더 강한 화면 흔들림 사용. 피해 무효 공격은 PC-004 반동 조건일 때만 화면 흔들림 적용 | Flash, VFX, SFX, Camera Shake | `EnemyVisual`, `CombatFeedbackController`, `CameraShakeController` | 일반 명중보다 치명타 화면 흔들림이 강하고, 피해가 없는 비반동 공격에는 화면 흔들림이 없어야 함 | P1/부분 확정 |
+| FX-001 | 일반 타격 피드백 | Player 공격으로 Enemy에게 실제 피해 적용 | 대상 생존 또는 처치 직전 | 대상 흰색 Flash, 타격 이펙트, 모션과 일반 강도의 화면 흔들림 실행 | 명중 여부를 시각·청각적으로 전달 | 치명타는 더 강한 화면 흔들림 사용. 피해 무효 공격은 PC-004 반동 조건일 때만 화면 흔들림 적용. 여러 조건이 겹치면 가장 큰 흔들림 하나만 적용 | Flash, VFX, SFX, Camera Shake | `EnemyVisual`, `CombatFeedbackController`, `CameraShakeController` | 일반 명중보다 치명타 화면 흔들림이 강하고, 치명타·반동 동시 발생 시 치명타 흔들림만 재생되며, 피해가 없는 비반동 공격에는 화면 흔들림이 없어야 함 | P1/부분 확정 |
 | FX-002 | Enemy 공격 예고 | Enemy 공격 시작 전 | 공격 범위와 예고 시간 | 실제 공격 범위를 표시하고 판정 시점에 제거 또는 변경 | Player가 회피 가능 | 일반 Enemy 수치 미정 | 범위 표시 | `EnemyAttackBase`, `EnemyVisual` | 표시된 범위와 실제 판정 범위가 일치해야 함 | P1/부분 확정 |
 | FX-003 | Boss 공격 예고 | Boss 공격 주기 0~1.5초 | Player가 공격 범위 안 | 붉은 공격 위치를 표시하고 Boss 이동에 맞춰 이동 | 1.5~2.0초 공격 위치 전달 | 영역 모양·크기, Player 이탈 처리 미정 | 붉은 범위 | `BossAttack`, `BossVisual` | 예고 영역이 1.5초 동안 Boss 이동을 따라야 함 | P1/부분 확정 |
-| FX-004 | 정면 공격 반동 피드백 | PC-004 정면 반동 결과 발생 | Player와 Enemy 생존, 반동 방향 계산 가능 | Player 넉백·0.5초 조작 불가와 동시에 정면 반동용 화면 흔들림 재생 | 공격이 막혔거나 방패에 반사된 감각 전달 | Player보다 2레벨 이상 낮은 ShieldEnemy에는 반동 피드백을 적용하지 않음 | 반동 Camera Shake, 방어 VFX/SFX | `CombatFeedbackController`, `CameraShakeController`, `PlayerMovement`, `PlayerStateMachine` | 반동 조건과 화면 흔들림·넉백·입력 차단의 발생 시점이 일치해야 함 | P1/부분 확정 |
+| FX-004 | 정면 공격 반동 피드백 | PC-004 정면 반동 결과 발생 | Player와 Enemy 생존, 반동 방향 계산 가능 | Player 넉백·0.5초 조작 불가와 동시에 정면 반동용 화면 흔들림 재생 | 공격이 막혔거나 방패에 반사된 감각 전달 | Player보다 2레벨 이상 낮은 ShieldEnemy에는 반동 피드백을 적용하지 않음. 치명타와 동시에 발생하면 더 큰 치명타 흔들림만 재생 | 반동 Camera Shake, 방어 VFX/SFX | `CombatFeedbackController`, `CameraShakeController`, `PlayerMovement`, `PlayerStateMachine` | 반동 조건과 화면 흔들림·넉백·입력 차단의 발생 시점이 일치하고, 동시 흔들림은 중첩되지 않아야 함 | P1/부분 확정 |
+| FX-005 | 캐릭터 상태 애니메이션 | Player 또는 Enemy의 이동·공격·피격·방어 상태 변경 | LightBandit, Goblin 또는 Skeleton 프레임 로드 완료 | Player와 Goblin은 정지 시 Idle·이동 시 Run, Skeleton 방패병은 추격 시 Walk·범위 안 정지 시 Shield를 재생한다. 실제 공격 판정 시 Attack, 실제 피격 시 Hit을 재생하고 대상의 X 방향으로 Sprite를 반전한다 | 현재 행동과 일치하는 프레임 애니메이션 표시 | 세 리소스 모두 좌우 측면형으로 상하 전용 프레임이 없음. 피격 같은 일회성 모션 종료 후 현재 지속 상태로 복귀 | LightBandit Player, Goblin 일반/Boss Enemy, Skeleton ShieldEnemy | `CharacterSpriteAnimator`, `PlayerMovement`, `EnemyMovement`, `EnemyStateMachine`, 공격·피격 모듈 | 이동 시작/종료, 방패 범위 진입, 실제 타격 및 피격 시점에 상태가 정확히 전환되고 일회성 모션 후 Walk/Shield/Idle 중 올바른 상태로 복귀해야 함 | P0/구현 |
 
 ## 19. 맵 및 경계 기능
 
@@ -244,8 +245,16 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AD-001 | 광고 이어하기 요청 | ContinueAd 버튼 클릭 | GameOver, 사용 횟수 2회 미만 | 보상형 광고를 요청하고 성공 결과만 GameSession에 전달 | 성공 시 CA-003 실행 | 광고 실패, 취소, No Fill과 네트워크 오류 정책 미정 | 광고 로딩/실패 UI | `AdService`, `ContinuePresenter` | 광고 성공 전에는 Castle과 Player가 부활하지 않아야 함 | P1/부분 확정 |
+| AD-001 | 광고 이어하기 요청 | ContinueAd 버튼 클릭 | GameOver, 사용 횟수 2회 미만, 앱인토스 광고 지원 환경 | `AIT.LoadFullScreenAd()`의 `loaded` 이후 `AIT.ShowFullScreenAd()`를 호출하고 `userEarnedReward` 이벤트만 GameSession에 전달 | 보상 이벤트 수신 시 CA-003 실행 | 표시·노출·닫힘만으로 보상하지 않음. 실패, 취소, No Fill과 중복 콜백 정책은 구현 전 확정 | 광고 로딩/실패 UI | 앱인토스 `AdService`, `ContinuePresenter` | `userEarnedReward` 수신 전에는 Castle과 Player가 부활하지 않고, 한 요청에서 보상이 한 번만 지급되어야 함 | P1/부분 확정 |
 | AD-002 | 경험치 2배 광고 | 결과 화면 또는 정의된 시점 | 광고 시청 가능 | 광고 성공 시 대상 경험치를 2배 적용 | 경험치 보상 증가 | 인게임/계정 EXP 중 대상, 사용 시점과 횟수 미정 | 보상 광고 UI | `AdService`, `AccountProgression` 또는 `ExperienceSystem` | 규칙 확정 전 구현 보류 | P2/미정 |
+
+### 20.1 앱인토스 출시 기능
+
+| 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| AIT-001 | WebGL 패키징 | 앱인토스 개발·배포 빌드 | 공식 Unity SDK, 앱 ID, 아이콘 URL | SDK 빌드 프로필로 WebGL을 생성하고 `.ait`로 패키징 | 샌드박스 또는 배포 가능한 패키지 | 앱 ID·아이콘 누락 시 빌드 중단. Production은 Development Build와 Mock Bridge 비활성 | 앱인토스 로딩 화면 | AIT Configuration, Build Profile | Dev Server, Production Server와 Build & Package가 각각 목적에 맞게 완료되어야 함 | P0/미구현 |
+| AIT-002 | 화면 가시성 대응 | 토스 화면 전환 또는 앱 백그라운드 진입 | 앱인토스 Unity SDK | 가려지면 게임 시간·입력·오디오를 정지하고 다시 보이면 이전 진행 가능 상태를 복원 | 백그라운드 중 진행·오디오 없음 | GameOver·레벨업·수동 Pause 상태를 무조건 Playing으로 덮어쓰지 않음 | 필요 시 일시정지 표시 | 플랫폼 가시성 처리, `GameSession` | 숨김 상태에서 전투 시간이 흐르지 않고 복귀 후 기존 상태가 보존되어야 함 | P0/미구현 |
+| AIT-003 | WebGL 성능 검증 | Production 패키지 후보 생성 | 실제 모바일 토스 앱 또는 샌드박스 | 초기 로딩 시간, FPS, 메모리, 프레임 스톨과 GC를 측정 | 출시 기준 충족 여부 | Editor 수치만으로 승인하지 않음 | 로딩 진행률 | AIT 자동 메트릭, 프로파일링 결과 | 저사양 대상 기기 기준과 허용 수치를 확정한 뒤 통과해야 함 | P0/부분 확정 |
 
 ## 21. 범위 제외 기능
 
@@ -281,7 +290,7 @@
 1. Player와 Castle 최대 HP
 2. Player 자동 부활 대기시간과 부활 HP
 3. 일반 Enemy별 이동속도, 공격력, 범위, 예고와 쿨타임
-4. Player 이동속도, 공격 사거리, 접근 범위와 터치 보정 반경
+4. Player 공격 사거리, 접근 범위와 최종 터치 보정 반경
 5. 동일 우선순위 Enemy가 여러 명일 때 최종 선택 기준
 6. Player 이동 중 타깃이 사망했을 때 처리
 7. Boss 등장 WARNING 시간
@@ -301,7 +310,6 @@
 21. 저장 포맷, 손상 복구와 버전 마이그레이션
 22. Player 반동 넉백 거리와 이동 시간
 23. 일반 타격, 치명타와 정면 반동별 화면 흔들림 강도 및 지속시간
-24. 치명타와 ShieldEnemy 정면 반동이 동시에 발생할 때 화면 흔들림 합성 또는 우선순위
 
 ## 24. 기능 완료 조건
 

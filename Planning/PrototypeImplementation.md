@@ -1,5 +1,13 @@
 # Prototype Implementation
 
+## Final release target
+
+- Final platform: Apps in Toss game mini-app inside the Toss app.
+- Delivery: Unity WebGL packaged as `.ait` through the official Apps in Toss Unity SDK.
+- Unity Editor and ordinary browser runs are development environments only.
+- The official SDK, app ID, icon URL, production ad group IDs, and sandbox-device validation are not configured yet.
+- Gameplay code remains independent from the host SDK. Future Apps in Toss calls belong at the platform boundary and must use asynchronous APIs without blocking the Unity main thread.
+
 ## Scene
 
 - Path: `Assets/Scenes/PrototypeScene.unity`
@@ -16,6 +24,7 @@
 
 - Tap/click an empty point: move the Player.
 - Tap/click an enemy: approach and attack.
+- Each touch-command movement segment reaches its destination or attack position within `0.1s`.
 - `PAUSE`: pause/resume.
 - `CASTLE -10`: apply debug damage to the Castle.
 - `PLAYER XP +5`: trigger the prototype level-up flow.
@@ -40,6 +49,15 @@
   - Boss moves halfway to the boundary.
 - Account EXP conversion: `floor(score / 5)`.
 - UI binding uses enum names as GameObject names and enum indices as cached component slots.
+- Player movement uses a duration-based command: empty-point and enemy-approach movement completes within `0.1s`; no movement occurs when an Enemy is already inside the gray attack range.
+- Player attacks have no automatic click cooldown. Every valid Enemy click creates one attack request; repeated clicks during approach are queued for the same target.
+- Prototype Enemy touch correction uses a `1.5` world-unit radius instead of the previous `1.1` radius.
+- Player visual: `Resources/Bandits - Pixel Art/Sprites/LightBandit`.
+- Melee, Ranged, and Boss Enemy visual: `Resources/Monsters Creatures Fantasy/Sprites/Goblin`.
+- ShieldEnemy visual: `Resources/Monsters Creatures Fantasy/Sprites/Skeleton`.
+- Shared `CharacterSpriteAnimator` drives Idle, Move, Guard, Attack, and Hit frames. Attack starts at the actual hit resolution and Hit starts only when damage is applied; Player front recoil also uses Hit.
+- ShieldEnemy plays Skeleton Walk while pursuing the Player outside its cyan approach range. It stops and immediately loops Shield when the Player enters that range; after a Hit one-shot it returns to Shield while the Player remains inside.
+- The supplied sheets are side-view assets. Horizontal movement/targets flip the sprite; vertical movement plays the character's movement animation while preserving the last horizontal facing.
 
 ## Temporary prototype data
 
@@ -59,7 +77,7 @@ or rewarded-ad SDK is included.
 
 ## Verification
 
-- Unity script compilation: passed with no errors or warnings.
+- Unity script compilation: passed with no errors. One pre-existing TMP word-wrapping obsolete warning remains in the Editor-only scene builder.
 - EditMode combat-rule tests: `10 passed / 0 failed`.
 - Scene validation: `0` missing scripts, `0` broken prefabs.
 - PlayMode smoke test:

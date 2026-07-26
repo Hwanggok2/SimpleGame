@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace SimpleGame
@@ -10,7 +9,6 @@ namespace SimpleGame
 
         [SerializeField, Range(0f, MaximumChance)] private float chance;
 
-        public event Action<float> Changed;
         public float Chance => chance;
 
         public bool Roll()
@@ -21,7 +19,6 @@ namespace SimpleGame
         public void AddCard()
         {
             chance = Mathf.Min(MaximumChance, chance + CardIncrease);
-            Changed?.Invoke(chance);
         }
     }
 }

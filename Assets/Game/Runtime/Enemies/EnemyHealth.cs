@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace SimpleGame
@@ -7,9 +6,6 @@ namespace SimpleGame
     {
         [SerializeField] private int accumulatedDamage;
         [SerializeField] private bool alive = true;
-
-        public event Action Hit;
-        public event Action Depleted;
 
         public int AccumulatedDamage => accumulatedDamage;
         public bool IsAlive => alive;
@@ -22,17 +18,15 @@ namespace SimpleGame
 
         public bool Apply(CombatResult result)
         {
-            if (!alive || !result.CanDamage)
+            if (!alive || result.Damage <= 0)
             {
                 return false;
             }
 
             accumulatedDamage += result.Damage;
-            Hit?.Invoke();
             if (accumulatedDamage >= result.RequiredDurability)
             {
                 alive = false;
-                Depleted?.Invoke();
             }
 
             return true;

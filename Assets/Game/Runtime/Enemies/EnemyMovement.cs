@@ -6,14 +6,20 @@ namespace SimpleGame
     public sealed class EnemyMovement : MonoBehaviour
     {
         [SerializeField] private float speed = 0.7f;
+        private CharacterSpriteAnimator characterAnimation;
 
-        public void Configure(float moveSpeed)
+        public void Configure(
+            float moveSpeed,
+            CharacterSpriteAnimator animation)
         {
             speed = Mathf.Max(0f, moveSpeed);
+            characterAnimation = animation;
         }
 
         public void StepTowards(Vector2 target)
         {
+            characterAnimation?.SetMoving(
+                target - (Vector2)transform.position);
             transform.position = Vector2.MoveTowards(
                 transform.position,
                 target,
@@ -22,8 +28,14 @@ namespace SimpleGame
 
         public void Knockback(Vector2 destination, float duration)
         {
+            characterAnimation?.SetIdle();
             StopAllCoroutines();
             StartCoroutine(KnockbackRoutine(destination, duration));
+        }
+
+        public void Stop()
+        {
+            characterAnimation?.SetIdle();
         }
 
         private IEnumerator KnockbackRoutine(Vector2 destination, float duration)

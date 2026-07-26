@@ -13,12 +13,12 @@ namespace SimpleGame
         [SerializeField] private PrototypeEnemyFactory enemyFactory;
         [SerializeField] private Transform enemyRoot;
         [SerializeField] private Camera worldCamera;
+        [SerializeField] private CombatFeedbackController combatFeedback;
         [SerializeField] private PrototypeHUDPresenter hudPresenter;
 
         private readonly List<EnemyBase> enemies = new();
         private GameRunState state = GameRunState.Playing;
         private int continueCount;
-        private int observedPlayerLevel;
 
         public event Action<string> HintChanged;
         public event Action<bool> CriticalCardVisibilityChanged;
@@ -39,6 +39,7 @@ namespace SimpleGame
             PrototypeEnemyFactory configuredFactory,
             Transform configuredEnemyRoot,
             Camera configuredCamera,
+            CombatFeedbackController configuredCombatFeedback,
             PrototypeHUDPresenter configuredPresenter)
         {
             mapBounds = configuredBounds;
@@ -47,12 +48,14 @@ namespace SimpleGame
             enemyFactory = configuredFactory;
             enemyRoot = configuredEnemyRoot;
             worldCamera = configuredCamera;
+            combatFeedback = configuredCombatFeedback;
             hudPresenter = configuredPresenter;
         }
 
         private void Start()
         {
             Time.timeScale = 1f;
+            EnsureCombatFeedback();
             castle.Configure(30);
             player.Configure(this, worldCamera, mapBounds);
             enemyFactory.Configure(this, enemyRoot);
@@ -60,7 +63,6 @@ namespace SimpleGame
 
             castle.Health.Depleted += OnCastleDepleted;
             player.Progression.LevelUpCardRequested += OnPlayerLevelUp;
-            observedPlayerLevel = player.Progression.Level;
             SpawnPrototypeSet();
             ShowHint("Tap the field to move. Tap an enemy to test the combat rules.");
         }
@@ -70,11 +72,6 @@ namespace SimpleGame
             if (state != GameRunState.GameOver && castle != null && !castle.IsAlive)
             {
                 OnCastleDepleted();
-            }
-
-            if (player != null && player.Progression.Level > observedPlayerLevel)
-            {
-                OnPlayerLevelUp();
             }
 
             if (IsPlaying)
@@ -137,6 +134,17 @@ namespace SimpleGame
         public void ShowHint(string message)
         {
             HintChanged?.Invoke(message);
+        }
+
+        public void PlayCombatFeedback(
+            bool damageApplied,
+            bool critical,
+            PlayerAttackReaction playerReaction)
+        {
+            combatFeedback.PlayResolvedAttack(
+                damageApplied,
+                critical,
+                playerReaction);
         }
 
         public void TogglePause()
@@ -219,7 +227,6 @@ namespace SimpleGame
 
         private void OnPlayerLevelUp()
         {
-            observedPlayerLevel = player.Progression.Level;
             if (state == GameRunState.GameOver)
             {
                 return;
@@ -239,6 +246,28 @@ namespace SimpleGame
             enemyFactory.Spawn(EnemyArchetype.Ranged, 3, new Vector2(-3.8f, -6.2f));
             enemyFactory.Spawn(EnemyArchetype.Melee, 2, new Vector2(3.8f, -5.9f));
             enemyFactory.Spawn(EnemyArchetype.Boss, 1, new Vector2(0f, 8.1f));
+        }
+
+        private void EnsureCombatFeedback()
+        {
+            CameraShakeController cameraShake =
+                worldCamera.GetComponent<CameraShakeController>();
+            if (cameraShake == null)
+            {
+                cameraShake = worldCamera.gameObject.AddComponent<CameraShakeController>();
+            }
+
+            if (combatFeedback == null)
+            {
+                combatFeedback = GetComponent<CombatFeedbackController>();
+            }
+
+            if (combatFeedback == null)
+            {
+                combatFeedback = gameObject.AddComponent<CombatFeedbackController>();
+            }
+
+            combatFeedback.Configure(cameraShake);
         }
     }
 }
