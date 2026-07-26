@@ -5,18 +5,17 @@ namespace SimpleGame
     public sealed class CombatFeedbackController : MonoBehaviour
     {
         [SerializeField] private CameraShakeController cameraShake;
-        [SerializeField] private float normalHitStrength = 0.07f;
-        [SerializeField] private float normalHitDuration = 0.1f;
-        [SerializeField] private float frontRecoilStrength = 0.13f;
-        [SerializeField] private float frontRecoilDuration = 0.14f;
-        [SerializeField] private float criticalHitStrength = 0.22f;
-        [SerializeField] private float criticalHitDuration = 0.18f;
+        [SerializeField] private CombatFeedbackProfile profile;
 
-        public CombatFeedbackLevel LastPlayed { get; private set; }
-
-        public void Configure(CameraShakeController configuredCameraShake)
+        public void Configure(
+            CameraShakeController configuredCameraShake,
+            CombatFeedbackProfile configuredProfile = null)
         {
             cameraShake = configuredCameraShake;
+            if (configuredProfile != null)
+            {
+                profile = configuredProfile;
+            }
         }
 
         public void PlayResolvedAttack(
@@ -24,21 +23,34 @@ namespace SimpleGame
             bool critical,
             PlayerAttackReaction playerReaction)
         {
-            LastPlayed = CombatFeedbackResolver.Resolve(
+            CombatFeedbackLevel feedback = CombatFeedbackResolver.Resolve(
                 damageApplied,
                 critical,
                 playerReaction);
+            if (cameraShake == null || profile == null)
+            {
+                Debug.LogError(
+                    "Combat feedback requires CameraShakeController and profile.",
+                    this);
+                return;
+            }
 
-            switch (LastPlayed)
+            switch (feedback)
             {
                 case CombatFeedbackLevel.NormalHit:
-                    cameraShake.Play(normalHitStrength, normalHitDuration);
+                    cameraShake.Play(
+                        profile.NormalHitStrength,
+                        profile.NormalHitDuration);
                     break;
                 case CombatFeedbackLevel.FrontRecoil:
-                    cameraShake.Play(frontRecoilStrength, frontRecoilDuration);
+                    cameraShake.Play(
+                        profile.FrontRecoilStrength,
+                        profile.FrontRecoilDuration);
                     break;
                 case CombatFeedbackLevel.CriticalHit:
-                    cameraShake.Play(criticalHitStrength, criticalHitDuration);
+                    cameraShake.Play(
+                        profile.CriticalHitStrength,
+                        profile.CriticalHitDuration);
                     break;
             }
         }

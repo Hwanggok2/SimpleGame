@@ -844,21 +844,76 @@ Player 컴포넌트가 Input System API를 여러 곳에서 직접 구독하지 
 
 ## 15. 데이터 흐름
 
-Enemy 및 Wave 데이터의 원본은 Excel로 관리할 예정이다.
+수치와 반복 행 데이터는 Excel을 원본으로 관리하고, Unity 에셋 참조와 연출
+프로필은 수동 ScriptableObject로 관리한다. 현재 런타임은 `.bytes`를 직접
+읽지 않고, 검증된 ScriptableObject를 통해 데이터에 접근한다.
 
 ```text
-Excel
-  ↓ 변환
-검증 단계
-  ↓
-.bytes 또는 자동 생성 런타임 데이터
-  ↓
-DataRepository
-  ↓
-WaveSpawner / EnemyFactory
+Excel 원본
+  ├─ EnemyBalance
+  ├─ StageSpawn
+  ├─ PlayerLevelExp
+  ├─ AccountLevelExp
+  └─ GlobalBalance
+          ↓ 가져오기·검증
+Assets/Game/Data/Generated/*.asset
+          ↓
+GameDataManifest
+          ↓
+GameSession / StageSpawnController / EnemyFactory
+
+Unity 수동 설정
+  ├─ EnemyAssetCatalog (EnemyId ↔ Prefab)
+  └─ CombatFeedbackProfile (화면 흔들림)
+          ↓
+GameDataManifest
+
+PrototypeScene
+  └─ SpawnPointRegistry (SpawnPointId ↔ Transform)
 ```
 
-Excel, `.bytes`와 ScriptableObject를 동시에 수동 수정하지 않는다. 하나를 원본으로 정하고 나머지는 자동 생성 결과로 취급한다.
+### 15.1 자동 생성 ScriptableObject
+
+`Assets/Game/Data/Generated` 아래 에셋은 Excel 값의 Unity 런타임 표현이다.
+
+- `EnemyBalanceTable`: EnemyId별 전투 수치, 보상과 Archetype
+- `StageSpawnSchedule`: StageId, WaveId, 시간, 순번, SpawnPointId, EnemyId, 레벨
+- `PlayerLevelExperience`: 플레이어 레벨별 다음 레벨 필요 EXP
+- `AccountLevelExperience`: 계정 레벨별 다음 레벨 필요 EXP
+- `GlobalBalance`: 점수→계정 EXP 환산식과 치명타 공통값
+
+Excel importer가 완성되면 이 에셋들은 수동 편집하지 않고 가져오기 결과로만
+취급한다. 현재 값은 프로토타입과 작성된 스폰 시트를 바탕으로 생성한 초기값이다.
+
+### 15.2 수동 ScriptableObject
+
+Unity Object 참조와 Unity에서 직접 조정하는 연출값은 Excel에 넣지 않는다.
+
+- `EnemyAssetCatalog`: 안정적인 EnemyId와 실제 Enemy Prefab을 연결
+- `CombatFeedbackProfile`: 일반 타격, 방패 반동, 치명타 화면 흔들림 강도와 시간
+
+데이터 생성 명령을 다시 실행해도 기존 수동 SO 값은 덮어쓰지 않는다.
+
+### 15.3 Scene 데이터
+
+스폰 위치의 좌표는 Scene에서 디자이너가 편집한다. `SpawnPointRegistry`가
+`LEFT_01`, `RIGHT_01`, `TOP_01`, `BOTTOM_01` 같은 ID를 실제 Transform에
+연결한다. Excel에는 좌표 대신 `SpawnPointId`만 기록한다.
+
+### 15.4 진입점과 검증
+
+`GameDataManifest`는 생성 데이터와 수동 카탈로그를 한 곳에 모으는 런타임
+진입점이다. 게임 시작 전 다음 항목을 검증한다.
+
+- 중복 Spawn RuntimeId
+- 존재하지 않는 EnemyId 또는 Prefab
+- Enemy Archetype과 Prefab 불일치
+- 존재하지 않는 SpawnPointId
+- 비어 있는 플레이어·계정 EXP 테이블
+
+`.bytes`는 Toss WebGL의 초기 용량·로딩 측정 결과 실제 이점이 확인될 때만
+추가한다. 추가하더라도 Excel을 원본으로 유지하고 SO와 `.bytes`를 동시에
+수동 수정하지 않는다.
 
 ## 16. 의존성 연결
 

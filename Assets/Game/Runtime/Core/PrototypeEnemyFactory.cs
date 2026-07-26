@@ -6,21 +6,15 @@ namespace SimpleGame
     {
         [SerializeField] private Transform enemyRoot;
         [SerializeField] private PrototypeGameSession session;
-        [SerializeField] private MeleeEnemy meleePrefab;
-        [SerializeField] private RangedEnemy rangedPrefab;
-        [SerializeField] private ShieldEnemy shieldPrefab;
-        [SerializeField] private BossEnemy bossPrefab;
+        [SerializeField] private EnemyAssetCatalog assetCatalog;
+        [SerializeField] private EnemyBalanceTable balanceTable;
 
-        public void ConfigurePrefabs(
-            MeleeEnemy melee,
-            RangedEnemy ranged,
-            ShieldEnemy shield,
-            BossEnemy boss)
+        public void ConfigureAssets(
+            EnemyAssetCatalog configuredAssetCatalog,
+            EnemyBalanceTable configuredBalanceTable)
         {
-            meleePrefab = melee;
-            rangedPrefab = ranged;
-            shieldPrefab = shield;
-            bossPrefab = boss;
+            assetCatalog = configuredAssetCatalog;
+            balanceTable = configuredBalanceTable;
         }
 
         public void Configure(PrototypeGameSession gameSession, Transform root)
@@ -29,20 +23,28 @@ namespace SimpleGame
             enemyRoot = root;
         }
 
-        public EnemyBase Spawn(EnemyArchetype archetype, int level, Vector2 position)
+        public EnemyBase Spawn(string enemyId, int level, Vector2 position)
         {
-            EnemyBase prefab = archetype switch
+            if (balanceTable == null ||
+                !balanceTable.TryGet(enemyId, out EnemyDefinition definition))
             {
-                EnemyArchetype.Melee => meleePrefab,
-                EnemyArchetype.Ranged => rangedPrefab,
-                EnemyArchetype.Shield => shieldPrefab,
-                EnemyArchetype.Boss => bossPrefab,
-                _ => null
-            };
+                Debug.LogError($"Enemy balance not found: {enemyId}", this);
+                return null;
+            }
 
-            if (prefab == null)
+            if (assetCatalog == null ||
+                !assetCatalog.TryGetPrefab(enemyId, out EnemyBase prefab))
             {
-                Debug.LogError($"Enemy prefab is not assigned: {archetype}", this);
+                Debug.LogError($"Enemy prefab is not assigned: {enemyId}", this);
+                return null;
+            }
+
+            if (prefab.Archetype != definition.Archetype)
+            {
+                Debug.LogError(
+                    $"Enemy archetype mismatch: {enemyId} " +
+                    $"({definition.Archetype} data / {prefab.Archetype} prefab)",
+                    this);
                 return null;
             }
 
@@ -51,9 +53,9 @@ namespace SimpleGame
                 position,
                 Quaternion.identity,
                 enemyRoot);
-            enemy.name = $"{archetype}_Lv{level}";
+            enemy.name = $"{enemyId}_Lv{level}";
 
-            enemy.Configure(session, level);
+            enemy.Configure(session, level, definition);
             session.RegisterEnemy(enemy);
             return enemy;
         }

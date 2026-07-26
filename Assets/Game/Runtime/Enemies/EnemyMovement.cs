@@ -16,10 +16,9 @@ namespace SimpleGame
             characterAnimation = animation;
         }
 
-        public void StepTowards(Vector2 target)
+        public void StepTowards(Vector2 target, Vector2 facingDirection)
         {
-            characterAnimation?.SetMoving(
-                target - (Vector2)transform.position);
+            characterAnimation?.SetMoving(facingDirection);
             transform.position = Vector2.MoveTowards(
                 transform.position,
                 target,

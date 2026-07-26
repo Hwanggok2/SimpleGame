@@ -118,8 +118,19 @@ namespace SimpleGame
 
             if (pendingEnemy == null || !pendingEnemy.IsAlive)
             {
-                hasDestination = !root.Movement.StepTowards(destination, 0.08f);
-                return;
+                pendingEnemy = session.FindFirstEnemyOnPath(
+                    transform.position,
+                    destination);
+                if (pendingEnemy == null)
+                {
+                    hasDestination =
+                        !root.Movement.StepTowards(destination, 0.08f);
+                    return;
+                }
+
+                pendingAttackCount = 1;
+                shieldApproachOnly = false;
+                root.Movement.BeginMove();
             }
 
             float stoppingDistance = shieldApproachOnly

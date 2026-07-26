@@ -21,6 +21,7 @@ namespace SimpleGame
     {
         Playing,
         Paused,
+        CardSelection,
         GameOver,
         Clear
     }
@@ -37,6 +38,13 @@ namespace SimpleGame
         NormalHit,
         FrontRecoil,
         CriticalHit
+    }
+
+    public enum EnemyThreatLevel
+    {
+        OneHit,
+        ThreeFrontOneRear,
+        Dangerous
     }
 
     public readonly struct CombatResult
@@ -59,54 +67,142 @@ namespace SimpleGame
     [Serializable]
     public sealed class EnemyDefinition
     {
+        [SerializeField] private string enemyId;
+        [SerializeField] private EnemyArchetype archetype;
+        [SerializeField] private float moveSpeed;
+        [SerializeField] private float attackRange;
+        [SerializeField] private int attackDamage;
+        [SerializeField] private float attackWindup;
+        [SerializeField] private float attackActiveDuration;
+        [SerializeField] private float attackCooldown;
+        [SerializeField] private float attackAreaRadius;
+        [SerializeField] private float approachRange;
+        [SerializeField] private float facingTurnDelay;
+        [SerializeField] private int killExperience;
+        [SerializeField] private int score;
+
         public EnemyDefinition(
+            string enemyId,
             EnemyArchetype archetype,
             float moveSpeed,
             float attackRange,
             int attackDamage,
             float attackWindup,
+            float attackActiveDuration,
             float attackCooldown,
+            float attackAreaRadius,
             float approachRange,
-            Color color)
+            float facingTurnDelay,
+            int killExperience,
+            int score)
         {
-            Archetype = archetype;
-            MoveSpeed = moveSpeed;
-            AttackRange = attackRange;
-            AttackDamage = attackDamage;
-            AttackWindup = attackWindup;
-            AttackCooldown = attackCooldown;
-            ApproachRange = approachRange;
-            Color = color;
+            this.enemyId = enemyId;
+            this.archetype = archetype;
+            this.moveSpeed = moveSpeed;
+            this.attackRange = attackRange;
+            this.attackDamage = attackDamage;
+            this.attackWindup = attackWindup;
+            this.attackActiveDuration = attackActiveDuration;
+            this.attackCooldown = attackCooldown;
+            this.attackAreaRadius = attackAreaRadius;
+            this.approachRange = approachRange;
+            this.facingTurnDelay = facingTurnDelay;
+            this.killExperience = killExperience;
+            this.score = score;
         }
 
-        public EnemyArchetype Archetype { get; }
-        public float MoveSpeed { get; }
-        public float AttackRange { get; }
-        public int AttackDamage { get; }
-        public float AttackWindup { get; }
-        public float AttackCooldown { get; }
-        public float ApproachRange { get; }
-        public Color Color { get; }
+        public string EnemyId => enemyId;
+        public EnemyArchetype Archetype => archetype;
+        public float MoveSpeed => moveSpeed;
+        public float AttackRange => attackRange;
+        public int AttackDamage => attackDamage;
+        public float AttackWindup => attackWindup;
+        public float AttackActiveDuration => attackActiveDuration;
+        public float AttackCooldown => attackCooldown;
+        public float AttackAreaRadius => attackAreaRadius;
+        public float ApproachRange => approachRange;
+        public float FacingTurnDelay => facingTurnDelay;
+        public int KillExperience => killExperience;
+        public int Score => score;
     }
 
     public static class PrototypeEnemyDefinitions
     {
+        public static string GetEnemyId(EnemyArchetype archetype)
+        {
+            return archetype switch
+            {
+                EnemyArchetype.Melee => "GoblinMelee",
+                EnemyArchetype.Ranged => "GoblinRanged",
+                EnemyArchetype.Shield => "ShieldSkeleton",
+                EnemyArchetype.Boss => "GoblinBoss",
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(archetype),
+                    archetype,
+                    null)
+            };
+        }
+
         public static EnemyDefinition Create(EnemyArchetype archetype)
         {
             return archetype switch
             {
                 EnemyArchetype.Melee => new EnemyDefinition(
-                    archetype, 0.7f, 0.85f, 2, 0.55f, 1.5f, 0f,
-                    new Color(0.9f, 0.25f, 0.18f)),
+                    GetEnemyId(archetype),
+                    archetype,
+                    0.7f,
+                    0.85f,
+                    2,
+                    0.55f,
+                    0f,
+                    1.5f,
+                    0f,
+                    0f,
+                    0f,
+                    2,
+                    5),
                 EnemyArchetype.Ranged => new EnemyDefinition(
-                    archetype, 0.55f, 2.25f, 2, 0.8f, 2.2f, 0f,
-                    new Color(0.55f, 0.18f, 0.85f)),
+                    GetEnemyId(archetype),
+                    archetype,
+                    0.55f,
+                    2.25f,
+                    2,
+                    0.8f,
+                    0f,
+                    2.2f,
+                    0f,
+                    0f,
+                    0f,
+                    2,
+                    5),
                 EnemyArchetype.Shield => new EnemyDefinition(
-                    archetype, 0.6f, 0f, 0, 0f, 0f, 2.25f,
-                    new Color(0.15f, 0.45f, 0.9f)),
+                    GetEnemyId(archetype),
+                    archetype,
+                    0.6f,
+                    0f,
+                    0,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    2.25f,
+                    0.5f,
+                    0,
+                    0),
                 EnemyArchetype.Boss => new EnemyDefinition(
-                    archetype, 0.42f, 2.6f, 4, 1.5f, 3f, 0f,
-                    new Color(0.55f, 0.05f, 0.05f)),
+                    GetEnemyId(archetype),
+                    archetype,
+                    0.42f,
+                    2.6f,
+                    4,
+                    1.5f,
+                    0.5f,
+                    3f,
+                    1.35f,
+                    0f,
+                    0f,
+                    5,
+                    25),
                 _ => throw new ArgumentOutOfRangeException(nameof(archetype), archetype, null)
             };
         }

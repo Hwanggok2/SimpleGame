@@ -7,29 +7,44 @@ namespace SimpleGame
     {
         [SerializeField] private int level = 1;
         [SerializeField] private int experience;
+        [SerializeField] private LevelExperienceTable experienceTable;
 
         public event Action LevelUpCardRequested;
 
         public int Level => level;
         public int Experience => experience;
 
+        public void Configure(LevelExperienceTable configuredExperienceTable)
+        {
+            experienceTable = configuredExperienceTable;
+        }
+
         public void AddExperience(int amount)
         {
             experience += Mathf.Max(0, amount);
-            int required = RequiredExperience(level);
-            while (experience >= required)
+            while (TryGetRequiredExperience(out int required) &&
+                required > 0 &&
+                experience >= required)
             {
                 experience -= required;
                 level++;
                 LevelUpCardRequested?.Invoke();
-                required = RequiredExperience(level);
             }
         }
 
-        private static int RequiredExperience(int currentLevel)
+        private bool TryGetRequiredExperience(out int required)
         {
-            // Temporary prototype balance until the player progression table is fixed.
-            return 3 + currentLevel * 2;
+            if (experienceTable != null &&
+                experienceTable.TryGetRequiredExperience(level, out required))
+            {
+                return true;
+            }
+
+            required = 0;
+            Debug.LogError(
+                $"Player EXP row not found for level {level}.",
+                this);
+            return false;
         }
     }
 }

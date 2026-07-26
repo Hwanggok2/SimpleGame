@@ -122,5 +122,59 @@ namespace SimpleGame.Tests
                 CombatResolver.GetAttackSide(Vector2.up, Vector2.zero, Vector2.down),
                 Is.EqualTo(AttackSide.Rear));
         }
+
+        [TestCase(
+            EnemyArchetype.Melee,
+            2,
+            1,
+            EnemyThreatLevel.OneHit)]
+        [TestCase(
+            EnemyArchetype.Ranged,
+            1,
+            1,
+            EnemyThreatLevel.OneHit)]
+        [TestCase(
+            EnemyArchetype.Melee,
+            1,
+            1,
+            EnemyThreatLevel.ThreeFrontOneRear)]
+        [TestCase(
+            EnemyArchetype.Ranged,
+            1,
+            2,
+            EnemyThreatLevel.ThreeFrontOneRear)]
+        [TestCase(
+            EnemyArchetype.Shield,
+            1,
+            5,
+            EnemyThreatLevel.ThreeFrontOneRear)]
+        [TestCase(
+            EnemyArchetype.Melee,
+            1,
+            2,
+            EnemyThreatLevel.Dangerous)]
+        [TestCase(
+            EnemyArchetype.Ranged,
+            1,
+            3,
+            EnemyThreatLevel.Dangerous)]
+        [TestCase(
+            EnemyArchetype.Boss,
+            5,
+            1,
+            EnemyThreatLevel.Dangerous)]
+        public void ThreatLevel_UsesNormalFrontAndRearHitCounts(
+            EnemyArchetype archetype,
+            int playerLevel,
+            int enemyLevel,
+            EnemyThreatLevel expected)
+        {
+            Assert.That(
+                CombatResolver.GetThreatLevel(
+                    archetype,
+                    playerLevel,
+                    enemyLevel),
+                Is.EqualTo(expected));
+        }
     }
 }

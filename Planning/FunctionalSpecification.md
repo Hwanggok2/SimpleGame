@@ -98,7 +98,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | PM-001 | 빈 공간 이동 | Enemy 타깃 없이 월드 위치 터치 | Player 입력 가능, 유효한 플레이 영역 | 터치 위치를 목적지로 설정하고 거리에 관계없이 최대 0.1초 동안 이동 모션 재생 | 목적지에 도착 후 Idle 상태 전환 | 방패병이 경로를 막으면 방패병 접근 위치까지만 이동 | 이동 모션, 터치 마커 | `PlayerMovement`, `PlayerStateMachine` | 빈 공간 터치 후 Player가 허용 경계 안의 목적지에 0.1초 이내 도착해야 함 | P0/확정 |
 | PM-002 | 공격 위치 접근 | Enemy 공격 요청 | 타깃이 살아 있고 Player 입력 가능 | Enemy가 회색 공격 사거리 밖이면 Enemy 중심이 사거리 끝에 오도록 공격 위치를 계산하여 최대 0.1초 동안 이동하고, 사거리 안이면 현재 위치를 유지 | 공격 가능 위치 도착 또는 현재 사거리 확인 후 공격 실행 | Enemy가 이미 회색 사거리 안이면 Collider가 겹쳐도 이동·분리 보정을 하지 않음. 이동 중 타깃 사망 처리 미정 | 이동 모션, 타깃 강조 | `PlayerMovement`, `PlayerCombat` | 사거리 밖에서는 0.1초 이내 접근하고 이동 완료 전에 피해가 없어야 하며, 사거리 안에서는 Collider 중첩 여부와 관계없이 이동하지 않아야 함 | P0/확정 |
-| PM-003 | 경로상 Enemy 공격과 후속 이동 | Enemy 뒤쪽의 빈 공간 또는 다른 목표 터치 | Player 입력 가능, 이동 경로와 살아 있는 Enemy Collider가 겹침 | 가장 먼저 만나는 Enemy가 공격 사거리 끝에 놓이도록 최대 0.1초 접근한 뒤 공격 1회를 처리 | 일격 처치면 Death 재생과 동시에 원래 터치 지점으로 새 0.1초 이동을 시작하고, 생존하면 공격 위치에서 정지 | 피해 무효 정면 공격의 반동·입력 잠금 규칙은 그대로 적용. 터치 위치는 플레이 영역 경계 안으로 보정 | 공격·피격·Death 모션, 처치 후 연속 이동 | `PlayerController`, `PlayerMovement`, `CombatResolver`, `EnemyBase` | 1타 Enemy는 처치하며 지나가고, 1타에 생존하는 Enemy는 공격 사거리 끝에서 Player 이동을 차단해야 함 | P0/구현 |
+| PM-003 | 경로상 Enemy 연속 공격과 후속 이동 | Enemy 뒤쪽의 빈 공간 또는 다른 목표 터치 | Player 입력 가능, 이동 경로와 살아 있는 Enemy Collider가 겹침 | 경로에서 가장 먼저 만나는 Enemy가 공격 사거리 끝에 놓이도록 접근해 공격 1회를 처리한다. 처치하면 원래 목적지까지 남은 경로를 다시 검사하여 다음 Enemy도 같은 방식으로 공격한다 | 한 번의 터치로 일격 처치 가능한 Enemy들을 순서대로 처치하며 이동하고, 공격 1회에 생존하는 Enemy를 만나면 공격 위치에서 정지 | 피해 무효 정면 공격의 반동·입력 잠금 규칙은 그대로 적용. 터치 위치는 플레이 영역 경계 안으로 보정하며, 사망한 Enemy는 즉시 다음 경로 검사에서 제외 | 공격·피격·Death 모션, 처치 후 연속 이동 | `PlayerController`, `PlayerMovement`, `CombatResolver`, `PrototypeGameSession`, `EnemyBase` | 동일 경로의 1타 Enemy N마리는 한 번의 터치로 모두 처치하며 지나가야 하고, 그 뒤 생존 Enemy는 1회 공격 후 사거리 끝에서 Player 이동을 차단해야 함 | P0/구현 |
 | PC-001 | Player 공격 실행 | Enemy 유효 클릭마다 | Player가 공격 가능, 타깃 생존 | 클릭마다 공격 요청 1회를 생성한다. 사거리 밖 요청은 접근 후 처리하고, 접근 중 같은 Enemy에 연속 입력된 요청은 누적하여 도착 후 각각 정면/후면과 치명타를 판정한다 | 클릭 횟수와 같은 수의 Enemy 피해·피해 무효 판정 | 별도 Player 자동 공격 쿨타임 없음. 조작 불가·사망 중 입력은 무시하며 정면 반동 발생 시 남은 누적 요청을 취소 | 공격 모션, 타격 VFX/SFX | `PlayerController`, `EnemyBase`, `CombatResolver` | 동일 Enemy를 빠르게 N회 클릭하면 반동·사망 예외 전까지 공격 판정도 N회 발생해야 함 | P0/확정 |
 | PC-002 | 정면/후면 판정 | Player 공격 직전 | Enemy 바라보는 방향, Player 위치 | Enemy 기준 앞 180도는 정면, 뒤 180도는 후면으로 판정 | 공격 방향 결과 반환 | 정확히 측면 경계에 위치할 때 판정 기준은 구현 시 고정 필요 | 후면 공격 성공 표시 검토 | `EnemyFacing`, `CombatResolver` | Enemy의 뒤쪽 좌표에서는 후면, 앞쪽 좌표에서는 정면이어야 함 | P0/부분 확정 |
 | PC-003 | 치명타 판정 | 유효한 Player 공격마다 | 현재 치명타 확률 0~70% | 공격당 한 번 난수를 판정하고 성공 시 방향별 치명타 피해 적용 | 정면은 후면 일반 1회분, 후면은 후면 일반 3회분 적용 | 치명타 확률은 70% 초과 불가 | 치명타 VFX, 강조 텍스트 또는 SFX | `CriticalSystem`, `CombatResolver` | 0%에서는 발생하지 않고 70% 이상으로 증가하지 않아야 함 | P0/확정 |
@@ -124,6 +124,7 @@
 | EN-005 | 추적 방향 지연 갱신 | Player 추적 중 Player 위치 변경 | Enemy 생존, Player 추적 상태 | 0.7초 동안 기존 이동 방향을 유지한 후 Player 현재 위치로 방향 갱신 | Enemy 바라보는 방향과 이동 목표 갱신 | 연속 이동 시 타이머 재설정 또는 주기 갱신 방식은 구현 시 고정 필요 | 회전/방향 전환 애니메이션 | `EnemyFacing`, `EnemyTargeting` | Player가 방향을 바꿔도 Enemy가 즉시 회전하지 않아야 함 | P0/부분 확정 |
 | EN-006 | Enemy 공격 실행 | 공격 대상이 사거리 안이고 쿨타임 완료 | Enemy 공격 가능, 대상 생존 | 공격 범위를 예고하고 공격 모션과 판정 실행 후 쿨타임 적용 | Player 또는 Castle HP 감소 | Enemy별 예고 시간, 공격력, 범위와 쿨타임 미정 | 공격 범위, 모션, SFX | `EnemyAttackBase`, `EnemyDefinition` | 사거리 밖 대상에게 피해가 적용되지 않아야 함 | P0/부분 확정 |
 | EN-007 | Enemy 사망 | 누적 피해가 처치 기준 도달 | Enemy 생존 | 공격·이동·Collider를 즉시 중지하고 사망 이벤트를 한 번 발행한 뒤 Death 클립 종료 후 비활성화 | 점수/경험치 지급, 공격 대상 및 경로 차단에서 즉시 제외 | Death 재생 중 추가 피격 불가. ShieldEnemy 점수 없음, 최종 Boss는 클리어 연결 | 캐릭터별 Death 모션, VFX | `EnemyHealth`, `EnemyBase`, `CharacterSpriteAnimator`, `ScoreSystem`, `ExperienceSystem` | 사망 보상은 한 번만 발생하고 Death 클립이 보인 뒤 오브젝트가 비활성화돼야 함 | P0/구현 |
+| EN-008 | 이름·레벨 위험도 색상 표시 | Enemy 생성 또는 Player 레벨 상승 | Enemy 종류·레벨, Player 현재 레벨, 일반 공격 전투 규칙 | 정면·후면의 일반 공격 필요 타수를 계산한다. 방향 무관 1타면 초록색, 정면 3타·후면 1타면 흰색, 그 외에는 빨간색을 적용한다 | `EnemyId Lv.N` 라벨과 현재 위험도 색상 표시 | 치명타 확률과 현재 HP는 색상 계산에 반영하지 않으며 Boss는 빨간색으로 표시 | Enemy 머리 위 TMP 라벨 | `EnemyBase`, `CombatResolver`, `PlayerProgression` | Player 레벨 상승 직후 모든 생존 Enemy 라벨이 새 전투 관계에 맞는 색으로 갱신돼야 함 | P0/구현 |
 
 ## 9. 원거리 및 근거리 Enemy 기능
 
@@ -137,7 +138,7 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| SH-001 | Player 추적 및 방패 전환 | ShieldEnemy Spawn, Player가 하늘색 범위 밖으로 이동하거나 범위 안에 진입 | Player 생존, Skeleton 애니메이션 로드 완료 | 범위 밖에서는 Player를 향해 이동하며 Walk 재생. Player가 하늘색 범위 안에 들어오는 즉시 이동을 멈추고 Player를 향한 채 Shield 반복 재생 | Player와 하늘색 범위 경계를 유지하며 이동·공격 경로 차단 | Player가 범위 밖으로 벗어나면 Walk 추격 재개. ShieldEnemy는 Player를 직접 공격하지 않음. 피격 Hit 종료 후에도 범위 안이면 Shield로 복귀 | Skeleton Walk·Shield·Hit, 방패 방향, 하늘색 범위 표시 | `ShieldEnemy`, `EnemyMovement`, `EnemyStateMachine`, `CharacterSpriteAnimator`, `PlayerTargetSelector` | 범위 밖에서는 Walk, 범위 진입 프레임에는 정지·Shield, 피격 후에는 Shield로 복귀하고 직접 공격하지 않아야 함 | P0/구현 |
+| SH-001 | Player 추적 및 방패 전환 | ShieldEnemy Spawn, Player가 하늘색 범위 밖으로 이동하거나 범위 안에 진입 | Player 생존, Skeleton 애니메이션 로드 완료 | 범위 밖에서는 Player를 향해 이동하며 Walk 재생. Player가 하늘색 범위 안에 들어오는 즉시 이동을 멈추고 Shield 반복 재생. Player가 반대편으로 이동하면 기존 좌우 방향을 0.5초 유지한 후 전환 | Player와 하늘색 범위 경계를 유지하며 이동·공격 경로 차단 | Player가 0.5초 전에 원래 방향으로 돌아오면 예약된 전환 취소. 범위 밖이면 Walk 추격 재개. ShieldEnemy는 Player를 직접 공격하지 않음 | Skeleton Walk·Shield·Hit, 방패 방향, 하늘색 범위 표시 | `ShieldEnemy`, `EnemyFacing`, `EnemyMovement`, `EnemyStateMachine`, `CharacterSpriteAnimator` | 반대편 이동 후 0.49초에는 기존 방향, 0.5초 이후에는 새 방향이어야 하며 이동·Shield 상태는 유지돼야 함 | P0/구현 |
 | SH-002 | 원거리 터치 접근 | 하늘색 범위 밖 ShieldEnemy 또는 뒤쪽 목표 터치 | Player 입력 가능, ShieldEnemy가 경로 차단 | ShieldEnemy의 하늘색 범위 끝까지 이동하고 공격하지 않음 | Player가 ShieldEnemy 앞에서 정지 | 공격이 없으므로 0.5초 조작 불가도 적용하지 않음 | 차단 피드백 | `PlayerMovement`, `ShieldEnemy` | 첫 원거리 터치에서는 ShieldEnemy 타격 수가 감소하지 않아야 함 | P0/확정 |
 | SH-003 | ShieldEnemy 정면 공격 | 하늘색 범위 안에서 ShieldEnemy 정면 터치 | Player 공격 가능 | 정면 타격을 누적하고, ShieldEnemy가 Player보다 2레벨 이상 낮지 않으면 Player 넉백·0.5초 조작 불가·화면 흔들림 적용 | 3타 누적 시 처치, 조건부 Player 반동 | ShieldEnemy가 Player보다 2레벨 이상 낮으면 넉백과 조작 불가 없이 타격 피해와 일반 명중 화면 흔들림만 적용 | 방패 충돌, 화면 흔들림, Player 넉백/경직 | `ShieldEnemy`, `PlayerCombat`, `PlayerMovement`, `PlayerStateMachine` | 정면 3타 처치는 레벨과 무관하며, Player보다 최대 1레벨 낮은 방패병부터 반동이 발생해야 함 | P0/확정 |
 | SH-004 | ShieldEnemy 후면 공격 | ShieldEnemy 후면 공격 성공 | Player 공격 가능 | 후면 공격 1회를 처치 피해로 적용 | 즉시 처치 | 레벨과 관계없이 동일 | 후면 처치 VFX | `ShieldEnemy`, `CombatResolver` | 모든 레벨의 ShieldEnemy가 후면 1타에 처치돼야 함 | P0/확정 |
@@ -212,9 +213,11 @@
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| DA-001 | EnemyDefinition 로드 | GameBootstrap 초기화 | 검증된 `.bytes` 또는 프로토타입 Definition | ID별 Enemy 설정을 읽어 조회 가능한 Repository 구성 | EnemyFactory가 Definition 조회 가능 | 중복 ID, Prefab 누락, 음수 수치는 오류 처리 | 없음 | `DataRepository`, `EnemyDefinition` | 유효 ID 조회 성공, 잘못된 ID 조회 시 명확한 오류가 발생해야 함 | P0/부분 확정 |
-| DA-002 | WaveData 로드 | GameBootstrap 초기화 | Excel에서 변환된 Wave 데이터 | 생성 시점 순으로 검증·정렬해 WaveSpawner에 제공 | 게임 시간 기반 Spawn 가능 | 실제 Wave 데이터와 포맷 미작성 | 없음 | `DataRepository`, `WaveData` | 시간, 종류, 레벨, 위치가 없는 행을 거부해야 함 | P1/미정 |
-| SP-001 | 시간 기반 Enemy Spawn | 게임 시간이 Wave 행의 생성 시점에 도달 | WaveData, SpawnPoint, EnemyFactory | 종류, 레벨, 수량과 간격에 따라 생성 요청 | 지정 Enemy가 지정 위치에 생성 | SpawnPoint 없음, 동시 최대 수와 실패 재시도 규칙 미정 | Spawn 연출 선택 | `WaveSpawner`, `EnemyFactory`, `WaveData` | 같은 Wave 행이 중복 실행되지 않아야 함 | P1/미정 |
+| DA-001 | Enemy 밸런스 로드 | GameSession 초기화 | `GameDataManifest`, `EnemyBalanceTable`, `EnemyAssetCatalog` | EnemyId로 수치 Definition과 Prefab을 각각 조회하고 Archetype 일치 여부 검증 | EnemyFactory가 동일 ID의 수치와 Prefab으로 Enemy 생성 가능 | 중복·누락 ID, Prefab 누락, Archetype 불일치는 실행 전 오류 처리 | 없음 | `GameDataManifest`, `EnemyBalanceTable`, `EnemyAssetCatalog`, `EnemyFactory` | 4종 EnemyId 조회 성공, 잘못된 ID와 잘못된 Prefab 매핑은 검증에서 거부돼야 함 | P0/구현 |
+| DA-002 | 스폰 일정 로드 | Stage 시작 | Excel 변환 결과인 `StageSpawnSchedule` | StageId에 맞는 행을 시간, WaveId, SpawnIndex 순으로 정렬해 StageSpawner에 제공 | 게임 시간 기반 Spawn 준비 완료 | 동일 Stage·Wave·SpawnIndex 조합은 중복 불가, 필수 문자열과 음수 시간은 importer에서 거부 | 없음 | `GameDataManifest`, `StageSpawnSchedule`, `StageSpawnController` | 다른 Stage 행은 제외되고 같은 시간 행은 순번대로 한 번씩 실행돼야 함 | P0/구현 |
+| DA-003 | 레벨·전역 밸런스 로드 | Player 초기화 또는 점수 정산 | Player/Account EXP 테이블, GlobalBalance | 레벨별 다음 필요 EXP와 점수→계정 EXP·치명타 공통값을 Manifest에서 전달 | Player 성장과 계정 EXP 계산이 데이터값을 사용 | 없는 레벨 행에서는 임의 보간하지 않고 오류 기록 후 레벨업 중단, Player 최종 곡선은 미확정 | 없음 | `LevelExperienceTable`, `GlobalBalance`, `PlayerProgression`, `CriticalSystem` | 19점은 계정 EXP 3, 치명타는 카드당 10%·최대 70%여야 함 | P0/구현 |
+| DA-004 | Excel→Generated SO 가져오기 | 기획 데이터 갱신 후 Editor 가져오기 실행 | 규격화된 `.xlsx` 시트 | 열 이름·타입·ID 참조·중복을 검증하고 `Assets/Game/Data/Generated` 에셋 갱신 | 검증된 데이터가 Manifest를 통해 다음 실행부터 반영 | 실제 `.xlsx` 경로와 importer는 아직 미구현, 오류가 있는 시트는 기존 정상 에셋을 덮어쓰지 않아야 함 | Editor 결과 보고서 | `GameDataAssetBuilder`, 향후 `ExcelDataImporter` | 정상 파일은 결정적으로 같은 SO를 만들고 오류 파일은 행·열을 포함해 실패해야 함 | P1/미구현 |
+| SP-001 | 시간 기반 Enemy Spawn | 게임 시간이 Spawn 행의 생성 시점에 도달 | `StageSpawnSchedule`, `SpawnPointRegistry`, `EnemyFactory` | SpawnPointId를 Scene Transform으로 변환하고 지정 EnemyId·레벨로 생성 요청 | 지정 Enemy가 지정 Scene 위치에 한 번 생성 | SpawnPoint 또는 EnemyId 누락 시 오류를 기록하고 해당 행만 건너뜀, 동시 최대 수와 재시도 규칙은 미정 | Spawn 연출 선택 | `StageSpawnController`, `SpawnPointRegistry`, `EnemyFactory` | 1초 WAVE_01 14개와 120초 보스 1개가 중복 없이 예약돼야 함 | P0/구현 |
 | PL-001 | Enemy Pool 재사용 | Enemy 생성 또는 사망 | Prefab별 Pool | 요청 시 비활성 인스턴스를 초기화해 반환하고 사망 후 초기화하여 보관 | 반복 Instantiate/Destroy 감소 | Pool 부족 시 확장 수와 최대치 미정 | 없음 | `PoolService`, `EnemyFactory` | 재사용 Enemy에 이전 HP·타깃·Listener가 남지 않아야 함 | P1/부분 확정 |
 
 ## 17. 저장 기능
@@ -298,19 +301,18 @@
 8. Boss 공격 영역 모양·크기와 예고 중 Player 이탈 처리
 9. 최종 Boss 레벨
 10. 생존 점수 수식과 누적 방식
-11. 인게임 레벨업 초과 EXP와 다중 레벨업 처리
+11. Player 레벨별 최종 필요 EXP, 초과 EXP와 다중 레벨업 처리
 12. ShieldEnemy 경험치 지급 여부
 13. 치명타 확률 70% 도달 후 카드 후보 제외 여부
 14. 치명타 외 능력 카드
-15. 레벨업 UI 표시 중 게임 일시정지 여부
-16. 계정 5레벨 이후 요구 EXP와 최대 레벨
-17. 계정 레벨에서 Player 시작 레벨로 변환하는 규칙
-18. 실제 Wave 및 Spawn 데이터
-19. 광고 실패·취소·No Fill 처리
-20. 광고 경험치 2배 대상과 적용 시점
-21. 저장 포맷, 손상 복구와 버전 마이그레이션
-22. Player 반동 넉백 거리와 이동 시간
-23. 일반 타격, 치명타와 정면 반동별 화면 흔들림 강도 및 지속시간
+15. 계정 5레벨 이후 요구 EXP와 최대 레벨
+16. 실제 계정 레벨·경험치 저장 위치와 Toss 계정 데이터 연동 방식
+17. 현재 Stage01 WAVE_01·WAVE_05 이후의 전체 Wave 및 Spawn 데이터
+18. 광고 실패·취소·No Fill 처리
+19. 광고 경험치 2배 대상과 적용 시점
+20. 저장 포맷, 손상 복구와 버전 마이그레이션
+21. Player 반동 넉백 거리와 이동 시간
+22. 일반 타격, 치명타와 정면 반동별 화면 흔들림 강도 및 지속시간
 
 ## 24. 기능 완료 조건
 

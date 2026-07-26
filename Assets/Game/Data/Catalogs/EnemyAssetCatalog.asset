@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d62fc92c3f0c5044cb6802dd54a1610c, type: 3}
+  m_Name: EnemyAssetCatalog
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyAssetCatalog
+  entries:
+  - enemyId: GoblinMelee
+    prefab: {fileID: 6321661693941511438, guid: 7a58f49f273defb45a4e2100cd0ed036, type: 3}
+  - enemyId: GoblinRanged
+    prefab: {fileID: 6555553019059507012, guid: 57c156c29e952494fb2042d5a56d8d9a, type: 3}
+  - enemyId: ShieldSkeleton
+    prefab: {fileID: 4990094072679397143, guid: ba139c126f0f23f4b93e8ace572005a7, type: 3}
+  - enemyId: GoblinBoss
+    prefab: {fileID: 5861927529856189494, guid: 5af6bcae580d7674f8ed38673f564639, type: 3}

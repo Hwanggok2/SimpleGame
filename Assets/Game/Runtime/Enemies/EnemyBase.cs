@@ -45,11 +45,14 @@ namespace SimpleGame
             levelLabel = configuredLevelLabel;
         }
 
-        public void Configure(PrototypeGameSession session, int enemyLevel)
+        public void Configure(
+            PrototypeGameSession session,
+            int enemyLevel,
+            EnemyDefinition definition)
         {
             Session = session;
             level = Mathf.Max(1, enemyLevel);
-            Definition = PrototypeEnemyDefinitions.Create(Archetype);
+            Definition = definition;
 
             health = GetComponent<EnemyHealth>();
             facing = GetComponent<EnemyFacing>();
@@ -75,6 +78,7 @@ namespace SimpleGame
 
             health.ResetHealth();
             characterAnimation.Revive();
+            facing.Configure(Definition.FacingTurnDelay);
             if (hitCollider != null)
             {
                 hitCollider.enabled = true;
@@ -91,13 +95,13 @@ namespace SimpleGame
         public void MoveTowards(Vector2 position)
         {
             facing.Face(position);
-            movement.StepTowards(position);
+            movement.StepTowards(position, facing.Direction);
         }
 
         public void FaceTowards(Vector2 position)
         {
             facing.Face(position);
-            characterAnimation.Face(position - (Vector2)transform.position);
+            characterAnimation.Face(facing.Direction);
             movement.Stop();
         }
 
@@ -109,14 +113,32 @@ namespace SimpleGame
         public void GuardTowards(Vector2 position)
         {
             facing.Face(position);
-            characterAnimation.SetGuard(
-                position - (Vector2)transform.position);
+            characterAnimation.SetGuard(facing.Direction);
         }
 
         public void PlayAttack(Vector2 targetPosition)
         {
             characterAnimation.PlayAttack(
                 targetPosition - (Vector2)transform.position);
+        }
+
+        public void RefreshLevelLabel()
+        {
+            if (levelLabel == null ||
+                Session?.Player?.Progression == null)
+            {
+                return;
+            }
+
+            levelLabel.color = CombatResolver.GetThreatLevel(
+                Archetype,
+                Session.Player.Progression.Level,
+                level) switch
+            {
+                EnemyThreatLevel.OneHit => Color.green,
+                EnemyThreatLevel.ThreeFrontOneRear => Color.white,
+                _ => Color.red
+            };
         }
 
         public bool ReceivePlayerAttack(
@@ -214,7 +236,8 @@ namespace SimpleGame
             facingMarker.transform.localPosition = new Vector3(0f, -size * 0.55f, 0f);
             levelLabel.transform.localPosition =
                 new Vector3(0f, size * 0.82f, 0f);
-            levelLabel.text = $"{Archetype} Lv.{level}";
+            levelLabel.text = $"{Definition.EnemyId} Lv.{level}";
+            RefreshLevelLabel();
         }
 
         private void SetGameplayVisualsVisible(bool visible)

@@ -1,0 +1,120 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf74568244184064ca2a8ce836bc0bfd, type: 3}
+  m_Name: StageSpawnSchedule
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.StageSpawnSchedule
+  entries:
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 1
+    spawnPointId: TOP_01
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 2
+    spawnPointId: TOP_02
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 3
+    spawnPointId: TOP_03
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 4
+    spawnPointId: TOP_04
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 5
+    spawnPointId: TOP_05
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 6
+    spawnPointId: TOP_06
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 7
+    spawnPointId: RIGHT_03
+    enemyId: ShieldSkeleton
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 8
+    spawnPointId: BOTTOM_01
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 9
+    spawnPointId: BOTTOM_02
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 10
+    spawnPointId: BOTTOM_03
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 11
+    spawnPointId: BOTTOM_04
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 12
+    spawnPointId: BOTTOM_05
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 13
+    spawnPointId: BOTTOM_06
+    enemyId: GoblinMelee
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_01
+    spawnTimeSec: 1
+    spawnIndex: 14
+    spawnPointId: LEFT_03
+    enemyId: ShieldSkeleton
+    enemyLevel: 1
+  - stageId: Stage01
+    waveId: WAVE_05
+    spawnTimeSec: 120
+    spawnIndex: 15
+    spawnPointId: TOP_03
+    enemyId: GoblinBoss
+    enemyLevel: 5

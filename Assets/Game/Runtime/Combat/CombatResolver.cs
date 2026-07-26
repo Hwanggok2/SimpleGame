@@ -56,6 +56,44 @@ namespace SimpleGame
                     : PlayerAttackReaction.None);
         }
 
+        public static EnemyThreatLevel GetThreatLevel(
+            EnemyArchetype archetype,
+            int playerLevel,
+            int enemyLevel)
+        {
+            CombatResult front = Resolve(
+                archetype,
+                playerLevel,
+                enemyLevel,
+                AttackSide.Front,
+                false);
+            CombatResult rear = Resolve(
+                archetype,
+                playerLevel,
+                enemyLevel,
+                AttackSide.Rear,
+                false);
+
+            int frontHits = GetRequiredHitCount(front);
+            int rearHits = GetRequiredHitCount(rear);
+            if (frontHits == 1 && rearHits == 1)
+            {
+                return EnemyThreatLevel.OneHit;
+            }
+
+            return frontHits == 3 && rearHits == 1
+                ? EnemyThreatLevel.ThreeFrontOneRear
+                : EnemyThreatLevel.Dangerous;
+        }
+
+        private static int GetRequiredHitCount(CombatResult result)
+        {
+            return result.Damage > 0
+                ? Mathf.CeilToInt(
+                    (float)result.RequiredDurability / result.Damage)
+                : int.MaxValue;
+        }
+
         private static void GetDamageModel(
             EnemyArchetype archetype,
             int playerLevel,

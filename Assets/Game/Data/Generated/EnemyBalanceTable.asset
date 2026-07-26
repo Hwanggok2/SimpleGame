@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d070aa5ecdaa5d47bd17924c3b7d0d0, type: 3}
+  m_Name: EnemyBalanceTable
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyBalanceTable
+  definitions:
+  - enemyId: GoblinMelee
+    archetype: 0
+    moveSpeed: 0.7
+    attackRange: 0.85
+    attackDamage: 2
+    attackWindup: 0.55
+    attackActiveDuration: 0
+    attackCooldown: 1.5
+    attackAreaRadius: 0
+    approachRange: 0
+    facingTurnDelay: 0
+    killExperience: 2
+    score: 5
+  - enemyId: GoblinRanged
+    archetype: 1
+    moveSpeed: 0.55
+    attackRange: 2.25
+    attackDamage: 2
+    attackWindup: 0.8
+    attackActiveDuration: 0
+    attackCooldown: 2.2
+    attackAreaRadius: 0
+    approachRange: 0
+    facingTurnDelay: 0
+    killExperience: 2
+    score: 5
+  - enemyId: ShieldSkeleton
+    archetype: 2
+    moveSpeed: 0.6
+    attackRange: 0
+    attackDamage: 0
+    attackWindup: 0
+    attackActiveDuration: 0
+    attackCooldown: 0
+    attackAreaRadius: 0
+    approachRange: 2.25
+    facingTurnDelay: 0.5
+    killExperience: 0
+    score: 0
+  - enemyId: GoblinBoss
+    archetype: 3
+    moveSpeed: 0.42
+    attackRange: 2.6
+    attackDamage: 4
+    attackWindup: 1.5
+    attackActiveDuration: 0.5
+    attackCooldown: 3
+    attackAreaRadius: 1.35
+    approachRange: 0
+    facingTurnDelay: 0
+    killExperience: 5
+    score: 25

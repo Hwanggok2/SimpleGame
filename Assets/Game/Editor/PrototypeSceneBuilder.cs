@@ -19,6 +19,7 @@ namespace SimpleGameEditor
         public static void Build()
         {
             CharacterAssetBuilder.Build();
+            GameDataManifest gameData = GameDataAssetBuilder.BuildAssets();
             Scene scene = EditorSceneManager.NewScene(
                 NewSceneSetup.EmptyScene,
                 NewSceneMode.Single);
@@ -48,19 +49,20 @@ namespace SimpleGameEditor
                     -190);
             arena.Configure(bounds, arenaBackground, castleLane);
             PrototypeEnemyFactory factory = systems.AddComponent<PrototypeEnemyFactory>();
-            factory.ConfigurePrefabs(
-                LoadPrefabComponent<MeleeEnemy>(
-                    CharacterAssetBuilder.MeleePrefabPath),
-                LoadPrefabComponent<RangedEnemy>(
-                    CharacterAssetBuilder.RangedPrefabPath),
-                LoadPrefabComponent<ShieldEnemy>(
-                    CharacterAssetBuilder.ShieldPrefabPath),
-                LoadPrefabComponent<BossEnemy>(
-                    CharacterAssetBuilder.BossPrefabPath));
+            factory.ConfigureAssets(
+                gameData.EnemyAssets,
+                gameData.EnemyBalance);
             CombatFeedbackController combatFeedback =
                 systems.AddComponent<CombatFeedbackController>();
-            combatFeedback.Configure(camera.GetComponent<CameraShakeController>());
+            combatFeedback.Configure(
+                camera.GetComponent<CameraShakeController>(),
+                gameData.CombatFeedback);
             PrototypeGameSession session = systems.AddComponent<PrototypeGameSession>();
+            StageSpawnController stageSpawner =
+                systems.AddComponent<StageSpawnController>();
+            SpawnPointRegistry spawnPoints =
+                CreateDefaultSpawnPoints(bounds);
+            stageSpawner.Configure(gameData, spawnPoints, factory);
 
             var entities = new GameObject("Entities");
             Transform enemyRoot = new GameObject("Enemies").transform;
@@ -79,6 +81,7 @@ namespace SimpleGameEditor
                 camera,
                 combatFeedback,
                 presenter);
+            session.ConfigureData(gameData, stageSpawner);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -127,18 +130,102 @@ namespace SimpleGameEditor
             return playerObject.GetComponent<PlayerRoot>();
         }
 
-        private static T LoadPrefabComponent<T>(string path)
-            where T : Component
+        private static SpawnPointRegistry CreateDefaultSpawnPoints(
+            MapBounds bounds)
         {
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-            T component = prefab != null ? prefab.GetComponent<T>() : null;
-            if (component == null)
-            {
-                throw new InvalidOperationException(
-                    $"Prefab component {typeof(T).Name} not found: {path}");
-            }
+            var root = new GameObject("SpawnTransform");
+            var points = new System.Collections.Generic.List<Transform>();
+            CreateVerticalSpawnGroup(
+                root.transform,
+                "LeftSpawn",
+                "LEFT",
+                bounds.Min.x - 0.8f,
+                bounds.Min.y,
+                bounds.Max.y,
+                8,
+                points);
+            CreateVerticalSpawnGroup(
+                root.transform,
+                "RightSpawn",
+                "RIGHT",
+                bounds.Max.x + 0.8f,
+                bounds.Min.y,
+                bounds.Max.y,
+                8,
+                points);
+            CreateHorizontalSpawnGroup(
+                root.transform,
+                "TopSpawn",
+                "TOP",
+                bounds.Max.y + 0.8f,
+                bounds.Min.x,
+                bounds.Max.x,
+                6,
+                points);
+            CreateHorizontalSpawnGroup(
+                root.transform,
+                "BottomSpawn",
+                "BOTTOM",
+                bounds.Min.y - 0.8f,
+                bounds.Min.x,
+                bounds.Max.x,
+                6,
+                points);
 
-            return component;
+            SpawnPointRegistry registry =
+                root.AddComponent<SpawnPointRegistry>();
+            registry.Configure(points);
+            return registry;
+        }
+
+        private static void CreateVerticalSpawnGroup(
+            Transform root,
+            string groupName,
+            string idPrefix,
+            float x,
+            float minY,
+            float maxY,
+            int count,
+            System.Collections.Generic.ICollection<Transform> output)
+        {
+            var group = new GameObject(groupName);
+            group.transform.SetParent(root, false);
+            for (int index = 0; index < count; index++)
+            {
+                float progress = count == 1
+                    ? 0.5f
+                    : index / (count - 1f);
+                var point = new GameObject($"{idPrefix}_{index + 1:00}");
+                point.transform.SetParent(group.transform, false);
+                point.transform.position =
+                    new Vector3(x, Mathf.Lerp(maxY, minY, progress), 0f);
+                output.Add(point.transform);
+            }
+        }
+
+        private static void CreateHorizontalSpawnGroup(
+            Transform root,
+            string groupName,
+            string idPrefix,
+            float y,
+            float minX,
+            float maxX,
+            int count,
+            System.Collections.Generic.ICollection<Transform> output)
+        {
+            var group = new GameObject(groupName);
+            group.transform.SetParent(root, false);
+            for (int index = 0; index < count; index++)
+            {
+                float progress = count == 1
+                    ? 0.5f
+                    : index / (count - 1f);
+                var point = new GameObject($"{idPrefix}_{index + 1:00}");
+                point.transform.SetParent(group.transform, false);
+                point.transform.position =
+                    new Vector3(Mathf.Lerp(minX, maxX, progress), y, 0f);
+                output.Add(point.transform);
+            }
         }
 
         private static CastleRoot CreateCastle(Transform parent)

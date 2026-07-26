@@ -60,14 +60,17 @@ namespace SimpleGame
             }
 
             float elapsed = Time.time - cycleStartedAt;
-            if (elapsed < 1.5f)
+            float activeEndsAt =
+                owner.Definition.AttackWindup +
+                owner.Definition.AttackActiveDuration;
+            if (elapsed < owner.Definition.AttackWindup)
             {
                 indicator.enabled = true;
                 owner.MoveTowards(castle.transform.position);
                 return;
             }
 
-            if (elapsed < 2f)
+            if (elapsed < activeEndsAt)
             {
                 if (!damageApplied)
                 {
@@ -75,7 +78,8 @@ namespace SimpleGame
                     owner.PlayAttack(player.transform.position);
                     Vector2 attackCenter = indicator.transform.position;
                     if (player.IsAlive &&
-                        Vector2.Distance(player.transform.position, attackCenter) <= 1.35f)
+                        Vector2.Distance(player.transform.position, attackCenter) <=
+                        owner.Definition.AttackAreaRadius)
                     {
                         player.ReceiveDamage(owner.Definition.AttackDamage);
                     }
@@ -85,7 +89,7 @@ namespace SimpleGame
             }
 
             indicator.enabled = false;
-            if (elapsed < 3f)
+            if (elapsed < owner.Definition.AttackCooldown)
             {
                 owner.MoveTowards(castle.transform.position);
                 return;

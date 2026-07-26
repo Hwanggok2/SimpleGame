@@ -15,9 +15,17 @@ namespace SimpleGame
         [SerializeField] private Camera worldCamera;
         [SerializeField] private CombatFeedbackController combatFeedback;
         [SerializeField] private PrototypeHUDPresenter hudPresenter;
+        [Header("Game Data")]
+        [SerializeField] private string stageId = "Stage01";
+        [SerializeField] private GameDataManifest gameData;
+        [SerializeField] private StageSpawnController stageSpawner;
+        [Header("Prototype Account")]
+        [SerializeField, Min(1)] private int accountLevel = 1;
 
         private readonly List<EnemyBase> enemies = new();
         private GameRunState state = GameRunState.Playing;
+        private int pendingCardSelections;
+        private bool selectingStartingCards;
         private int continueCount;
 
         public event Action<string> HintChanged;
@@ -28,7 +36,10 @@ namespace SimpleGame
         public PlayerRoot Player => player;
         public CastleRoot Castle => castle;
         public int Score { get; private set; }
-        public int AccountExperience => Score / 5;
+        public int AccountExperience =>
+            gameData != null && gameData.GlobalBalance != null
+                ? gameData.GlobalBalance.CalculateAccountExperience(Score)
+                : 0;
         public float ElapsedTime { get; private set; }
         public bool IsPlaying => state == GameRunState.Playing;
 
@@ -52,19 +63,50 @@ namespace SimpleGame
             hudPresenter = configuredPresenter;
         }
 
+        public void ConfigureData(
+            GameDataManifest configuredGameData,
+            StageSpawnController configuredStageSpawner)
+        {
+            gameData = configuredGameData;
+            stageSpawner = configuredStageSpawner;
+        }
+
         private void Start()
         {
             Time.timeScale = 1f;
+            if (gameData == null ||
+                !gameData.IsConfigured ||
+                stageSpawner == null)
+            {
+                Debug.LogError(
+                    "PrototypeGameSession requires GameDataManifest " +
+                    "and StageSpawnController.",
+                    this);
+                enabled = false;
+                return;
+            }
+
             EnsureCombatFeedback();
             castle.Configure(30);
-            player.Configure(this, worldCamera, mapBounds);
+            player.Configure(
+                this,
+                worldCamera,
+                mapBounds,
+                gameData.PlayerLevelExperience,
+                gameData.GlobalBalance);
+            enemyFactory.ConfigureAssets(
+                gameData.EnemyAssets,
+                gameData.EnemyBalance);
             enemyFactory.Configure(this, enemyRoot);
             hudPresenter.Initialize(this);
 
             castle.Health.Depleted += OnCastleDepleted;
             player.Progression.LevelUpCardRequested += OnPlayerLevelUp;
-            SpawnPrototypeSet();
+            stageSpawner.Begin(stageId);
             ShowHint("Tap the field to move. Tap an enemy to test the combat rules.");
+            QueueCardSelections(
+                CalculateStartingCardSelectionCount(accountLevel),
+                true);
         }
 
         private void Update()
@@ -77,6 +119,7 @@ namespace SimpleGame
             if (IsPlaying)
             {
                 ElapsedTime += Time.deltaTime;
+                stageSpawner.Tick(ElapsedTime);
             }
         }
 
@@ -168,9 +211,8 @@ namespace SimpleGame
 
         public void OnEnemyDefeated(EnemyBase enemy)
         {
-            int score = enemy.Archetype == EnemyArchetype.Boss ? 25 : 5;
-            Score += score;
-            player.Progression.AddExperience(enemy.Archetype == EnemyArchetype.Boss ? 5 : 2);
+            Score += enemy.Definition.Score;
+            player.Progression.AddExperience(enemy.Definition.KillExperience);
         }
 
         public void ShowHint(string message)
@@ -191,7 +233,8 @@ namespace SimpleGame
 
         public void TogglePause()
         {
-            if (state == GameRunState.GameOver)
+            if (state == GameRunState.GameOver ||
+                state == GameRunState.CardSelection)
             {
                 return;
             }
@@ -205,14 +248,30 @@ namespace SimpleGame
 
         public void SelectCriticalCard()
         {
-            player.Critical.AddCard();
-            CriticalCardVisibilityChanged?.Invoke(false);
-            if (state == GameRunState.Paused)
+            if (state != GameRunState.CardSelection ||
+                pendingCardSelections <= 0)
             {
-                TogglePause();
+                return;
             }
 
-            ShowHint("Critical chance +10% card applied.");
+            player.Critical.AddCard();
+            pendingCardSelections--;
+            if (pendingCardSelections > 0)
+            {
+                CriticalCardVisibilityChanged?.Invoke(false);
+                CriticalCardVisibilityChanged?.Invoke(true);
+                ShowCardSelectionHint();
+                return;
+            }
+
+            bool completedStartingCards = selectingStartingCards;
+            selectingStartingCards = false;
+            CriticalCardVisibilityChanged?.Invoke(false);
+            state = GameRunState.Playing;
+            Time.timeScale = 1f;
+            ShowHint(completedStartingCards
+                ? "Starting cards selected. Game started."
+                : "Critical chance +10% card applied.");
         }
 
         public void SimulateRewardedContinue()
@@ -250,6 +309,11 @@ namespace SimpleGame
 
         public void DebugGrantPlayerExperience()
         {
+            if (!IsPlaying)
+            {
+                return;
+            }
+
             player.Progression.AddExperience(5);
             ShowHint("Debug: Player EXP +5.");
         }
@@ -262,7 +326,10 @@ namespace SimpleGame
             }
 
             state = GameRunState.GameOver;
+            pendingCardSelections = 0;
+            selectingStartingCards = false;
             Time.timeScale = 1f;
+            CriticalCardVisibilityChanged?.Invoke(false);
             GameOverVisibilityChanged?.Invoke(true);
             ShowHint("Castle destroyed. CONTINUE simulates a successful rewarded ad.");
         }
@@ -274,20 +341,46 @@ namespace SimpleGame
                 return;
             }
 
-            state = GameRunState.Paused;
-            Time.timeScale = 0f;
-            CriticalCardVisibilityChanged?.Invoke(true);
-            ShowHint("LEVEL UP: select the repeatable Critical +10% card.");
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy != null && enemy.IsAlive)
+                {
+                    enemy.RefreshLevelLabel();
+                }
+            }
+
+            QueueCardSelections(1, false);
         }
 
-        private void SpawnPrototypeSet()
+        public static int CalculateStartingCardSelectionCount(
+            int currentAccountLevel)
         {
-            enemyFactory.Spawn(EnemyArchetype.Ranged, 1, new Vector2(-3.7f, 6.8f));
-            enemyFactory.Spawn(EnemyArchetype.Melee, 1, new Vector2(3.7f, 6.5f));
-            enemyFactory.Spawn(EnemyArchetype.Shield, 1, new Vector2(0f, 4.6f));
-            enemyFactory.Spawn(EnemyArchetype.Ranged, 3, new Vector2(-3.8f, -6.2f));
-            enemyFactory.Spawn(EnemyArchetype.Melee, 2, new Vector2(3.8f, -5.9f));
-            enemyFactory.Spawn(EnemyArchetype.Boss, 1, new Vector2(0f, 8.1f));
+            return Mathf.Max(0, currentAccountLevel - 1);
+        }
+
+        private void QueueCardSelections(int count, bool startingCards)
+        {
+            if (count <= 0)
+            {
+                return;
+            }
+
+            pendingCardSelections += count;
+            selectingStartingCards |= startingCards;
+            state = GameRunState.CardSelection;
+            Time.timeScale = 0f;
+            CriticalCardVisibilityChanged?.Invoke(true);
+            ShowCardSelectionHint();
+        }
+
+        private void ShowCardSelectionHint()
+        {
+            string source = selectingStartingCards
+                ? $"ACCOUNT Lv.{accountLevel} START BONUS"
+                : "LEVEL UP";
+            ShowHint(
+                $"{source}: select a card " +
+                $"({pendingCardSelections} remaining).");
         }
 
         private void EnsureCombatFeedback()
@@ -315,7 +408,7 @@ namespace SimpleGame
                 return;
             }
 
-            combatFeedback.Configure(cameraShake);
+            combatFeedback.Configure(cameraShake, gameData.CombatFeedback);
         }
 
         private static float GetColliderRadius(Component owner)

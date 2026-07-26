@@ -43,7 +43,12 @@ namespace SimpleGame
             levelLabel = configuredLevelLabel;
         }
 
-        public void Configure(PrototypeGameSession session, Camera worldCamera, MapBounds mapBounds)
+        public void Configure(
+            PrototypeGameSession session,
+            Camera worldCamera,
+            MapBounds mapBounds,
+            LevelExperienceTable experienceTable,
+            GlobalBalance globalBalance)
         {
             health = GetComponent<HealthComponent>();
             movement = GetComponent<PlayerMovement>();
@@ -62,6 +67,10 @@ namespace SimpleGame
             this.mapBounds = mapBounds;
 
             health.Configure(10);
+            progression.Configure(experienceTable);
+            critical.Configure(
+                globalBalance.CriticalChancePerCard,
+                globalBalance.MaximumCriticalChance);
             BuildVisual();
             movement.Configure(
                 PlayerMovement.DefaultMoveDuration,
