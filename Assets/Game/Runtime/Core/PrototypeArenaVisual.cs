@@ -5,34 +5,24 @@ namespace SimpleGame
     public sealed class PrototypeArenaVisual : MonoBehaviour
     {
         [SerializeField] private MapBounds mapBounds;
+        [SerializeField] private SpriteRenderer background;
+        [SerializeField] private SpriteRenderer lane;
 
-        public void Configure(MapBounds bounds)
+        public void Configure(
+            MapBounds bounds,
+            SpriteRenderer configuredBackground,
+            SpriteRenderer configuredLane)
         {
             mapBounds = bounds;
-        }
-
-        private void Awake()
-        {
-            if (mapBounds == null)
-            {
-                return;
-            }
+            background = configuredBackground;
+            lane = configuredLane;
 
             Vector2 size = mapBounds.Max - mapBounds.Min;
-            SpriteRenderer background = PrototypeVisualFactory.CreateSprite(
-                transform,
-                "ArenaBackground",
-                new Color(0.18f, 0.38f, 0.16f),
-                size,
-                -200);
+            background.transform.localScale = new Vector3(size.x, size.y, 1f);
             background.transform.position = (mapBounds.Min + mapBounds.Max) * 0.5f;
 
-            SpriteRenderer lane = PrototypeVisualFactory.CreateSprite(
-                transform,
-                "CastleLane",
-                new Color(0.62f, 0.48f, 0.25f),
-                new Vector2(size.x * 0.28f, size.y),
-                -190);
+            lane.transform.localScale =
+                new Vector3(size.x * 0.28f, size.y, 1f);
             lane.transform.position = (mapBounds.Min + mapBounds.Max) * 0.5f;
         }
     }

@@ -5,21 +5,38 @@ namespace SimpleGame
     public sealed class BossAttackModule : MonoBehaviour
     {
         private EnemyBase owner;
-        private SpriteRenderer indicator;
+        [SerializeField] private SpriteRenderer indicator;
         private float cycleStartedAt = -1f;
         private bool damageApplied;
+
+        public void ConfigureIndicator(SpriteRenderer configuredIndicator)
+        {
+            indicator = configuredIndicator;
+        }
 
         public void Configure(EnemyBase enemy)
         {
             owner = enemy;
-            indicator = PrototypeVisualFactory.CreateSprite(
-                transform,
-                "BossAttackWarning",
-                new Color(1f, 0.05f, 0.05f, 0.42f),
-                new Vector2(2.4f, 2.4f),
-                6);
+            if (indicator == null)
+            {
+                Debug.LogError(
+                    "Boss prefab requires a preconfigured attack warning.",
+                    this);
+                return;
+            }
+
             indicator.transform.localPosition = new Vector3(0f, -1.5f, 0f);
             indicator.enabled = false;
+        }
+
+        public void Cancel()
+        {
+            cycleStartedAt = -1f;
+            damageApplied = false;
+            if (indicator != null)
+            {
+                indicator.enabled = false;
+            }
         }
 
         public void Tick(PlayerRoot player, CastleRoot castle)

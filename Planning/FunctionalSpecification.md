@@ -77,7 +77,7 @@
 | IN-002 | 입력 차단 | Player가 사망, 공격 불가, UI 전용 상태 또는 Pause 진입 | 현재 Player 상태 | 이동과 공격 요청을 무시 | Player 상태 유지 | 입력을 버릴지 버퍼링할지 중 현재는 버리는 방식으로 정의 | 조작 불가 표시 필요 여부 미정 | `PlayerStateMachine`, `InputReader` | PC-004 반동 발생 후 0.5초 동안 연속 터치해도 이동·공격하지 않아야 함 | P0/확정 |
 | TS-001 | 터치 보정 후보 수집 | 유효한 월드 터치 발생 | 터치 월드 위치, 터치 보정 반경 | 터치 위치 주변의 살아 있는 Enemy를 수집 | 타깃 후보 목록 생성 | 프로토타입 반경은 월드 좌표 1.5, 최종 반경과 Collider 판정 방식은 데이터 확정 필요 | 후보 또는 선택 타깃 강조 | `PlayerTargetSelector`, `PlayerData` | 보정 반경 밖 Enemy는 후보에 포함되지 않아야 함 | P0/부분 확정 |
 | TS-002 | 타깃 우선순위 선택 | 후보 Enemy가 1개 이상 | Enemy 종류, Player와 Enemy 레벨 | 정의된 우선순위로 후보를 정렬하고 최상위 Enemy 선택 | 의도 타깃 1개 결정 | 같은 우선순위 Enemy가 여러 명일 때 거리/터치 근접도 기준은 미정 | 선택 타깃 표시 | `PlayerTargetSelector`, `CombatResolver` | 낮은 원거리와 방패병이 동시에 후보면 낮은 원거리가 선택돼야 함 | P0/부분 확정 |
-| TS-003 | 경로상 방패병 차단 | 이동 또는 공격 목표 결정 후 | Player 위치, 목적지, 살아 있는 방패병 Collider | Player부터 목적지까지 경로를 검사하고 가장 먼저 막는 방패병을 찾음 | 목적지가 방패병 접근 위치로 변경 | 방패병이 여러 명일 때 Player와 가장 가까운 차단 대상을 사용 | 차단된 경로 또는 방패병 강조 | `PlayerTargetSelector`, `ShieldEnemy` | 일반 Enemy를 선택해도 경로에 방패병이 있으면 방패병 앞에서 멈춰야 함 | P0/확정 |
+| TS-003 | 경로상 Enemy 가로채기 | 이동 또는 공격 목표 결정 후 | Player 위치·Collider, 목적지, 살아 있는 Enemy Collider | Player부터 목적지까지 선분을 검사하고 Collider가 가장 먼저 겹치는 Enemy를 공격 대상으로 전환 | Player가 해당 Enemy의 공격 사거리 끝까지 접근 | 시작 위치에서 이미 Collider가 겹치거나 회색 공격 사거리 안이면 이동을 생략. 여러 Enemy가 겹치면 경로 진행률이 가장 작은 대상을 사용 | 가로챈 Enemy 강조 | `PlayerController`, `PrototypeGameSession`, `EnemyBase` | Enemy 뒤 빈 공간을 터치해도 경로가 겹치면 Enemy를 지나기 전에 공격해야 함 | P0/구현 |
 
 ### 5.1 타깃 선택 우선순위
 
@@ -90,7 +90,7 @@
 7. Boss
 8. ShieldEnemy
 
-경로를 가로막는 ShieldEnemy 판정은 위 선택 우선순위보다 먼저 적용되는 최종 차단 규칙이다.
+경로를 실제로 가로막는 Enemy 판정은 위 터치 보정 우선순위보다 먼저 적용한다. 경로상 Enemy가 없을 때만 터치 보정으로 선택한 Enemy를 사용한다.
 
 ## 6. Player 이동 및 공격 기능
 
@@ -98,7 +98,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | PM-001 | 빈 공간 이동 | Enemy 타깃 없이 월드 위치 터치 | Player 입력 가능, 유효한 플레이 영역 | 터치 위치를 목적지로 설정하고 거리에 관계없이 최대 0.1초 동안 이동 모션 재생 | 목적지에 도착 후 Idle 상태 전환 | 방패병이 경로를 막으면 방패병 접근 위치까지만 이동 | 이동 모션, 터치 마커 | `PlayerMovement`, `PlayerStateMachine` | 빈 공간 터치 후 Player가 허용 경계 안의 목적지에 0.1초 이내 도착해야 함 | P0/확정 |
 | PM-002 | 공격 위치 접근 | Enemy 공격 요청 | 타깃이 살아 있고 Player 입력 가능 | Enemy가 회색 공격 사거리 밖이면 Enemy 중심이 사거리 끝에 오도록 공격 위치를 계산하여 최대 0.1초 동안 이동하고, 사거리 안이면 현재 위치를 유지 | 공격 가능 위치 도착 또는 현재 사거리 확인 후 공격 실행 | Enemy가 이미 회색 사거리 안이면 Collider가 겹쳐도 이동·분리 보정을 하지 않음. 이동 중 타깃 사망 처리 미정 | 이동 모션, 타깃 강조 | `PlayerMovement`, `PlayerCombat` | 사거리 밖에서는 0.1초 이내 접근하고 이동 완료 전에 피해가 없어야 하며, 사거리 안에서는 Collider 중첩 여부와 관계없이 이동하지 않아야 함 | P0/확정 |
-| PM-003 | 일격 처치 후 터치 지점 이동 | 한 번에 처치 가능한 Enemy의 뒤쪽을 터치 | 경로 차단 없음, 타깃 1타 처치 가능 | 공격 위치를 지나 Enemy를 처치하고, 처치 위치에서 새 0.1초 이동 구간을 시작하여 원래 터치 지점까지 이동 | Enemy 사망, Player가 터치 위치 도착 | 터치 위치가 플레이 영역 밖이면 경계 안으로 보정 | 처치 이펙트와 연속 이동 | `PlayerMovement`, `PlayerCombat`, `CombatResolver` | 낮은 레벨 Enemy 뒤를 터치하면 Enemy 앞에서 멈추지 않고 처치 후 0.1초 이내 원래 터치 위치에 도착해야 함 | P0/확정 |
+| PM-003 | 경로상 Enemy 공격과 후속 이동 | Enemy 뒤쪽의 빈 공간 또는 다른 목표 터치 | Player 입력 가능, 이동 경로와 살아 있는 Enemy Collider가 겹침 | 가장 먼저 만나는 Enemy가 공격 사거리 끝에 놓이도록 최대 0.1초 접근한 뒤 공격 1회를 처리 | 일격 처치면 Death 재생과 동시에 원래 터치 지점으로 새 0.1초 이동을 시작하고, 생존하면 공격 위치에서 정지 | 피해 무효 정면 공격의 반동·입력 잠금 규칙은 그대로 적용. 터치 위치는 플레이 영역 경계 안으로 보정 | 공격·피격·Death 모션, 처치 후 연속 이동 | `PlayerController`, `PlayerMovement`, `CombatResolver`, `EnemyBase` | 1타 Enemy는 처치하며 지나가고, 1타에 생존하는 Enemy는 공격 사거리 끝에서 Player 이동을 차단해야 함 | P0/구현 |
 | PC-001 | Player 공격 실행 | Enemy 유효 클릭마다 | Player가 공격 가능, 타깃 생존 | 클릭마다 공격 요청 1회를 생성한다. 사거리 밖 요청은 접근 후 처리하고, 접근 중 같은 Enemy에 연속 입력된 요청은 누적하여 도착 후 각각 정면/후면과 치명타를 판정한다 | 클릭 횟수와 같은 수의 Enemy 피해·피해 무효 판정 | 별도 Player 자동 공격 쿨타임 없음. 조작 불가·사망 중 입력은 무시하며 정면 반동 발생 시 남은 누적 요청을 취소 | 공격 모션, 타격 VFX/SFX | `PlayerController`, `EnemyBase`, `CombatResolver` | 동일 Enemy를 빠르게 N회 클릭하면 반동·사망 예외 전까지 공격 판정도 N회 발생해야 함 | P0/확정 |
 | PC-002 | 정면/후면 판정 | Player 공격 직전 | Enemy 바라보는 방향, Player 위치 | Enemy 기준 앞 180도는 정면, 뒤 180도는 후면으로 판정 | 공격 방향 결과 반환 | 정확히 측면 경계에 위치할 때 판정 기준은 구현 시 고정 필요 | 후면 공격 성공 표시 검토 | `EnemyFacing`, `CombatResolver` | Enemy의 뒤쪽 좌표에서는 후면, 앞쪽 좌표에서는 정면이어야 함 | P0/부분 확정 |
 | PC-003 | 치명타 판정 | 유효한 Player 공격마다 | 현재 치명타 확률 0~70% | 공격당 한 번 난수를 판정하고 성공 시 방향별 치명타 피해 적용 | 정면은 후면 일반 1회분, 후면은 후면 일반 3회분 적용 | 치명타 확률은 70% 초과 불가 | 치명타 VFX, 강조 텍스트 또는 SFX | `CriticalSystem`, `CombatResolver` | 0%에서는 발생하지 않고 70% 이상으로 증가하지 않아야 함 | P0/확정 |
@@ -123,7 +123,7 @@
 | EN-004 | Castle 목표 복귀 | 추적 대상 Player 사망 | 일반 Enemy 생존 | Player 참조를 해제하고 Castle을 목표로 설정 | Castle 이동 상태 복귀 | Boss는 원래부터 Castle 목표 유지 | 없음 | `EnemyTargeting`, `EnemyStateMachine` | Player 사망 후 일반 Enemy가 죽은 Player 위치에 머물지 않아야 함 | P0/확정 |
 | EN-005 | 추적 방향 지연 갱신 | Player 추적 중 Player 위치 변경 | Enemy 생존, Player 추적 상태 | 0.7초 동안 기존 이동 방향을 유지한 후 Player 현재 위치로 방향 갱신 | Enemy 바라보는 방향과 이동 목표 갱신 | 연속 이동 시 타이머 재설정 또는 주기 갱신 방식은 구현 시 고정 필요 | 회전/방향 전환 애니메이션 | `EnemyFacing`, `EnemyTargeting` | Player가 방향을 바꿔도 Enemy가 즉시 회전하지 않아야 함 | P0/부분 확정 |
 | EN-006 | Enemy 공격 실행 | 공격 대상이 사거리 안이고 쿨타임 완료 | Enemy 공격 가능, 대상 생존 | 공격 범위를 예고하고 공격 모션과 판정 실행 후 쿨타임 적용 | Player 또는 Castle HP 감소 | Enemy별 예고 시간, 공격력, 범위와 쿨타임 미정 | 공격 범위, 모션, SFX | `EnemyAttackBase`, `EnemyDefinition` | 사거리 밖 대상에게 피해가 적용되지 않아야 함 | P0/부분 확정 |
-| EN-007 | Enemy 사망 | 누적 피해가 처치 기준 도달 | Enemy 생존 | 공격·이동·Collider를 중지하고 사망 이벤트 발행 후 Pool 반환 | 점수/경험치 지급, Enemy 제거 | ShieldEnemy 점수 없음, 최종 Boss는 클리어 연결 | 흰색 Flash, 사망 모션, VFX | `EnemyHealth`, `ScoreSystem`, `ExperienceSystem`, `PoolService` | 사망 이벤트와 보상이 한 번만 발생해야 함 | P0/확정 |
+| EN-007 | Enemy 사망 | 누적 피해가 처치 기준 도달 | Enemy 생존 | 공격·이동·Collider를 즉시 중지하고 사망 이벤트를 한 번 발행한 뒤 Death 클립 종료 후 비활성화 | 점수/경험치 지급, 공격 대상 및 경로 차단에서 즉시 제외 | Death 재생 중 추가 피격 불가. ShieldEnemy 점수 없음, 최종 Boss는 클리어 연결 | 캐릭터별 Death 모션, VFX | `EnemyHealth`, `EnemyBase`, `CharacterSpriteAnimator`, `ScoreSystem`, `ExperienceSystem` | 사망 보상은 한 번만 발생하고 Death 클립이 보인 뒤 오브젝트가 비활성화돼야 함 | P0/구현 |
 
 ## 9. 원거리 및 근거리 Enemy 기능
 
@@ -232,7 +232,8 @@
 | FX-002 | Enemy 공격 예고 | Enemy 공격 시작 전 | 공격 범위와 예고 시간 | 실제 공격 범위를 표시하고 판정 시점에 제거 또는 변경 | Player가 회피 가능 | 일반 Enemy 수치 미정 | 범위 표시 | `EnemyAttackBase`, `EnemyVisual` | 표시된 범위와 실제 판정 범위가 일치해야 함 | P1/부분 확정 |
 | FX-003 | Boss 공격 예고 | Boss 공격 주기 0~1.5초 | Player가 공격 범위 안 | 붉은 공격 위치를 표시하고 Boss 이동에 맞춰 이동 | 1.5~2.0초 공격 위치 전달 | 영역 모양·크기, Player 이탈 처리 미정 | 붉은 범위 | `BossAttack`, `BossVisual` | 예고 영역이 1.5초 동안 Boss 이동을 따라야 함 | P1/부분 확정 |
 | FX-004 | 정면 공격 반동 피드백 | PC-004 정면 반동 결과 발생 | Player와 Enemy 생존, 반동 방향 계산 가능 | Player 넉백·0.5초 조작 불가와 동시에 정면 반동용 화면 흔들림 재생 | 공격이 막혔거나 방패에 반사된 감각 전달 | Player보다 2레벨 이상 낮은 ShieldEnemy에는 반동 피드백을 적용하지 않음. 치명타와 동시에 발생하면 더 큰 치명타 흔들림만 재생 | 반동 Camera Shake, 방어 VFX/SFX | `CombatFeedbackController`, `CameraShakeController`, `PlayerMovement`, `PlayerStateMachine` | 반동 조건과 화면 흔들림·넉백·입력 차단의 발생 시점이 일치하고, 동시 흔들림은 중첩되지 않아야 함 | P1/부분 확정 |
-| FX-005 | 캐릭터 상태 애니메이션 | Player 또는 Enemy의 이동·공격·피격·방어 상태 변경 | LightBandit, Goblin 또는 Skeleton 프레임 로드 완료 | Player와 Goblin은 정지 시 Idle·이동 시 Run, Skeleton 방패병은 추격 시 Walk·범위 안 정지 시 Shield를 재생한다. 실제 공격 판정 시 Attack, 실제 피격 시 Hit을 재생하고 대상의 X 방향으로 Sprite를 반전한다 | 현재 행동과 일치하는 프레임 애니메이션 표시 | 세 리소스 모두 좌우 측면형으로 상하 전용 프레임이 없음. 피격 같은 일회성 모션 종료 후 현재 지속 상태로 복귀 | LightBandit Player, Goblin 일반/Boss Enemy, Skeleton ShieldEnemy | `CharacterSpriteAnimator`, `PlayerMovement`, `EnemyMovement`, `EnemyStateMachine`, 공격·피격 모듈 | 이동 시작/종료, 방패 범위 진입, 실제 타격 및 피격 시점에 상태가 정확히 전환되고 일회성 모션 후 Walk/Shield/Idle 중 올바른 상태로 복귀해야 함 | P0/구현 |
+| FX-005 | 캐릭터 상태 애니메이션 | Player 또는 Enemy의 이동·공격·피격·방어·사망 상태 변경 | Character Prefab에 SpriteRenderer·Animator·Controller 연결 완료 | Player와 Goblin은 정지 시 Idle·이동 시 Run, Skeleton 방패병은 추격 시 Walk·범위 안 정지 시 Shield를 재생한다. 실제 공격 판정 시 Attack, 생존 피격 시 Hurt, 사망 시 Death Trigger를 전달하고 Facing Layer는 좌우 Clip을 전환한다 | 현재 행동·방향과 일치하는 Animator 상태 표시 | 세 리소스 모두 좌우 측면형으로 상하 전용 프레임이 없음. LightBandit 원본은 X Scale +1이 왼쪽, Goblin·Skeleton 원본은 X Scale +1이 오른쪽이므로 Player·Enemy 방향 Clip을 분리한다. Attack·Hurt 종료 후 Motion 값에 맞는 지속 상태로 복귀하고 Death는 명시적 부활 전까지 유지 | Player는 `Assets/Resources/Bandits - Pixel Art/Demo/LightBandit.prefab` 및 `Animations/Light Bandit` 한 세트, Enemy는 `Assets/Game/Characters`의 Prefab·Clip·Controller | `CharacterSpriteAnimator`, Unity `Animator`, `PlayerMovement`, `EnemyMovement`, `EnemyStateMachine`, 공격·피격 모듈 | Prefab과 Controller를 Project/Inspector에서 직접 확인할 수 있고 이동·방패·공격·피격·사망·좌우 상태가 Animator에서 정확히 전환되어야 함 | P0/구현 |
+| FX-006 | 고정 컴포넌트 Inspector 구성 | Scene 또는 Character Prefab 로드 | Rigidbody2D·Collider2D·범위·경고·라벨·피드백 참조 저장 완료 | 런타임은 저장된 컴포넌트의 값과 활성 상태만 변경하고 `AddComponent`나 고정 자식 생성을 수행하지 않음 | Prefab과 Scene Inspector에서 전체 고정 구성을 확인 가능 | 일회성 투사체·타격 이펙트는 추후 Pool 대상이며 본 규칙의 고정 자식에 포함하지 않음 | Collider Gizmo, 범위·경고 Renderer | Character Prefab, `PrototypeScene`, 각 Root/Module의 SerializeField | Player·Enemy에 Rigidbody2D와 Collider2D가 각 1개이고, 필수 참조 누락 및 런타임 생성 코드가 없어야 함 | P0/구현 |
 
 ## 19. 맵 및 경계 기능
 

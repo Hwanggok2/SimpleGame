@@ -67,8 +67,8 @@ Unity Editor와 일반 브라우저 실행은 개발·검증 환경이며 최종
 
 1. 터치 보정 범위 안에서 의도한 목표를 선택한다.
 2. 플레이어부터 목표 또는 이동 위치까지의 경로를 검사한다.
-3. 경로를 방패병이 막고 있다면 방패병을 우선 처리한다.
-4. 경로를 막는 방패병이 없다면 목표를 공격하거나 터치 위치로 이동한다.
+3. 이동 경로와 Collider가 가장 먼저 겹치는 Enemy가 있다면 해당 Enemy를 우선 공격한다.
+4. 경로상 Enemy가 없다면 선택한 목표를 공격하거나 터치 위치로 이동한다.
 
 ### 4.3 터치 보정 우선순위
 
@@ -81,7 +81,7 @@ Unity Editor와 일반 브라우저 실행은 개발·검증 환경이며 최종
 7. 보스
 8. 방패병
 
-방패병이 실제 이동 경로를 가로막고 있다면 위 타깃 우선순위와 관계없이 방패병 차단 판정을 먼저 적용한다.
+실제 이동 경로를 가로막는 Enemy가 있다면 위 타깃 우선순위와 관계없이 가장 먼저 만나는 Enemy를 우선 처리한다.
 
 ## 5. 공격 위치와 이동
 
@@ -100,9 +100,10 @@ Unity Editor와 일반 브라우저 실행은 개발·검증 환경이며 최종
 - 피해는 플레이어가 공격 위치에 도착한 시점에 적용한다.
 - Player 공격에는 별도의 자동 공격 쿨타임을 두지 않으며, Enemy를 유효하게 클릭할 때마다 공격 요청 1회와 피해 판정 1회를 생성한다.
 - 같은 Enemy에게 접근하는 0.1초 동안 연속 입력된 공격 요청은 유실하지 않고 도착 후 클릭 횟수만큼 처리한다.
-- 한 번에 처치할 수 없는 Enemy라면 Enemy 앞에서 멈춘다.
+- Enemy 뒤의 빈 공간을 터치해도 이동 경로가 Enemy Collider와 겹치면 공격 사거리 끝까지 접근해 공격한다.
+- 경로상 Enemy를 한 번에 처치할 수 없다면 Enemy 앞에서 멈추고 원래 터치 위치로 지나가지 않는다.
 - 이후 같은 Enemy를 다시 터치하면 이동하지 않고 현재 위치에서 즉시 공격한다.
-- 한 번에 처치 가능한 Enemy의 뒤쪽을 터치한 경우 Enemy를 처치하고 원래 터치 위치까지 이동한다.
+- 경로상 Enemy를 한 번에 처치한 경우 사망 애니메이션을 재생시키고 원래 터치 위치까지 이동을 계속한다.
 
 ### 5.3 방패병 접근
 
@@ -113,8 +114,7 @@ Unity Editor와 일반 브라우저 실행은 개발·검증 환경이며 최종
 - 하늘색 범위 안에서 다시 터치해야 방패병을 공격한다.
 - 하늘색 범위 안에서 공격할 때 Enemy가 회색 공격 사거리 끝에 위치하도록 Player의 공격 위치를 계산한다.
 - Enemy가 이미 회색 공격 사거리 안에 있다면 Player는 이동하지 않고 현재 위치에서 공격한다. Collider가 겹친 상태도 동일하다.
-- 방패병 뒤의 일반 Enemy를 터치했더라도 경로가 막혀 있다면 방패병의 하늘색 범위 끝까지만 이동한다.
-- 빈 공간으로 이동하는 도중 방패병이 경로를 막아도 범위 밖에서는 방패병을 공격하지 않는다.
+- 방패병 뒤의 위치나 일반 Enemy를 터치해 이동 경로가 방패병 Collider와 겹치면 공격 사거리 끝까지 접근해 방패병을 공격하고 지나가지 않는다.
 - Player보다 2레벨 이상 낮지 않은 방패병을 정면에서 공격하면 타격 피해 적용과 함께 Player가 방패병 반대 방향으로 넉백되고 0.5초간 조작 불가 상태가 되며 화면 흔들림이 발생한다.
 - Player보다 2레벨 이상 낮은 방패병은 정면에서 공격해도 Player 넉백과 0.5초 조작 불가가 발생하지 않는다.
 - 조작 불가 중에는 이동과 공격 입력을 수행할 수 없다.
@@ -305,11 +305,16 @@ Enemy 생성 시점과 수, 종류, 위치와 레벨은 외부 데이터로 관�
 - 프로토타입 Player 외형은 `Resources/Bandits - Pixel Art/Sprites/LightBandit`을 사용한다.
 - 프로토타입 근거리·원거리·Boss Enemy 외형은 우선 `Resources/Monsters Creatures Fantasy/Sprites/Goblin`을 사용한다.
 - 방패병은 `Resources/Monsters Creatures Fantasy/Sprites/Skeleton`을 사용한다.
+- Player는 원본 LightBandit 자산과 중복 생성본을 병행하지 않는다. 실제 게임용 Player Prefab은 `Assets/Resources/Bandits - Pixel Art/Demo/LightBandit.prefab`, AnimationClip과 AnimatorController는 `Assets/Resources/Bandits - Pixel Art/Animations/Light Bandit`의 한 세트만 사용한다.
+- Enemy의 AnimationClip, AnimatorController, Character Prefab은 `Assets/Game/Characters` 아래에 저장한다.
+- Player와 각 Enemy는 씬에서 런타임 조립하지 않고 저장된 Prefab을 사용한다. Animator는 `Motion`, `FaceLeft`, `Attack`, `Hurt`, `Death` 파라미터로 상태를 전환한다.
+- Player·Enemy의 Rigidbody2D, Collider2D, 공격 범위, 공격 예고, 레벨 라벨과 Castle·Arena의 고정 컴포넌트는 Prefab 또는 Scene Inspector에 미리 저장한다. 런타임에는 고정 컴포넌트를 추가하지 않는다.
 - Player와 Goblin Enemy는 이동 중 Run, 정지 중 Idle을 재생한다. 방패병은 하늘색 범위 밖에서 Player를 추격하는 동안 Walk를 재생한다.
 - Player가 방패병의 하늘색 범위 안에 들어오는 즉시 방패병은 이동을 멈추고 Shield를 반복 재생한다. 방패병이 피해를 받아 Hit이 재생된 뒤에도 Player가 범위 안에 있으면 Shield로 복귀한다.
 - Player는 실제 Enemy 공격 판정 시 Attack, 실제 피해를 받거나 정면 반동이 발생하면 Hit을 재생한다.
 - Enemy는 실제 Player 또는 Castle 공격 판정 시 Attack, Player 공격으로 실제 피해를 받으면 Hit을 재생한다.
-- 현재 LightBandit, Goblin, Skeleton 리소스는 좌우 측면형 시트이므로 이동·공격 대상의 X 방향을 기준으로 좌우 반전한다. 상하 전용 프레임은 없으므로 상하 이동 중에는 각 캐릭터의 이동 모션을 재생하고 마지막 좌우 방향을 유지한다.
+- Player 또는 Enemy가 사망하면 Hurt 대신 Death를 재생한다. Enemy는 공격·이동·Collider를 즉시 중지하되 Death 모션이 끝난 뒤 비활성화한다.
+- 현재 LightBandit, Goblin, Skeleton 리소스는 좌우 측면형 시트이므로 이동·공격 대상의 X 방향을 기준으로 Animator의 Facing Layer가 좌우 AnimationClip을 전환한다. LightBandit 원본은 X Scale `+1`일 때 왼쪽, Goblin·Skeleton 원본은 X Scale `+1`일 때 오른쪽을 향하므로 Player와 Enemy가 서로 다른 방향 Clip을 사용한다. 상하 전용 프레임은 없으므로 상하 이동 중에는 각 캐릭터의 이동 모션과 마지막 좌우 방향을 유지한다.
 - Player 공격으로 Enemy에게 실제 피해가 적용되면 화면 흔들림을 재생한다.
 - 치명타 공격은 일반 공격보다 강한 화면 흔들림을 재생한다.
 - 동일 공격에서 여러 흔들림 조건이 겹치면 강도를 합산하지 않고 가장 큰 흔들림 하나만 재생한다. 우선순위는 `치명타 > 정면 반동 > 일반 타격`이다.

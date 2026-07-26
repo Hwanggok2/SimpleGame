@@ -6,6 +6,22 @@ namespace SimpleGame
     {
         [SerializeField] private Transform enemyRoot;
         [SerializeField] private PrototypeGameSession session;
+        [SerializeField] private MeleeEnemy meleePrefab;
+        [SerializeField] private RangedEnemy rangedPrefab;
+        [SerializeField] private ShieldEnemy shieldPrefab;
+        [SerializeField] private BossEnemy bossPrefab;
+
+        public void ConfigurePrefabs(
+            MeleeEnemy melee,
+            RangedEnemy ranged,
+            ShieldEnemy shield,
+            BossEnemy boss)
+        {
+            meleePrefab = melee;
+            rangedPrefab = ranged;
+            shieldPrefab = shield;
+            bossPrefab = boss;
+        }
 
         public void Configure(PrototypeGameSession gameSession, Transform root)
         {
@@ -15,32 +31,27 @@ namespace SimpleGame
 
         public EnemyBase Spawn(EnemyArchetype archetype, int level, Vector2 position)
         {
-            var gameObject = new GameObject($"{archetype}_Lv{level}");
-            gameObject.transform.SetParent(enemyRoot, false);
-            gameObject.transform.position = position;
-
-            gameObject.AddComponent<EnemyHealth>();
-            gameObject.AddComponent<EnemyFacing>();
-            gameObject.AddComponent<EnemyMovement>();
-            gameObject.AddComponent<EnemyStateMachine>();
-
-            EnemyBase enemy = archetype switch
+            EnemyBase prefab = archetype switch
             {
-                EnemyArchetype.Melee => gameObject.AddComponent<MeleeEnemy>(),
-                EnemyArchetype.Ranged => gameObject.AddComponent<RangedEnemy>(),
-                EnemyArchetype.Shield => gameObject.AddComponent<ShieldEnemy>(),
-                EnemyArchetype.Boss => gameObject.AddComponent<BossEnemy>(),
+                EnemyArchetype.Melee => meleePrefab,
+                EnemyArchetype.Ranged => rangedPrefab,
+                EnemyArchetype.Shield => shieldPrefab,
+                EnemyArchetype.Boss => bossPrefab,
                 _ => null
             };
 
-            if (archetype == EnemyArchetype.Boss)
+            if (prefab == null)
             {
-                gameObject.AddComponent<BossAttackModule>();
+                Debug.LogError($"Enemy prefab is not assigned: {archetype}", this);
+                return null;
             }
-            else if (archetype != EnemyArchetype.Shield)
-            {
-                gameObject.AddComponent<EnemyAttackModule>();
-            }
+
+            EnemyBase enemy = Instantiate(
+                prefab,
+                position,
+                Quaternion.identity,
+                enemyRoot);
+            enemy.name = $"{archetype}_Lv{level}";
 
             enemy.Configure(session, level);
             session.RegisterEnemy(enemy);

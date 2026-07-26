@@ -1,4 +1,5 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
 
 namespace SimpleGame
@@ -16,6 +17,8 @@ namespace SimpleGame
         [SerializeField] private PlayerProgression progression;
         [SerializeField] private PlayerController controller;
         [SerializeField] private CharacterSpriteAnimator characterAnimation;
+        [SerializeField] private SpriteRenderer attackRangeRenderer;
+        [SerializeField] private TMP_Text levelLabel;
 
         private const float FrontRecoilDistance = 1.2f;
         private const float FrontRecoilMoveDuration = 0.18f;
@@ -32,6 +35,14 @@ namespace SimpleGame
         public bool IsAlive => health != null && health.IsAlive;
         public bool IsInputLocked { get; private set; }
 
+        public void ConfigureVisuals(
+            SpriteRenderer configuredAttackRange,
+            TMP_Text configuredLevelLabel)
+        {
+            attackRangeRenderer = configuredAttackRange;
+            levelLabel = configuredLevelLabel;
+        }
+
         public void Configure(PrototypeGameSession session, Camera worldCamera, MapBounds mapBounds)
         {
             health = GetComponent<HealthComponent>();
@@ -42,7 +53,10 @@ namespace SimpleGame
             characterAnimation = GetComponent<CharacterSpriteAnimator>();
             if (characterAnimation == null)
             {
-                characterAnimation = gameObject.AddComponent<CharacterSpriteAnimator>();
+                Debug.LogError(
+                    "Player prefab requires CharacterSpriteAnimator.",
+                    this);
+                return;
             }
 
             this.mapBounds = mapBounds;
@@ -57,10 +71,21 @@ namespace SimpleGame
 
         public void ReceiveDamage(int amount)
         {
-            if (health.ApplyDamage(amount))
+            if (!health.ApplyDamage(amount))
+            {
+                return;
+            }
+
+            if (health.IsAlive)
             {
                 characterAnimation.PlayHurt(Vector2.zero);
+                return;
             }
+
+            controller.CancelCommand();
+            movement.StopKnockback();
+            IsInputLocked = true;
+            characterAnimation.PlayDeath(Vector2.zero);
         }
 
         public void PlayAttack(Vector2 targetPosition)
@@ -82,6 +107,7 @@ namespace SimpleGame
             }
 
             IsInputLocked = false;
+            characterAnimation.Revive();
         }
 
         public void ApplyFrontRecoil(Vector2 enemyPosition)
@@ -125,51 +151,23 @@ namespace SimpleGame
 
         private void BuildVisual()
         {
-            if (transform.Find("PlayerAttackRange") == null)
+            if (attackRangeRenderer == null || levelLabel == null)
             {
-                PrototypeVisualFactory.CreateSprite(
-                    transform,
-                    "PlayerAttackRange",
-                    new Color(0.55f, 0.58f, 0.62f, 0.2f),
-                    Vector2.one * PlayerController.AttackRange * 2f,
-                    5);
-            }
-
-            Transform visualTransform = transform.Find("PlayerVisual");
-            if (visualTransform == null)
-            {
-                visualTransform = new GameObject("PlayerVisual").transform;
-                visualTransform.SetParent(transform, false);
-            }
-
-            SpriteRenderer renderer =
-                visualTransform.GetComponent<SpriteRenderer>();
-            if (renderer == null)
-            {
-                renderer =
-                    visualTransform.gameObject.AddComponent<SpriteRenderer>();
-            }
-            renderer.color = Color.white;
-            renderer.sortingOrder = 30;
-            visualTransform.localScale = Vector3.one * 1.65f;
-            if (!characterAnimation.ConfigureLightBandit(renderer))
-            {
-                Debug.LogWarning(
-                    "LightBandit sprites were not found under Resources.",
+                Debug.LogError(
+                    "Player prefab requires preconfigured range and level visuals.",
                     this);
-                renderer.sprite = PrototypeVisualFactory.SquareSprite;
-                renderer.color = new Color(0.12f, 0.85f, 0.95f);
-                visualTransform.localScale = Vector3.one * 0.75f;
+                return;
             }
 
-            if (transform.Find("LevelLabel") == null)
+            attackRangeRenderer.transform.localScale =
+                Vector3.one * PlayerController.AttackRange * 2f;
+            levelLabel.text = "PLAYER";
+
+            if (!characterAnimation.IsConfigured)
             {
-                PrototypeVisualFactory.CreateWorldLabel(
-                    transform,
-                    "PLAYER",
-                    new Vector3(0f, 0.72f, 0f),
-                    2.5f,
-                    35);
+                Debug.LogError(
+                    "Player prefab has no configured Animator or SpriteRenderer.",
+                    this);
             }
         }
     }

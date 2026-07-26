@@ -1,3 +1,4 @@
+using System;
 using SimpleGame;
 using TMPro;
 using UnityEditor;
@@ -14,9 +15,10 @@ namespace SimpleGameEditor
     {
         private const string ScenePath = "Assets/Scenes/PrototypeScene.unity";
 
-        [MenuItem("SimpleGame/Build Prototype Scene")]
+        [MenuItem("SimpleGame/Build Prototype Scene %#b")]
         public static void Build()
         {
+            CharacterAssetBuilder.Build();
             Scene scene = EditorSceneManager.NewScene(
                 NewSceneSetup.EmptyScene,
                 NewSceneMode.Single);
@@ -29,8 +31,32 @@ namespace SimpleGameEditor
             bounds.Configure(new Vector2(-5.4f, -9.2f), new Vector2(5.4f, 9.2f));
 
             PrototypeArenaVisual arena = systems.AddComponent<PrototypeArenaVisual>();
-            arena.Configure(bounds);
+            Vector2 arenaSize = bounds.Max - bounds.Min;
+            SpriteRenderer arenaBackground =
+                CharacterAssetBuilder.CreateSpriteVisual(
+                    systems.transform,
+                    "ArenaBackground",
+                    new Color(0.18f, 0.38f, 0.16f),
+                    arenaSize,
+                    -200);
+            SpriteRenderer castleLane =
+                CharacterAssetBuilder.CreateSpriteVisual(
+                    systems.transform,
+                    "CastleLane",
+                    new Color(0.62f, 0.48f, 0.25f),
+                    new Vector2(arenaSize.x * 0.28f, arenaSize.y),
+                    -190);
+            arena.Configure(bounds, arenaBackground, castleLane);
             PrototypeEnemyFactory factory = systems.AddComponent<PrototypeEnemyFactory>();
+            factory.ConfigurePrefabs(
+                LoadPrefabComponent<MeleeEnemy>(
+                    CharacterAssetBuilder.MeleePrefabPath),
+                LoadPrefabComponent<RangedEnemy>(
+                    CharacterAssetBuilder.RangedPrefabPath),
+                LoadPrefabComponent<ShieldEnemy>(
+                    CharacterAssetBuilder.ShieldPrefabPath),
+                LoadPrefabComponent<BossEnemy>(
+                    CharacterAssetBuilder.BossPrefabPath));
             CombatFeedbackController combatFeedback =
                 systems.AddComponent<CombatFeedbackController>();
             combatFeedback.Configure(camera.GetComponent<CameraShakeController>());
@@ -86,15 +112,33 @@ namespace SimpleGameEditor
 
         private static PlayerRoot CreatePlayer(Transform parent)
         {
-            var playerObject = new GameObject("Player");
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                CharacterAssetBuilder.PlayerPrefabPath);
+            if (prefab == null)
+            {
+                throw new InvalidOperationException(
+                    $"Player prefab not found: {CharacterAssetBuilder.PlayerPrefabPath}");
+            }
+
+            var playerObject = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            playerObject.name = "Player";
             playerObject.transform.SetParent(parent, false);
             playerObject.transform.position = new Vector3(0f, -2.8f, 0f);
-            playerObject.AddComponent<HealthComponent>();
-            playerObject.AddComponent<PlayerMovement>();
-            playerObject.AddComponent<CriticalSystem>();
-            playerObject.AddComponent<PlayerProgression>();
-            playerObject.AddComponent<PlayerController>();
-            return playerObject.AddComponent<PlayerRoot>();
+            return playerObject.GetComponent<PlayerRoot>();
+        }
+
+        private static T LoadPrefabComponent<T>(string path)
+            where T : Component
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            T component = prefab != null ? prefab.GetComponent<T>() : null;
+            if (component == null)
+            {
+                throw new InvalidOperationException(
+                    $"Prefab component {typeof(T).Name} not found: {path}");
+            }
+
+            return component;
         }
 
         private static CastleRoot CreateCastle(Transform parent)
@@ -103,7 +147,28 @@ namespace SimpleGameEditor
             castleObject.transform.SetParent(parent, false);
             castleObject.transform.position = Vector3.zero;
             castleObject.AddComponent<HealthComponent>();
-            return castleObject.AddComponent<CastleRoot>();
+            Rigidbody2D body = castleObject.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Static;
+            body.gravityScale = 0f;
+            BoxCollider2D collider = castleObject.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(2.1f, 1.8f);
+            collider.isTrigger = true;
+
+            CastleRoot castle = castleObject.AddComponent<CastleRoot>();
+            SpriteRenderer visual = CharacterAssetBuilder.CreateSpriteVisual(
+                castleObject.transform,
+                "CastleVisual",
+                new Color(0.72f, 0.72f, 0.78f),
+                new Vector2(2.1f, 1.8f),
+                10);
+            TMP_Text label = CharacterAssetBuilder.CreateWorldLabel(
+                castleObject.transform,
+                "CASTLE",
+                new Vector3(0f, 1.2f, 0f),
+                3f,
+                20);
+            castle.ConfigureVisuals(visual, label);
+            return castle;
         }
 
         private static PrototypeHUDPresenter CreateHud()

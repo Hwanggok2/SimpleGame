@@ -1,4 +1,6 @@
+using System.Collections;
 using UnityEngine;
+using TMPro;
 
 namespace SimpleGame
 {
@@ -16,6 +18,12 @@ namespace SimpleGame
         [SerializeField] private EnemyAttackModule attack;
         [SerializeField] private BossAttackModule bossAttack;
         [SerializeField] private CharacterSpriteAnimator characterAnimation;
+        [SerializeField] private SpriteRenderer approachRangeRenderer;
+        [SerializeField] private SpriteRenderer facingMarker;
+        [SerializeField] private TMP_Text levelLabel;
+
+        private Collider2D hitCollider;
+        private Coroutine deathRoutine;
 
         public abstract EnemyArchetype Archetype { get; }
         public int Level => level;
@@ -26,6 +34,16 @@ namespace SimpleGame
         public BossAttackModule BossAttack => bossAttack;
         public bool IsAlive => health != null && health.IsAlive;
         public PrototypeGameSession Session { get; private set; }
+
+        public void ConfigureVisuals(
+            SpriteRenderer configuredApproachRange,
+            SpriteRenderer configuredFacingMarker,
+            TMP_Text configuredLevelLabel)
+        {
+            approachRangeRenderer = configuredApproachRange;
+            facingMarker = configuredFacingMarker;
+            levelLabel = configuredLevelLabel;
+        }
 
         public void Configure(PrototypeGameSession session, int enemyLevel)
         {
@@ -40,12 +58,29 @@ namespace SimpleGame
             attack = GetComponent<EnemyAttackModule>();
             bossAttack = GetComponent<BossAttackModule>();
             characterAnimation = GetComponent<CharacterSpriteAnimator>();
+            hitCollider = GetComponent<Collider2D>();
             if (characterAnimation == null)
             {
-                characterAnimation = gameObject.AddComponent<CharacterSpriteAnimator>();
+                Debug.LogError(
+                    $"{Archetype} prefab requires CharacterSpriteAnimator.",
+                    this);
+                return;
+            }
+
+            if (deathRoutine != null)
+            {
+                StopCoroutine(deathRoutine);
+                deathRoutine = null;
             }
 
             health.ResetHealth();
+            characterAnimation.Revive();
+            if (hitCollider != null)
+            {
+                hitCollider.enabled = true;
+            }
+
+            SetGameplayVisualsVisible(true);
             BuildVisual();
             movement.Configure(Definition.MoveSpeed, characterAnimation);
             attack?.Configure(this);
@@ -96,12 +131,9 @@ namespace SimpleGame
             }
 
             bool damaged = health.Apply(result);
-            if (damaged)
-            {
-                characterAnimation.PlayHurt(
-                    (Vector2)attacker.transform.position -
-                    (Vector2)transform.position);
-            }
+            Vector2 hitDirection =
+                (Vector2)attacker.transform.position -
+                (Vector2)transform.position;
 
             string resultText = damaged
                 ? $"{Archetype} Lv.{level}: {side} {(critical ? "CRIT " : string.Empty)}-{result.Damage}"
@@ -110,9 +142,26 @@ namespace SimpleGame
 
             if (!health.IsAlive)
             {
+                movement.StopImmediately();
+                attack?.Cancel();
+                bossAttack?.Cancel();
+                if (hitCollider != null)
+                {
+                    hitCollider.enabled = false;
+                }
+
+                SetGameplayVisualsVisible(false);
+                float deathDuration =
+                    characterAnimation.PlayDeath(hitDirection);
                 Session.OnEnemyDefeated(this);
-                gameObject.SetActive(false);
+                deathRoutine = StartCoroutine(
+                    DeactivateAfterDeath(deathDuration));
                 return damaged;
+            }
+
+            if (damaged)
+            {
+                characterAnimation.PlayHurt(hitDirection);
             }
 
             stateMachine.OnPlayerHit(attacker);
@@ -134,69 +183,64 @@ namespace SimpleGame
             float size = Archetype == EnemyArchetype.Boss ? 1.35f : 0.82f;
             if (Archetype == EnemyArchetype.Shield)
             {
-                PrototypeVisualFactory.CreateSprite(
-                    transform,
-                    "ShieldApproachRange",
-                    new Color(0.15f, 0.8f, 0.95f, 0.18f),
-                    Vector2.one * Definition.ApproachRange * 2f,
-                    4);
+                if (approachRangeRenderer == null)
+                {
+                    Debug.LogError(
+                        "Shield prefab requires a preconfigured approach range.",
+                        this);
+                }
+                else
+                {
+                    approachRangeRenderer.transform.localScale =
+                        Vector3.one * Definition.ApproachRange * 2f;
+                }
             }
 
-            Transform visualTransform = new GameObject("EnemyVisual").transform;
-            visualTransform.SetParent(transform, false);
-            SpriteRenderer renderer =
-                visualTransform.gameObject.AddComponent<SpriteRenderer>();
-            renderer.color = Color.white;
-            renderer.sortingOrder = 20;
-            visualTransform.localScale = Vector3.one *
-                (Archetype == EnemyArchetype.Boss ? 1.8f : 1.25f);
-            bool visualConfigured = Archetype == EnemyArchetype.Shield
-                ? characterAnimation.ConfigureSkeleton(renderer)
-                : characterAnimation.ConfigureGoblin(renderer);
-            if (!visualConfigured)
+            if (!characterAnimation.IsConfigured)
             {
-                Debug.LogWarning(
-                    $"{Archetype} animation sprites were not found under Resources.",
+                Debug.LogError(
+                    $"{Archetype} prefab has no configured Animator or SpriteRenderer.",
                     this);
-                renderer.sprite = PrototypeVisualFactory.SquareSprite;
-                renderer.color = Definition.Color;
-                visualTransform.localScale = Vector3.one * size;
             }
 
-            SpriteRenderer facingMarker = PrototypeVisualFactory.CreateSprite(
-                transform,
-                "FacingMarker",
-                Color.yellow,
-                new Vector2(0.18f, 0.35f),
-                24);
-            facingMarker.transform.localPosition = new Vector3(0f, -size * 0.55f, 0f);
+            if (facingMarker == null || levelLabel == null)
+            {
+                Debug.LogError(
+                    $"{Archetype} prefab requires marker and level visuals.",
+                    this);
+                return;
+            }
 
-            PrototypeVisualFactory.CreateWorldLabel(
-                transform,
-                $"{Archetype} Lv.{level}",
-                new Vector3(0f, size * 0.82f, 0f),
-                2.3f,
-                26);
+            facingMarker.transform.localPosition = new Vector3(0f, -size * 0.55f, 0f);
+            levelLabel.transform.localPosition =
+                new Vector3(0f, size * 0.82f, 0f);
+            levelLabel.text = $"{Archetype} Lv.{level}";
+        }
+
+        private void SetGameplayVisualsVisible(bool visible)
+        {
+            if (approachRangeRenderer != null)
+            {
+                approachRangeRenderer.enabled = visible;
+            }
+
+            if (facingMarker != null)
+            {
+                facingMarker.enabled = visible;
+            }
+
+            if (levelLabel != null)
+            {
+                levelLabel.enabled = visible;
+            }
+        }
+
+        private IEnumerator DeactivateAfterDeath(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            deathRoutine = null;
+            gameObject.SetActive(false);
         }
     }
 
-    public sealed class MeleeEnemy : EnemyBase
-    {
-        public override EnemyArchetype Archetype => EnemyArchetype.Melee;
-    }
-
-    public sealed class RangedEnemy : EnemyBase
-    {
-        public override EnemyArchetype Archetype => EnemyArchetype.Ranged;
-    }
-
-    public sealed class ShieldEnemy : EnemyBase
-    {
-        public override EnemyArchetype Archetype => EnemyArchetype.Shield;
-    }
-
-    public sealed class BossEnemy : EnemyBase
-    {
-        public override EnemyArchetype Archetype => EnemyArchetype.Boss;
-    }
 }

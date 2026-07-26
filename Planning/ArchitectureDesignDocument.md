@@ -332,7 +332,7 @@ public abstract class EnemyBase : MonoBehaviour
 | `EnemyAttackBase` | 공격 가능 여부, 준비, 판정, 쿨타임 |
 | `EnemyStateMachine` | 행동 상태와 전환 |
 | `EnemyVisual` | SpriteRenderer, 피격 Flash, 사망 연출 |
-| `CharacterSpriteAnimator` | Player와 공유하는 상태 프레임 재생, 좌우 방향 반전, 지속 상태(Idle/Move/Guard)와 일회성 Attack/Hit 복귀 |
+| `CharacterSpriteAnimator` | 저장된 AnimatorController에 Motion·FaceLeft·Attack·Hurt 파라미터 전달 |
 
 ### 6.4 공격 Strategy
 
@@ -457,12 +457,12 @@ Player
 | `PlayerRoot` | 외부 API, 초기화, 기능 연결 |
 | `PlayerMovement` | 터치 위치 및 공격 위치 이동 |
 | `PlayerCombat` | 공격 요청과 `CombatResolver` 연결 |
-| `PlayerTargetSelector` | 터치 보정, 우선순위와 방패병 경로 검사 |
+| `PlayerTargetSelector` | 터치 보정, 우선순위와 모든 Enemy의 Collider 기반 경로 가로채기 검사 |
 | `PlayerHealth` | 피격, 사망, 부활 |
 | `PlayerLevel` | 인게임 경험치와 레벨 |
 | `CriticalSystem` | 치명타 확률과 Roll |
 | `PlayerStateMachine` | 이동, 공격, 조작 불가, 사망 상태 |
-| `CharacterSpriteAnimator` | Player/Enemy 공용 Idle·Move·Guard·Attack·Hit 프레임 재생과 좌우 방향 반전 |
+| `CharacterSpriteAnimator` | Player/Enemy 공용 Animator 파라미터 Adapter. Motion·방향·Attack·Hurt·Death 상태를 전달하며 Sprite 프레임이나 Controller를 런타임 생성하지 않음 |
 
 ### 8.2 공격 위치 계산
 
@@ -485,9 +485,33 @@ Enemy가 회색 공격 사거리 안
 
 `PlayerController`는 Enemy 클릭마다 공격 요청을 한 개 생성하고 Player 공격 쿨타임을 두지 않는다. 같은 Enemy에게 접근하는 동안 들어온 추가 클릭은 이동 시작 시간을 초기화하지 않고 요청 수만 누적한다. 공격 위치에 도착하면 누적된 요청을 각각 독립된 공격으로 처리한다. Enemy가 이미 회색 공격 사거리 안이라면 이동 명령 없이 해당 클릭의 공격을 즉시 처리한다.
 
-`PlayerMovement`와 `EnemyMovement`는 이동 여부와 방향만 `CharacterSpriteAnimator`에 전달한다. 공격 모듈은 실제 공격 판정 시점에, 체력 모듈을 조정하는 Facade는 실제 피해 적용 시점에 각각 Attack과 Hit 재생을 요청한다. `CharacterSpriteAnimator`는 두 캐릭터가 공유하며 리소스 프레임 배열을 정적 캐시하여 Enemy마다 같은 Sprite 목록을 다시 로드하지 않는다.
+`PlayerMovement`와 `EnemyMovement`는 이동 상태와 방향을 `CharacterSpriteAnimator`에 전달한다. 공격 모듈은 실제 공격 판정 시점에 Attack Trigger, 체력 모듈을 조정하는 Facade는 실제 피해 적용 시점에 Hurt Trigger를 전달한다. `CharacterSpriteAnimator`는 Sprite 배열을 로드하거나 프레임을 직접 교체하지 않고 Prefab에 직렬화된 Unity `Animator`의 파라미터만 변경한다.
 
-방패병도 별도 애니메이터 클래스를 만들지 않고 같은 `CharacterSpriteAnimator`를 사용한다. `EnemyBase`가 Archetype에 따라 일반/Boss Enemy에는 Goblin 프로필, `ShieldEnemy`에는 Skeleton 프로필을 설정한다. `EnemyStateMachine`은 하늘색 범위 밖에서 Move(Walk), 범위 안에서 Guard(Shield)를 요청한다. Attack/Hit은 일회성 상태이고 완료되면 마지막으로 요청된 Idle·Move·Guard 상태로 복귀하므로, 방패병은 피격 후에도 범위 안이라면 Shield를 이어서 재생한다.
+방패병도 별도 애니메이터 클래스를 만들지 않고 같은 Adapter를 사용한다. `EnemyStateMachine`은 하늘색 범위 밖에서 Motion=Move(Walk), 범위 안에서 Motion=Guard(Shield)를 요청한다. Attack/Hurt 상태는 AnimatorController의 Exit Time 이후 현재 Motion 값에 맞는 Idle·Move·Guard 상태로 복귀한다.
+
+Player는 원본 LightBandit 경로를 게임용 단일 자산 세트로 사용하고, Enemy 전용 자산만 `Assets/Game/Characters`에 분리한다.
+
+```text
+Assets/Resources/Bandits - Pixel Art/
+├─ Demo/LightBandit.prefab                 # 게임용 단일 Player Prefab
+└─ Animations/Light Bandit/                 # Player Clip + Controller
+
+Assets/Game/Characters/
+├─ Animations/
+│  ├─ Common/       # Enemy 방향별 Facing Clip
+│  ├─ Goblin/
+│  └─ Skeleton/
+├─ Animators/       # Goblin, Skeleton Controller
+├─ Shared/          # 직렬화 가능한 PrototypeSquare Sprite
+└─ Prefabs/
+   └─ Enemies/      # Melee, Ranged, Shield, Boss
+```
+
+`PrototypeEnemyFactory`는 런타임에 GameObject와 컴포넌트를 조립하지 않고 직렬화된 Enemy Prefab을 Instantiate한다. 각 Prefab은 고정된 컴포넌트, SpriteRenderer, AnimatorController 참조를 Inspector에서 확인할 수 있어야 한다.
+
+Player와 Enemy Prefab의 `Rigidbody2D`, `Collider2D`, Animator, 공격 범위, 공격 예고, 방향 마커, 레벨 라벨은 모두 Prefab에 직렬화한다. Castle의 물리·충돌·시각 요소와 Arena 배경, CameraShake, CombatFeedback도 Scene에 미리 저장한다. 런타임 코드는 `AddComponent`나 고정 자식 GameObject 생성을 수행하지 않고 저장된 참조의 값과 활성 상태만 변경한다.
+
+LightBandit 원본 Sprite는 X Scale `+1`에서 왼쪽을 향하고 Goblin·Skeleton 원본 Sprite는 X Scale `+1`에서 오른쪽을 향한다. 따라서 동일한 `FaceLeft` 파라미터를 사용하되 Player Facing Clip은 Left `+1`/Right `-1`, Enemy Facing Clip은 Left `-1`/Right `+1`로 분리한다. 이 차이는 AnimationClip과 AnimatorController 자산에서 해결하며 런타임 방향 반전 코드를 추가하지 않는다.
 
 ### 8.3 Player 공격 반동
 

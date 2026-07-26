@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 namespace SimpleGame
@@ -6,16 +7,31 @@ namespace SimpleGame
     public sealed class CastleRoot : MonoBehaviour, IPrototypeDamageTarget
     {
         [SerializeField] private HealthComponent health;
+        [SerializeField] private SpriteRenderer castleVisual;
+        [SerializeField] private TMP_Text castleLabel;
 
         public HealthComponent Health => health;
         public Transform TargetTransform => transform;
         public bool IsAlive => health != null && health.IsAlive;
 
+        public void ConfigureVisuals(
+            SpriteRenderer configuredVisual,
+            TMP_Text configuredLabel)
+        {
+            castleVisual = configuredVisual;
+            castleLabel = configuredLabel;
+        }
+
         public void Configure(int maxHealth)
         {
             health = GetComponent<HealthComponent>();
             health.Configure(maxHealth);
-            BuildVisual();
+            if (castleVisual == null || castleLabel == null)
+            {
+                Debug.LogError(
+                    "Castle requires preconfigured visual and label components.",
+                    this);
+            }
         }
 
         public void ReceiveDamage(int amount)
@@ -29,25 +45,5 @@ namespace SimpleGame
             health.MakeInvulnerable(3f);
         }
 
-        private void BuildVisual()
-        {
-            if (transform.Find("CastleVisual") != null)
-            {
-                return;
-            }
-
-            PrototypeVisualFactory.CreateSprite(
-                transform,
-                "CastleVisual",
-                new Color(0.72f, 0.72f, 0.78f),
-                new Vector2(2.1f, 1.8f),
-                10);
-            PrototypeVisualFactory.CreateWorldLabel(
-                transform,
-                "CASTLE",
-                new Vector3(0f, 1.2f, 0f),
-                3f,
-                20);
-        }
     }
 }

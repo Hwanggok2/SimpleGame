@@ -124,6 +124,48 @@ namespace SimpleGame
             return nearest;
         }
 
+        public EnemyBase FindFirstEnemyOnPath(Vector2 start, Vector2 destination)
+        {
+            Vector2 path = destination - start;
+            float pathLengthSquared = path.sqrMagnitude;
+            if (pathLengthSquared <= 0.0001f)
+            {
+                return null;
+            }
+
+            float playerRadius = GetColliderRadius(player);
+            EnemyBase first = null;
+            float firstProgress = float.MaxValue;
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy == null || !enemy.IsAlive)
+                {
+                    continue;
+                }
+
+                Vector2 enemyPosition = enemy.transform.position;
+                float progress = Mathf.Clamp01(
+                    Vector2.Dot(enemyPosition - start, path) /
+                    pathLengthSquared);
+                Vector2 closestPoint = start + path * progress;
+                float combinedRadius =
+                    playerRadius + GetColliderRadius(enemy);
+                if (Vector2.SqrMagnitude(enemyPosition - closestPoint) >
+                    combinedRadius * combinedRadius)
+                {
+                    continue;
+                }
+
+                if (progress < firstProgress)
+                {
+                    firstProgress = progress;
+                    first = enemy;
+                }
+            }
+
+            return first;
+        }
+
         public void OnEnemyDefeated(EnemyBase enemy)
         {
             int score = enemy.Archetype == EnemyArchetype.Boss ? 25 : 5;
@@ -254,7 +296,10 @@ namespace SimpleGame
                 worldCamera.GetComponent<CameraShakeController>();
             if (cameraShake == null)
             {
-                cameraShake = worldCamera.gameObject.AddComponent<CameraShakeController>();
+                Debug.LogError(
+                    "Main Camera requires CameraShakeController.",
+                    worldCamera);
+                return;
             }
 
             if (combatFeedback == null)
@@ -264,10 +309,28 @@ namespace SimpleGame
 
             if (combatFeedback == null)
             {
-                combatFeedback = gameObject.AddComponent<CombatFeedbackController>();
+                Debug.LogError(
+                    "PrototypeGameSession requires CombatFeedbackController.",
+                    this);
+                return;
             }
 
             combatFeedback.Configure(cameraShake);
+        }
+
+        private static float GetColliderRadius(Component owner)
+        {
+            CircleCollider2D circle = owner != null
+                ? owner.GetComponent<CircleCollider2D>()
+                : null;
+            if (circle == null)
+            {
+                return 0f;
+            }
+
+            Vector3 scale = circle.transform.lossyScale;
+            return circle.radius *
+                Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
         }
     }
 }

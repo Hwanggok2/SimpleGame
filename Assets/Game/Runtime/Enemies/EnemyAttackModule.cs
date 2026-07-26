@@ -6,7 +6,7 @@ namespace SimpleGame
     {
         private EnemyBase owner;
         private IPrototypeDamageTarget currentTarget;
-        private SpriteRenderer indicator;
+        [SerializeField] private SpriteRenderer indicator;
         private float hitAt;
         private float nextReadyAt;
         private bool windingUp;
@@ -15,15 +15,24 @@ namespace SimpleGame
         public IPrototypeDamageTarget CurrentTarget => currentTarget;
         public bool CanStart => !windingUp && Time.time >= nextReadyAt;
 
+        public void ConfigureIndicator(SpriteRenderer configuredIndicator)
+        {
+            indicator = configuredIndicator;
+        }
+
         public void Configure(EnemyBase enemy)
         {
             owner = enemy;
-            indicator = PrototypeVisualFactory.CreateSprite(
-                transform,
-                "AttackWarning",
-                new Color(1f, 0f, 0f, 0.34f),
-                new Vector2(enemy.Definition.AttackRange * 2f, enemy.Definition.AttackRange * 2f),
-                5);
+            if (indicator == null)
+            {
+                Debug.LogError(
+                    "Enemy prefab requires a preconfigured attack warning.",
+                    this);
+                return;
+            }
+
+            indicator.transform.localScale =
+                Vector3.one * enemy.Definition.AttackRange * 2f;
             indicator.enabled = false;
         }
 

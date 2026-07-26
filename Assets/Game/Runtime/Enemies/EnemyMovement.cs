@@ -38,6 +38,12 @@ namespace SimpleGame
             characterAnimation?.SetIdle();
         }
 
+        public void StopImmediately()
+        {
+            StopAllCoroutines();
+            Stop();
+        }
+
         private IEnumerator KnockbackRoutine(Vector2 destination, float duration)
         {
             Vector2 start = transform.position;

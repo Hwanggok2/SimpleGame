@@ -75,9 +75,17 @@ namespace SimpleGame
             Vector3 world = worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, -worldCamera.transform.position.z));
             destination = mapBounds.Clamp(world);
-            EnemyBase selectedEnemy = session.FindEnemyNear(
+            EnemyBase directEnemy = session.FindEnemyNear(
                 destination,
                 EnemySelectionRadius);
+            EnemyBase pathEnemy = session.FindFirstEnemyOnPath(
+                transform.position,
+                destination);
+            bool interceptedOnPath =
+                pathEnemy != null && pathEnemy != directEnemy;
+            EnemyBase selectedEnemy = pathEnemy != null
+                ? pathEnemy
+                : directEnemy;
             if (selectedEnemy != null &&
                 hasDestination &&
                 pendingEnemy == selectedEnemy)
@@ -93,6 +101,7 @@ namespace SimpleGame
             pendingEnemy = selectedEnemy;
             pendingAttackCount = pendingEnemy == null ? 0 : 1;
             shieldApproachOnly = pendingEnemy != null &&
+                !interceptedOnPath &&
                 pendingEnemy.Archetype == EnemyArchetype.Shield &&
                 Vector2.Distance(transform.position, pendingEnemy.transform.position) >
                     pendingEnemy.Definition.ApproachRange;
