@@ -159,6 +159,10 @@ UI
 ├─ ContinueView
 ├─ GameOverView
 └─ ClearView
+
+Presentation
+├─ CombatFeedbackController
+└─ CameraShakeController
 ```
 
 ### 4.1 의존 방향
@@ -288,7 +292,7 @@ public abstract class EnemyBase : MonoBehaviour
 |---|---|
 | `MeleeEnemy` | 근거리 레벨 차이 공격 규칙과 근접 행동 |
 | `RangedEnemy` | 원거리 공격 취소와 플레이어 타깃 전환 |
-| `ShieldEnemy` | 경로 차단, 정면 조작 불가, 직접 공격 없음 |
+| `ShieldEnemy` | Player 추격, 하늘색 범위 끝 정지, 경로 차단, 조건부 정면 반동, 직접 공격 없음 |
 | `BossEnemy` | Castle 목표 유지, 고유 공격 주기, 넉백 저항 |
 
 파생 클래스에는 해당 Enemy에서만 달라지는 규칙만 둔다.
@@ -298,7 +302,7 @@ public abstract class EnemyBase : MonoBehaviour
 | 컴포넌트 | 책임 |
 |---|---|
 | `EnemyHealth` | 현재 체력 또는 남은 피해량, 피격, 사망 |
-| `EnemyMovement` | 목표 위치 이동, 정지, 이동 재개 |
+| `EnemyMovement` | 목표 위치 이동, 정지 거리 판정, 이동 재개 |
 | `EnemyTargeting` | Castle 및 Player 목표 선택 |
 | `EnemyFacing` | 바라보는 방향, 정면 및 후면 판정 |
 | `EnemyAttackBase` | 공격 가능 여부, 준비, 판정, 쿨타임 |
@@ -342,6 +346,7 @@ EnemyAttackBase
 - 적용 피해량
 - 남은 필요 타격 수
 - Enemy 행동 취소 가능 여부
+- Player 반동 유형: 없음, 방패 반동, 정면 피해 면역 반동
 
 이 클래스는 기획서의 타격 횟수 표를 기준으로 Edit Mode 테스트를 작성한다.
 
@@ -367,6 +372,24 @@ AttackPlayer
   ├─ Player 사망 → MoveToCastle
   └─ 사망 → Dead
 ```
+
+방패병은 일반 Enemy의 Castle 목표 상태를 사용하지 않고 다음 흐름을 사용한다.
+
+```text
+Spawn
+  ↓
+ChasePlayer
+  ├─ Player가 하늘색 범위 끝에 도달 → HoldApproachBoundary
+  ├─ Player 사망 → Hold
+  └─ 사망 → Dead
+
+HoldApproachBoundary
+  ├─ Player가 하늘색 범위 밖으로 이동 → ChasePlayer
+  ├─ Player 사망 → Hold
+  └─ 사망 → Dead
+```
+
+하늘색 범위는 방패병 중심의 접근 판정 범위다. `EnemyMovement`는 Player와 방패병 사이의 거리가 이 범위의 반경에 도달하면 이동을 정지하며, Player가 멀어지면 다시 이동한다.
 
 보스의 공격 상태:
 
@@ -415,6 +438,41 @@ Player
 | `CriticalSystem` | 치명타 확률과 Roll |
 | `PlayerStateMachine` | 이동, 공격, 조작 불가, 사망 상태 |
 
+### 8.2 공격 위치 계산
+
+`PlayerCombat`은 공격 실행 전에 `PlayerMovement`에 공격 위치 계산을 요청한다.
+
+```text
+Enemy가 회색 공격 사거리 밖
+  → Enemy가 Player 공격 사거리 끝에 위치하는 지점 계산
+  → PlayerMovement.MoveTo(공격 위치)
+  → 도착 후 공격
+
+Enemy가 회색 공격 사거리 안
+  → Player 이동 생략
+  → 현재 위치에서 즉시 공격
+```
+
+두 Collider가 겹쳐 있어도 Enemy가 회색 공격 사거리 안이라면 분리 이동이나 위치 보정을 수행하지 않는다. 공격 위치 계산은 거리 조건만 결정하고 물리 충돌 해결을 대신하지 않는다.
+
+### 8.3 Player 공격 반동
+
+`PlayerCombat`은 `CombatResolver` 결과를 적용한 뒤 Player 반동 조건을 확인한다.
+
+- Player보다 2레벨 이상 낮지 않은 `ShieldEnemy`를 정면에서 공격한 경우
+- 정면 피해 면역이 적용된 고레벨 `MeleeEnemy` 또는 `RangedEnemy`를 정면에서 공격한 경우
+
+반동 조건이면 다음 순서를 직접 호출한다.
+
+```text
+PlayerCombat
+  → PlayerMovement.Knockback(OppositeFromEnemy)
+  → PlayerStateMachine.LockInput(0.5초)
+  → CombatFeedbackController.PlayRecoilShake()
+```
+
+Player보다 2레벨 이상 낮은 방패병은 정면 공격 피해를 받지만 Player 반동은 발생시키지 않는다. 반동 넉백 거리와 이동 시간은 데이터로 관리한다.
+
 ## 9. Castle 구조
 
 ```text
@@ -454,6 +512,8 @@ StateMachine → Movement.Stop()
 StateMachine → Attack.Execute()
 PlayerCombat → CombatResolver.Resolve()
 EnemyBase → Health.ApplyDamage()
+PlayerCombat → PlayerMovement.Knockback()
+PlayerCombat → PlayerStateMachine.LockInput()
 ```
 
 ### 10.2 이벤트
@@ -468,6 +528,7 @@ EnemyBase → Health.ApplyDamage()
 - `ScoreChanged`
 - `CastleDestroyed`
 - `GameOver`
+- `PlayerAttackResolved`
 
 예:
 
@@ -479,6 +540,8 @@ EnemyHealth.Died
 └─ PoolService
 ```
 
+`PlayerAttackResolved`는 공격 결과를 시각·청각 시스템에 전달하는 타입이 명확한 이벤트다. `CombatFeedbackController`는 이 결과를 받아 일반 타격, 치명타와 정면 반동을 구분하고 `CameraShakeController`에 서로 다른 흔들림 설정을 요청한다. 피해 무효 정면 공격 중 반동 조건에 해당하지 않는 결과에는 화면 흔들림을 재생하지 않는다.
+
 전역 범용 EventBus는 사용하지 않는다. 발행자와 구독자를 쉽게 추적할 수 있는 타입이 명확한 C# 이벤트를 사용한다.
 
 ## 11. Definition과 런타임 상태
@@ -489,6 +552,7 @@ EnemyHealth.Died
 EnemyDefinition
 ├─ EnemyType
 ├─ MoveSpeed
+├─ ApproachRange
 ├─ AttackRange
 ├─ AttackDamage
 ├─ AttackCooldown
@@ -496,6 +560,21 @@ EnemyDefinition
 ├─ Experience
 └─ Prefab
 ```
+
+```text
+PlayerDefinition
+├─ MoveSpeed
+├─ AttackRange
+├─ RecoilDistance
+└─ RecoilDuration
+
+CombatFeedbackDefinition
+├─ NormalHitShake
+├─ CriticalHitShake
+└─ FrontRecoilShake
+```
+
+치명타 흔들림은 일반 타격보다 강한 값으로 검증한다. 구체적인 진폭, 주파수와 지속시간은 `CombatFeedbackDefinition`의 밸런스 값으로 둔다.
 
 `EnemyDefinition`은 게임 코드에서 사용하는 읽기 전용 설정 모델이다. 실제 저장 형태는 초기 프로토타입에서는 ScriptableObject일 수 있고, Excel 데이터 파이프라인이 완성된 뒤에는 `.bytes`를 읽어 생성한 런타임 데이터일 수 있다.
 
@@ -751,6 +830,7 @@ Assets/Game/
 │  ├─ Castle/
 │  ├─ Spawning/
 │  ├─ Progression/
+│  ├─ Presentation/
 │  ├─ UI/
 │  ├─ Save/
 │  └─ Infrastructure/
@@ -788,6 +868,8 @@ Unity Scene 없이 검증할 규칙:
 - 점수에서 계정 경험치 변환
 - 인게임 필요 경험치
 - 터치 타깃 우선순위
+- 공격 위치 계산: 사거리 밖 접근과 사거리 안 이동 생략
+- 방패병 및 정면 피해 면역 Enemy의 Player 반동 조건
 - Wave 데이터 검증
 
 ### 18.2 Play Mode
@@ -795,7 +877,11 @@ Unity Scene 없이 검증할 규칙:
 GameObject와 시간 흐름이 필요한 규칙:
 
 - 공격 위치까지 이동한 후 피해 적용
+- 회색 공격 사거리 안에서 Collider가 겹쳐도 이동하지 않는지 확인
+- 방패병 추격 및 하늘색 범위 끝 정지
 - 방패병 경로 차단
+- Player 반동 넉백과 0.5초 입력 차단
+- 일반 타격, 치명타와 정면 반동별 화면 흔들림
 - Enemy 목표 변경
 - 플레이어 사망 및 부활
 - Castle 광고 이어하기
