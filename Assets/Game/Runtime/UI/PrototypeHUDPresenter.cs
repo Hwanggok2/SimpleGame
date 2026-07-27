@@ -18,14 +18,18 @@ namespace SimpleGame
             session = gameSession;
             view.Initialize();
 
-            view.Bind(HudButtonId.Pause, session.TogglePause);
-            view.Bind(HudButtonId.CriticalCard, session.SelectCriticalCard);
+            view.Bind(HudButtonId.CardChoice0, () => session.SelectCard(0));
+            view.Bind(HudButtonId.CardChoice1, () => session.SelectCard(1));
+            view.Bind(HudButtonId.CardChoice2, () => session.SelectCard(2));
             view.Bind(HudButtonId.ContinueAd, session.SimulateRewardedContinue);
-            view.Bind(HudButtonId.DamagePlayer, session.DebugDamagePlayer);
-            view.Bind(HudButtonId.GrantXp, session.DebugGrantPlayerExperience);
 
             session.HintChanged += OnHintChanged;
-            session.CriticalCardVisibilityChanged += view.ShowCriticalCard;
+            session.CardSelectionVisibilityChanged += view.ShowCardSelection;
+            session.CardChoicesChanged += view.SetCardChoices;
+            session.CardChoiceInteractivityChanged +=
+                view.SetCardChoicesInteractable;
+            session.PauseVisibilityChanged += view.ShowPauseDetails;
+            session.PauseDetailsChanged += view.SetPauseDetails;
             session.GameOverVisibilityChanged += view.ShowGameOver;
             Refresh();
         }
@@ -47,7 +51,12 @@ namespace SimpleGame
             }
 
             session.HintChanged -= OnHintChanged;
-            session.CriticalCardVisibilityChanged -= view.ShowCriticalCard;
+            session.CardSelectionVisibilityChanged -= view.ShowCardSelection;
+            session.CardChoicesChanged -= view.SetCardChoices;
+            session.CardChoiceInteractivityChanged -=
+                view.SetCardChoicesInteractable;
+            session.PauseVisibilityChanged -= view.ShowPauseDetails;
+            session.PauseDetailsChanged -= view.SetPauseDetails;
             session.GameOverVisibilityChanged -= view.ShowGameOver;
         }
 
@@ -59,21 +68,27 @@ namespace SimpleGame
         private void Refresh()
         {
             view.SetText(
-                HudTextId.Score,
-                $"SCORE {session.Score}   ACCOUNT EXP {session.AccountExperience}");
-            view.SetText(HudTextId.Time, $"TIME {session.ElapsedTime:0.0}");
-            view.SetText(
-                HudTextId.PlayerLevel,
-                $"PLAYER Lv.{session.Player.Progression.Level}  XP {session.Player.Progression.Experience}");
-            view.SetText(
-                HudTextId.CriticalChance,
-                $"CRIT {session.Player.Critical.Chance * 100f:0}%");
+                HudTextId.Time,
+                PrototypeGameSession.FormatElapsedTime(
+                    session.ElapsedTime));
             view.SetText(
                 HudTextId.PlayerHp,
-                $"PLAYER HP {session.Player.Health.CurrentHealth}/{session.Player.Health.MaxHealth}");
-            view.SetText(
-                HudTextId.GameOverTitle,
-                $"GAME OVER\nScore {session.Score} / Account EXP {session.AccountExperience}");
+                $"체력  {session.Player.Health.CurrentHealth}/{session.Player.Health.MaxHealth}");
+            if (session.Player.Progression.TryGetRequiredExperience(
+                    out int requiredExperience))
+            {
+                view.SetExperience(
+                    session.Player.Progression.Experience,
+                    requiredExperience);
+            }
+            else
+            {
+                view.SetExperience(0, 0);
+            }
+
+            view.SetGameOverDetails(
+                $"게임 종료\n점수 {session.Score} / " +
+                $"계정 경험치 {session.AccountExperience}");
         }
     }
 }

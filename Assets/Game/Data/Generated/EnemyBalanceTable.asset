@@ -15,7 +15,7 @@ MonoBehaviour:
   definitions:
   - enemyId: GoblinMelee
     archetype: 0
-    moveSpeed: 0.7
+    moveSpeed: 0.85
     attackRange: 0.85
     attackDamage: 2
     attackWindup: 0.55
@@ -25,11 +25,17 @@ MonoBehaviour:
     approachRange: 0
     facingTurnDelay: 0.5
     postAttackFacingLock: 0
-    killExperience: 2
+    killExperience: 1
     score: 5
+    baseMaxHp: 3
+    hpGrowthMultiplier: 1.7
+    levelDifficultyOffset: 0
+    oneHitPlayerLevelAdvantage: 1
+    combatProfileId: StandardMelee
+    showHpBar: 1
   - enemyId: GoblinRanged
     archetype: 1
-    moveSpeed: 0.55
+    moveSpeed: 0.6
     attackRange: 2.25
     attackDamage: 2
     attackWindup: 0.8
@@ -39,11 +45,17 @@ MonoBehaviour:
     approachRange: 0
     facingTurnDelay: 0.5
     postAttackFacingLock: 1
-    killExperience: 2
-    score: 5
+    killExperience: 1
+    score: 7
+    baseMaxHp: 3
+    hpGrowthMultiplier: 1.7
+    levelDifficultyOffset: 1
+    oneHitPlayerLevelAdvantage: 0
+    combatProfileId: StandardRanged
+    showHpBar: 1
   - enemyId: ShieldSkeleton
     archetype: 2
-    moveSpeed: 0.6
+    moveSpeed: 0.7
     attackRange: 0
     attackDamage: 0
     attackWindup: 0
@@ -53,11 +65,17 @@ MonoBehaviour:
     approachRange: 2.25
     facingTurnDelay: 0.5
     postAttackFacingLock: 0
-    killExperience: 0
-    score: 0
+    killExperience: 2
+    score: 8
+    baseMaxHp: 3
+    hpGrowthMultiplier: 1.7
+    levelDifficultyOffset: 0
+    oneHitPlayerLevelAdvantage: 2
+    combatProfileId: Shield
+    showHpBar: 1
   - enemyId: GoblinBoss
     archetype: 3
-    moveSpeed: 0.42
+    moveSpeed: 0.5
     attackRange: 2.6
     attackDamage: 4
     attackWindup: 1.5
@@ -67,5 +85,11 @@ MonoBehaviour:
     approachRange: 0
     facingTurnDelay: 0.5
     postAttackFacingLock: 0
-    killExperience: 5
-    score: 25
+    killExperience: 8
+    score: 50
+    baseMaxHp: 15
+    hpGrowthMultiplier: 1.7
+    levelDifficultyOffset: 0
+    oneHitPlayerLevelAdvantage: -1
+    combatProfileId: Boss
+    showHpBar: 1

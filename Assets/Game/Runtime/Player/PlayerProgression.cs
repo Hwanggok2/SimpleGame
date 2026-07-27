@@ -19,20 +19,7 @@ namespace SimpleGame
             experienceTable = configuredExperienceTable;
         }
 
-        public void AddExperience(int amount)
-        {
-            experience += Mathf.Max(0, amount);
-            while (TryGetRequiredExperience(out int required) &&
-                required > 0 &&
-                experience >= required)
-            {
-                experience -= required;
-                level++;
-                LevelUpCardRequested?.Invoke();
-            }
-        }
-
-        private bool TryGetRequiredExperience(out int required)
+        public bool TryGetRequiredExperience(out int required)
         {
             if (experienceTable != null &&
                 experienceTable.TryGetRequiredExperience(level, out required))
@@ -41,10 +28,32 @@ namespace SimpleGame
             }
 
             required = 0;
-            Debug.LogError(
-                $"Player EXP row not found for level {level}.",
-                this);
             return false;
         }
+
+        public void AddExperience(int amount)
+        {
+            experience += Mathf.Max(0, amount);
+            while (true)
+            {
+                if (!TryGetRequiredExperience(out int required))
+                {
+                    Debug.LogError(
+                        $"Player EXP row not found for level {level}.",
+                        this);
+                    return;
+                }
+
+                if (required <= 0 || experience < required)
+                {
+                    return;
+                }
+
+                experience -= required;
+                level++;
+                LevelUpCardRequested?.Invoke();
+            }
+        }
+
     }
 }

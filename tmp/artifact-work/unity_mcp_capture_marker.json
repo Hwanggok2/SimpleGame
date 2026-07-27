@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":302,"method":"tools/call","params":{"name":"manage_camera","arguments":{"action":"screenshot","camera":"Main Camera","include_image":false,"screenshot_file_name":"piercing_target_marker_world.png","output_folder":"tmp/artifact-work/game-captures"}}}

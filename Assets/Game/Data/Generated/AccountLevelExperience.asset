@@ -16,8 +16,8 @@ MonoBehaviour:
   - level: 1
     requiredExperienceToNext: 40
   - level: 2
-    requiredExperienceToNext: 60
+    requiredExperienceToNext: 150
   - level: 3
-    requiredExperienceToNext: 100
+    requiredExperienceToNext: 300
   - level: 4
-    requiredExperienceToNext: 200
+    requiredExperienceToNext: 500

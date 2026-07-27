@@ -1,5 +1,7 @@
 # SimpleGame 프로젝트 아키텍처 설계서
 
+- 최종 갱신: 2026-07-27
+
 ## 1. 문서 목적
 
 이 문서는 `SimpleGame`의 게임 스크립트를 구현할 때 사용할 클래스 구조, 디자인 패턴, 의존 방향과 UI 바인딩 규칙을 정의한다.
@@ -356,25 +358,25 @@ EnemyAttackBase
 
 ### 6.5 CombatResolver
 
-정면, 후면, 레벨 차이와 치명타 판정은 Unity 컴포넌트와 분리된 순수 C# 클래스로 구현한다.
+정면, 후면, 레벨별 공격력·최대 HP, 일격 처치 예외와 치명타 판정은 Unity 컴포넌트와 분리된 순수 C# 클래스로 구현한다.
 
 입력:
 
-- Enemy 종류
+- `EnemyDefinition`
 - 플레이어 레벨
 - Enemy 레벨
+- Player 공격력
+- 후면 공격 배율
 - 정면 또는 후면
 - 치명타 여부
 
 출력:
 
-- 피해 가능 여부
 - 적용 피해량
-- 남은 필요 타격 수
-- Enemy 행동 취소 가능 여부
-- Player 반동 유형: 없음, 방패 반동, 정면 피해 면역 반동
+- Enemy 최대 HP
+- Player 반동 유형: 없음 또는 방패 반동
 
-이 클래스는 기획서의 타격 횟수 표를 기준으로 Edit Mode 테스트를 작성한다.
+방어도와 일반 Enemy 정면 피해 면역은 사용하지 않는다. `EnemyDefinition.CalculateMaxHealth()`와 `PlayerStats.GetAttackPower()`가 같은 성장 배율을 사용하고, `CombatResolver`는 정면 1배·후면 3배·치명타 3배를 조합한다. 낮은 레벨 Enemy의 방향 무관 일격 처치는 `OneHitPlayerLevelAdvantage` 데이터로 별도 처리한다. 위험도 색상은 최대 HP를 비치명타 피해로 나눈 실제 필요 타수를 사용한다.
 
 ## 7. Enemy 상태 머신
 
@@ -461,6 +463,7 @@ Player
 | `PlayerTargetSelector` | 터치 보정, 우선순위와 모든 Enemy의 Collider 기반 경로 가로채기 검사 |
 | `PlayerHealth` | 피격, 사망, 부활 |
 | `PlayerLevel` | 인게임 경험치와 레벨 |
+| `PlayerStats` | PlayerDefinition 기반 공격력·사거리·이동 강화 단계 계산 |
 | `CriticalSystem` | 치명타 확률과 Roll |
 | `PlayerStateMachine` | 이동, 공격, 조작 불가, 사망 상태 |
 | `CharacterSpriteAnimator` | Player/Enemy 공용 Animator 파라미터 Adapter. Motion·방향·Attack·Hurt·Death 상태를 전달하며 Sprite 프레임이나 Controller를 런타임 생성하지 않음 |
@@ -482,7 +485,9 @@ Enemy가 회색 공격 사거리 안
 
 두 Collider가 겹쳐 있어도 Enemy가 회색 공격 사거리 안이라면 분리 이동이나 위치 보정을 수행하지 않는다. 공격 위치 계산은 거리 조건만 결정하고 물리 충돌 해결을 대신하지 않는다.
 
-`PlayerMovement`는 고정 속도 대신 명령별 시작 위치와 시작 시간을 저장한다. 빈 공간 목적지, Enemy 공격 접근 위치, 방패병 접근 위치까지의 이동 진행률을 0.1초 기준으로 계산하므로 거리가 달라도 한 이동 구간은 최대 0.1초 안에 끝난다. 새 빈 공간 또는 다른 타깃을 터치하면 현재 위치에서 시간을 다시 시작하고, 일격 처치 후 원래 터치 지점으로 이동하는 구간도 별도의 0.1초 명령으로 취급한다. 넉백 이동은 이 시간 규칙과 분리한다.
+`PlayerMovement`는 목적지 도달 시간을 저장하지 않고 `Vector2.MoveTowards`로 `현재 이동 속도 × 상태 배율 × Time.deltaTime`만큼 이동한다. 기본 속도는 `PlayerBalance.BaseMoveSpeed = 10`이다. 시작 시 `SmoothDamp`로 현재 속도를 순항 속도까지 올리고, 목적지 인근의 제동 거리는 현재 순항 속도에 비례해 계산한 뒤 `SmootherStep`으로 감속한다. `MoveArrivalTolerance = 0.08` 안에서는 도착 처리한다.
+
+`PlayerController`는 이동 상황에 따라 배율만 조정한다. 빈 공간 이동은 1.0배, 터치 경로의 첫 Enemy 접근은 1.1배, 해당 Enemy를 실제 처치한 뒤 남은 경로는 1.2배다. 여러 Enemy를 처치해도 1.2배를 유지하며 배율을 서로 곱하지 않는다. 일격 처치 후 다음 Enemy로 이어질 때는 현재 운동량을 유지하고, 생존 Enemy를 만나거나 목적지에 도착하면 운동량을 초기화한다. 새 입력·넉백·사망·목적지 도착 시 처치 후 이탈 상태를 해제하며 넉백 시간은 이 속도 규칙과 분리한다.
 
 `PlayerController`는 Enemy 클릭마다 공격 요청을 한 개 생성하고 Player 공격 쿨타임을 두지 않는다. 같은 Enemy에게 접근하는 동안 들어온 추가 클릭은 이동 시작 시간을 초기화하지 않고 요청 수만 누적한다. 공격 위치에 도착하면 누적된 요청을 각각 독립된 공격으로 처리한다. Enemy가 이미 회색 공격 사거리 안이라면 이동 명령 없이 해당 클릭의 공격을 즉시 처리한다.
 
@@ -490,36 +495,35 @@ Enemy가 회색 공격 사거리 안
 
 방패병도 별도 애니메이터 클래스를 만들지 않고 같은 Adapter를 사용한다. `EnemyStateMachine`은 하늘색 범위 밖에서 Motion=Move(Walk), 범위 안에서 Motion=Guard(Shield)를 요청한다. Attack/Hurt 상태는 AnimatorController의 Exit Time 이후 현재 Motion 값에 맞는 Idle·Move·Guard 상태로 복귀한다.
 
-Player는 원본 LightBandit 경로를 게임용 단일 자산 세트로 사용하고, Enemy 전용 자산만 `Assets/Game/Characters`에 분리한다.
+Player와 Enemy의 게임용 자산은 모두 `Assets/Game/Characters` 아래에서 관리한다. 원본 Sprite Sheet만 `Assets/Resources`에 유지한다.
 
 ```text
-Assets/Resources/Bandits - Pixel Art/
-├─ Demo/LightBandit.prefab                 # 게임용 단일 Player Prefab
-└─ Animations/Light Bandit/                 # Player Clip + Controller
-
 Assets/Game/Characters/
 ├─ Animations/
+│  ├─ Player/       # Player Clip 10종
 │  ├─ Common/       # Enemy 방향별 Facing Clip
 │  ├─ Goblin/
 │  └─ Skeleton/
-├─ Animators/       # Goblin, Skeleton Controller
+├─ Animators/       # Player, Goblin, Skeleton Controller
 ├─ Shared/          # 직렬화 가능한 PrototypeSquare Sprite
 └─ Prefabs/
+   ├─ Player/       # Player.prefab
    └─ Enemies/      # Melee, Ranged, Shield, Boss
+
+Assets/Resources/
+├─ Bandits - Pixel Art/Sprites/LightBandit.png
+└─ Monsters Creatures Fantasy/Sprites/      # Goblin, Skeleton 원본
 ```
 
 `PrototypeEnemyFactory`는 런타임에 GameObject와 컴포넌트를 조립하지 않고 직렬화된 Enemy Prefab을 Instantiate한다. 각 Prefab은 고정된 컴포넌트, SpriteRenderer, AnimatorController 참조를 Inspector에서 확인할 수 있어야 한다.
 
-Player와 Enemy Prefab의 `Rigidbody2D`, `Collider2D`, Animator, 공격 범위, 공격 예고, 방향 마커, 레벨 라벨은 모두 Prefab에 직렬화한다. `CameraFollowController`, `CameraShakeController`, `PlayerWorldArea`, `EnemyWorldRecycler`, `WorldChunkGrid`와 9개 Tilemap 청크도 Scene에 미리 저장한다. 런타임 코드는 `AddComponent`나 고정 자식 GameObject 생성을 수행하지 않고 저장된 참조의 값과 활성 상태만 변경한다.
+Player와 Enemy Prefab의 `Rigidbody2D`, `Collider2D`, Animator, 공격 범위, 공격 예고, 방향 마커와 레벨 라벨은 모두 Prefab에 직렬화한다. 모든 Enemy Prefab에는 `EnemyHealthBar`, World Space Canvas, Slider와 현재/최대 HP 라벨도 직렬화한다. `CameraFollowController`, `CameraShakeController`, `PlayerWorldArea`, `EnemyWorldRecycler`, `WorldChunkGrid`와 9개 Tilemap 청크도 Scene에 미리 저장한다. 런타임 코드는 `AddComponent`나 고정 자식 GameObject 생성을 수행하지 않고 저장된 참조의 값과 활성 상태만 변경한다.
 
 LightBandit 원본 Sprite는 X Scale `+1`에서 왼쪽을 향하고 Goblin·Skeleton 원본 Sprite는 X Scale `+1`에서 오른쪽을 향한다. 따라서 동일한 `FaceLeft` 파라미터를 사용하되 Player Facing Clip은 Left `+1`/Right `-1`, Enemy Facing Clip은 Left `-1`/Right `+1`로 분리한다. 이 차이는 AnimationClip과 AnimatorController 자산에서 해결하며 런타임 방향 반전 코드를 추가하지 않는다.
 
 ### 8.3 Player 공격 반동
 
-`PlayerCombat`은 `CombatResolver` 결과를 적용한 뒤 Player 반동 조건을 확인한다.
-
-- Player보다 2레벨 이상 낮지 않은 `ShieldEnemy`를 정면에서 공격한 경우
-- 정면 피해 면역이 적용된 고레벨 `MeleeEnemy` 또는 `RangedEnemy`를 정면에서 공격한 경우
+`PlayerController`는 `CombatResolver` 결과를 적용한 뒤 Player 반동 조건을 확인한다. 현재 반동은 일격 처치 예외가 적용되지 않는 `ShieldEnemy`를 정면에서 비치명타로 공격한 경우에만 발생한다.
 
 반동 조건이면 다음 순서를 직접 호출한다.
 
@@ -530,7 +534,7 @@ PlayerCombat
   → CombatFeedbackController.PlayRecoilShake()
 ```
 
-Player보다 2레벨 이상 낮은 방패병은 정면 공격 피해를 받지만 Player 반동은 발생시키지 않는다. 반동 넉백 거리와 이동 시간은 데이터로 관리한다.
+Player보다 2레벨 이상 낮은 방패병은 일격 처치되므로 반동이 발생하지 않는다. 방패병 정면 치명타도 3배 피해만 적용하고 반동을 발생시키지 않는다. 반동 넉백 거리와 이동 시간은 전투 피드백 설정과 PlayerRoot 상수에서 관리하며 추후 데이터화한다.
 
 ## 9. 카메라와 무한 월드 구조
 
@@ -628,20 +632,42 @@ EnemyDefinition
 ├─ ApproachRange
 ├─ AttackRange
 ├─ AttackDamage
+├─ AttackWindup / ActiveDuration
 ├─ AttackCooldown
 ├─ FacingTurnDelay
 ├─ PostAttackFacingLock
 ├─ Score
 ├─ Experience
-└─ Prefab
+├─ BaseMaxHp
+├─ HpGrowthMultiplier
+├─ LevelDifficultyOffset
+├─ OneHitPlayerLevelAdvantage
+├─ CombatProfileId
+└─ ShowHpBar
 ```
 
 ```text
 PlayerDefinition
-├─ MoveSpeed
+├─ StartLevel
+├─ BaseMaxHp
+├─ BaseAttackPower
+├─ AttackGrowthMultiplier
+├─ RearAttackMultiplier
+├─ BaseMoveSpeed
+├─ PathEnemyApproachSpeedMultiplier
+├─ PostKillEscapeSpeedMultiplier
+├─ MoveArrivalTolerance
 ├─ AttackRange
-├─ RecoilDistance
-└─ RecoilDuration
+└─ BaseCriticalChance
+
+LevelUpCardDefinition
+├─ CardId / NameKey
+├─ EffectType
+├─ TargetStat / Operation / Value
+├─ MaxStack / SelectionWeight
+├─ MinPlayerLevel
+├─ Rarity / IconId
+└─ Enabled
 
 CombatFeedbackDefinition
 ├─ NormalHitShake
@@ -651,7 +677,7 @@ CombatFeedbackDefinition
 
 치명타 흔들림은 일반 타격보다 강한 값으로 검증한다. 구체적인 진폭, 주파수와 지속시간은 `CombatFeedbackDefinition`의 밸런스 값으로 둔다.
 
-`EnemyDefinition`은 게임 코드에서 사용하는 읽기 전용 설정 모델이다. 실제 저장 형태는 초기 프로토타입에서는 ScriptableObject일 수 있고, Excel 데이터 파이프라인이 완성된 뒤에는 `.bytes`를 읽어 생성한 런타임 데이터일 수 있다.
+`EnemyDefinition`, `PlayerDefinition`, `LevelUpCardDefinition`은 게임 코드에서 사용하는 읽기 전용 설정 모델이다. 현재 저장 형태는 Excel importer가 생성한 ScriptableObject이며 WebGL 런타임에는 Excel 파서가 포함되지 않는다.
 
 도메인 로직은 가능한 한 구체적인 저장 형태보다 `EnemyDefinition`이 제공하는 값에 의존한다. ScriptableObject를 사용하더라도 Excel을 원본으로 정한 뒤에는 생성 결과로만 취급하며 수동으로 양쪽을 수정하지 않는다.
 
@@ -699,7 +725,7 @@ Pool로 반환할 때 자신이 등록한 이벤트를 반드시 해제한다.
 
 ## 13. UI 아키텍처
 
-UI는 `View + Presenter + enum 인덱스 Registry` 방식으로 구성한다.
+UI는 `View + Presenter + 프리팹 생명주기` 방식으로 구성한다.
 
 ```text
 GameSession
@@ -707,138 +733,76 @@ GameSession
 HUDPresenter
   ↓ 표시 요청
 HUDView
-  ↓ enum ID 조회
-Button/TMP_Text
+  ├─ Persistent HUD
+  └─ Modal Prefab Instance
 ```
 
-### 13.1 enum 규칙
+### 13.1 상시 UI와 일시 UI
 
-화면마다 별도의 enum을 선언한다.
+씬에는 `PrototypeHUD.prefab` 인스턴스 하나만 둔다. 이 프리팹은 시간, 경험치, HP, 안내 문구처럼 플레이 중 계속 필요한 UI와 빈 `ModalRoot`를 가진다.
 
-```csharp
-public enum HudButtonId
-{
-    Pause = 0,
-    Count = 1
-}
-
-public enum HudTextId
-{
-    Score = 0,
-    PlayTime = 1,
-    PlayerLevel = 2,
-    CriticalChance = 3,
-    Count = 4
-}
-```
-
-`Button`이라는 enum 이름은 `UnityEngine.UI.Button`과 충돌하므로 사용하지 않는다.
-
-`Count`는 배열 크기를 계산하기 위한 Sentinel이며 실제 UI GameObject와 연결하지 않는다. 자동 바인딩과 누락 검증에서도 `Count`는 제외한다.
-
-### 13.2 Hierarchy 이름 규칙
-
-UI GameObject 이름은 해당 enum 항목 이름과 동일하게 작성한다.
+레벨업, ESC 상세 정보, 게임오버처럼 특정 상태에서만 표시되는 UI는 각각 독립된 프리팹으로 관리하며 씬 파일에 배치하지 않는다.
 
 ```text
-HUD
-├─ Buttons
-│  └─ Pause
-└─ Texts
-   ├─ Score
-   ├─ PlayTime
-   ├─ PlayerLevel
-   └─ CriticalChance
+PrototypeHUD.prefab
+├─ TopPanel
+├─ HintPanel
+└─ ModalRoot
+   ├─ CardSelectionPanel.prefab  (필요 시)
+   ├─ PauseDetailsPanel.prefab   (필요 시)
+   └─ GameOverPanel.prefab       (필요 시)
 ```
 
-### 13.3 자동 바인딩
+### 13.2 생성과 재사용
 
-View 초기화 시 다음 순서로 Button과 TMP_Text를 수집한다.
+`PrototypeHUDView`는 일시 UI 프리팹 참조를 직렬화한다.
 
-1. 자식 Button 또는 TMP_Text 컴포넌트를 한 번 수집한다.
-2. GameObject 이름을 대응하는 enum으로 변환한다.
-3. enum 숫자를 배열 인덱스로 사용한다.
-4. 해당 인덱스에 컴포넌트를 저장한다.
-5. 중복, 누락, 잘못된 이름과 null을 검증한다.
+1. 상태 이벤트에서 표시 요청을 받는다.
+2. 해당 인스턴스가 없으면 `ModalRoot` 아래에 생성한다.
+3. 최신 표시 데이터와 Listener를 적용한다.
+4. 인스턴스를 활성화한다.
+5. 닫을 때 파괴하지 않고 비활성화해 다음 표시에서 재사용한다.
 
-```text
-buttons[(int)HudButtonId.Pause] → Pause Button
-texts[(int)HudTextId.Score] → Score TMP_Text
-```
+이 방식은 초기 씬 계층을 단순하게 유지하면서 반복 생성 비용과 Listener 중복을 방지한다.
 
-`GetComponentsInChildren` 결과 순서를 그대로 enum 인덱스와 연결하지 않는다. GameObject 이름을 enum으로 변환한 후 명시적인 인덱스에 저장한다.
+### 13.3 View와 Presenter 책임
 
-### 13.4 View 사용 API
+- `PrototypeHUDPresenter`: `GameSession` 이벤트 구독, 표시용 문자열 구성, Callback 전달
+- `PrototypeHUDView`: 프리팹 생성·표시·숨김, Text 반영, Button Listener 연결
+- Popup 프리팹: 레이아웃과 Graphic 컴포넌트 보유
+- `GameSession`: UI 계층과 프리팹을 직접 참조하지 않음
 
-사용 코드는 다음 형태를 목표로 한다.
+### 13.4 버튼과 반복 UI
 
-```csharp
-Bind(HudButtonId.Pause, OnPauseClicked);
-SetText(HudTextId.Score, score.ToString());
-SetText(HudTextId.PlayerLevel, $"Lv. {level}");
-```
+카드 선택 Button Callback은 프리팹 생성 전에도 View에 저장할 수 있어야 한다. `CardChoice0~2`가 생성되면 저장된 Callback을 연결한다.
 
-enum 값 자체에 함수를 연결하는 것이 아니라 View의 `Bind()`가 enum 인덱스로 Button을 찾아 Listener를 등록한다.
+동일 구조의 카드 3장은 `LevelUpCardView[]`와 `Button[]`로 관리한다. 서로 역할이 다른 `ContinueAd`는 별도 참조로 관리한다.
 
-### 13.5 UI 바인딩 검증
+Listener를 연결할 때 View가 기존 런타임 Listener를 정리한 뒤 현재 Callback을 한 번만 등록한다.
 
-초기화 단계에서 다음 오류를 확인한다.
+### 13.5 구성 검증
 
-- enum에 대응하는 GameObject 누락
-- 동일한 enum ID에 두 컴포넌트가 연결됨
-- GameObject 이름을 enum으로 변환할 수 없음
-- 잘못된 컴포넌트 타입
-- 배열의 필수 인덱스가 null
+HUD 초기화 단계에서 다음 참조를 검증한다.
 
-오류를 조용히 무시하지 않고 화면 이름과 누락된 enum ID를 포함한 오류를 출력한다.
+- 시간, HP, 안내, 경험치 Slider와 Label
+- `ModalRoot`
+- CardSelection, PauseDetails, GameOver 프리팹
 
-### 13.6 Listener 생명주기
+Popup 생성 단계에서는 다음 자식 요소를 검증한다.
 
-- View가 활성화될 때 이벤트를 연결한다.
-- View가 비활성화될 때 자신이 연결한 이벤트만 해제한다.
-- View를 다시 열 때 중복 Listener가 등록되지 않도록 한다.
-- Inspector에서 등록한 Listener가 있을 수 있으므로 모든 Listener를 일괄 제거하지 않는다.
+- `CardChoice0~2`
+- `PauseDetails`
+- `GameOverTitle`
+- `ContinueAd`
 
-### 13.7 Presenter
+누락은 조용히 무시하지 않고 대상 프리팹 이름을 포함한 오류로 출력한다.
 
-UI Registry는 게임 로직을 직접 호출하지 않는다.
+### 13.6 씬 정리 원칙
 
-```text
-Pause Button
-  ↓ HUDView
-HUDPresenter.OnPauseClicked()
-  ↓
-GameSession.Pause()
-```
-
-게임 시스템도 enum Registry를 직접 사용하지 않는다.
-
-권장:
-
-```csharp
-hudView.SetScore(score);
-hudView.SetPlayerLevel(level);
-```
-
-`HudView` 내부에서만 다음과 같이 enum Registry를 사용한다.
-
-```csharp
-SetText(HudTextId.Score, score.ToString());
-```
-
-### 13.8 반복 UI
-
-레벨업 카드처럼 같은 구조가 반복되는 UI는 enum 항목을 세 개 만들지 않는다.
-
-권장:
-
-```text
-CardViews[0]
-CardViews[1]
-CardViews[2]
-```
-
-서로 역할이 다른 고정 UI는 enum으로 관리하고 동일 구조의 반복 항목은 배열 또는 리스트로 관리한다.
+- ESC로 대체된 Pause 버튼을 씬에 두지 않는다.
+- 개발 시험용 Button을 플레이 UI에 두지 않는다.
+- ESC 상세 정보에서만 사용하는 점수, 레벨, 치명타 Text를 상시 HUD에 숨겨 두지 않는다.
+- 일시 UI는 씬에 비활성 상태로 미리 배치하지 않는다.
 
 ## 14. 입력 구조
 
@@ -870,7 +834,9 @@ Excel 원본
   ├─ StageSpawn
   ├─ PlayerLevelExp
   ├─ AccountLevelExp
-  └─ GlobalBalance
+  ├─ GlobalBalance
+  ├─ PlayerBalance
+  └─ LevelUpCard
           ↓ 가져오기·검증
 Assets/Game/Data/Generated/*.asset
           ↓
@@ -899,10 +865,12 @@ PrototypeScene
 - `PlayerLevelExperience`: 플레이어 레벨별 다음 레벨 필요 EXP
 - `AccountLevelExperience`: 계정 레벨별 다음 레벨 필요 EXP
 - `GlobalBalance`: 점수→계정 EXP 환산식과 치명타 공통값
+- `PlayerBalanceTable`: Player 기본 HP·공격력·성장률·기본 이동 속도·상황별 속도 배율·도착 허용 거리·사거리
+- `LevelUpCardTable`: 카드 효과, 중첩, 가중치, 최소 등장 레벨과 활성 여부
 
 이 에셋들은 수동 편집하지 않고 `Planning/GameData.xlsx` 가져오기 결과로만
 취급한다. Excel 저장 후 Unity 메뉴 `SimpleGame > Data > Import Excel`을
-실행하면 Editor 전용 importer가 5개 필수 시트를 모두 메모리에서 검증한 뒤
+실행하면 Editor 전용 importer가 7개 필수 시트를 모두 메모리에서 검증한 뒤
 정상일 때만 기존 에셋에 일괄 적용한다. 오류가 하나라도 있으면 기존 정상
 에셋은 변경되지 않는다.
 
@@ -976,10 +944,14 @@ Assets/Game/
 │  ├─ Save/
 │  └─ Infrastructure/
 ├─ Data/
-│  ├─ Enemies/
-│  ├─ Cards/
-│  └─ Waves/
-├─ Prefabs/
+│  ├─ Generated/
+│  ├─ Catalogs/
+│  └─ Profiles/
+├─ Characters/
+│  ├─ Animations/
+│  ├─ Animators/
+│  ├─ Prefabs/
+│  └─ Shared/
 └─ Tests/
    ├─ EditMode/
    └─ PlayMode/
@@ -1006,20 +978,24 @@ WebGL Player 빌드에는 포함하지 않는다.
 Unity Scene 없이 검증할 규칙:
 
 - 정면 및 후면 판정
-- 원거리 및 근거리 레벨 차이 필요 타격 수
+- Player 공격력·Enemy 최대 HP 성장식과 종류별 레벨 보정
+- 원거리·근거리·방패·Boss의 실제 필요 타격 수
 - 치명타 피해량
 - 점수에서 계정 경험치 변환
 - 인게임 필요 경험치
 - 터치 타깃 우선순위
 - 공격 위치 계산: 사거리 밖 접근과 사거리 안 이동 생략
-- 방패병 및 정면 피해 면역 Enemy의 Player 반동 조건
+- 방패병 정면 일반 공격의 Player 반동 조건
 - Wave 데이터 검증
+- 카드 최소 레벨·가중치·최대 중첩과 목록 내 중복 방지
 
 ### 18.2 Play Mode
 
 GameObject와 시간 흐름이 필요한 규칙:
 
 - 공격 위치까지 이동한 후 피해 적용
+- 최초 Enemy 접근이 강화된 현재 속도의 1.1배인지 확인
+- 연속 일격 처치 시 남은 경로에서 1.2배를 유지하고 누적하지 않는지 확인
 - 회색 공격 사거리 안에서 Collider가 겹쳐도 이동하지 않는지 확인
 - 방패병 추격 및 하늘색 범위 끝 정지
 - 방패병 경로 차단
@@ -1037,6 +1013,7 @@ GameObject와 시간 흐름이 필요한 규칙:
 - 보스 3초 공격 주기
 - Object Pool 재사용
 - UI enum 자동 바인딩과 Listener 중복 방지
+- Enemy HP Slider와 현재/최대 숫자 갱신
 
 ## 19. 피해야 할 구조
 

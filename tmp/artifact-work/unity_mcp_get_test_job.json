@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":202,"method":"tools/call","params":{"name":"get_test_job","arguments":{"job_id":"2d8b97d203b94d01bda7990579691d90","include_failed_tests":true,"include_details":false,"wait_timeout":60}}}

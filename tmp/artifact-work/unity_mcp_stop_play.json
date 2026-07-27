@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":203,"method":"tools/call","params":{"name":"manage_editor","arguments":{"action":"stop"}}}

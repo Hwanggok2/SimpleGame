@@ -5,6 +5,7 @@ using TMPro;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace SimpleGameEditor
 {
@@ -12,7 +13,7 @@ namespace SimpleGameEditor
     {
         public const string RootPath = "Assets/Game/Characters";
         public const string PlayerPrefabPath =
-            "Assets/Resources/Bandits - Pixel Art/Demo/LightBandit.prefab";
+            RootPath + "/Prefabs/Player/Player.prefab";
         public const string MeleePrefabPath =
             RootPath + "/Prefabs/Enemies/MeleeEnemy.prefab";
         public const string RangedPrefabPath =
@@ -23,37 +24,35 @@ namespace SimpleGameEditor
             RootPath + "/Prefabs/Enemies/BossEnemy.prefab";
         public const string PrototypeSquareAssetPath =
             RootPath + "/Shared/PrototypeSquare.asset";
+        public const string DefaultFontPath =
+            "Assets/Font/Pretendard-Regular SDF.asset";
 
         private const string AnimationPath = RootPath + "/Animations";
         private const string AnimatorPath = RootPath + "/Animators";
-        private const string LightBanditAnimationPath =
-            "Assets/Resources/Bandits - Pixel Art/Animations/Light Bandit";
-        private const string LightBanditControllerPath =
-            LightBanditAnimationPath + "/LightBandit_AnimController.controller";
-        private const string LegacyPlayerAnimationPath =
+        private const string PlayerAnimationPath =
             AnimationPath + "/Player";
-        private const string LegacyPlayerControllerPath =
+        private const string PlayerControllerPath =
             AnimatorPath + "/Player.controller";
-        private const string LegacyPlayerPrefabPath =
-            RootPath + "/Prefabs/Player";
-        private const string LegacyPlayerFaceRightPath =
-            AnimationPath + "/Common/FaceRight.anim";
-        private const string LegacyPlayerFaceLeftPath =
-            AnimationPath + "/Common/FaceLeft.anim";
+        private const string SourcePlayerAnimationPath =
+            "Assets/Resources/Bandits - Pixel Art/Animations/Light Bandit";
+        private const string SourcePlayerControllerPath =
+            SourcePlayerAnimationPath + "/LightBandit_AnimController.controller";
+        private const string SourcePlayerPrefabPath =
+            "Assets/Resources/Bandits - Pixel Art/Demo/LightBandit.prefab";
         private const string SpriteBindingPath = "Visual/Sprite";
 
         [MenuItem("SimpleGame/Build Character Assets %#g")]
         public static void Build()
         {
             EnsureFolders();
-            RemoveLegacyPlayerAssets();
+            MigratePlayerAssets();
             LoadPrototypeSquareSprite();
 
             AnimationClip playerFaceRight = CreateFacingClip(
-                $"{LightBanditAnimationPath}/LightBandit_FaceRight.anim",
+                $"{PlayerAnimationPath}/Player_FaceRight.anim",
                 -1f);
             AnimationClip playerFaceLeft = CreateFacingClip(
-                $"{LightBanditAnimationPath}/LightBandit_FaceLeft.anim",
+                $"{PlayerAnimationPath}/Player_FaceLeft.anim",
                 1f);
             AnimationClip enemyFaceRight = CreateFacingClip(
                 $"{AnimationPath}/Common/EnemyFaceRight.anim",
@@ -86,10 +85,7 @@ namespace SimpleGameEditor
                 8f,
                 1f,
                 playerFaceRight,
-                playerFaceLeft,
-                LightBanditAnimationPath,
-                LightBanditControllerPath,
-                "LightBandit");
+                playerFaceLeft);
 
             Sprite[] goblinIdle = LoadSprites(
                 "Assets/Resources/Monsters Creatures Fantasy/Sprites/Goblin/Idle.png");
@@ -600,6 +596,7 @@ namespace SimpleGameEditor
             root.AddComponent<PlayerMovement>();
             root.AddComponent<CriticalSystem>();
             root.AddComponent<PlayerProgression>();
+            root.AddComponent<PlayerStats>();
             root.AddComponent<PlayerController>();
             CharacterSpriteAnimator animation =
                 root.AddComponent<CharacterSpriteAnimator>();
@@ -617,7 +614,7 @@ namespace SimpleGameEditor
                 root.transform,
                 "PlayerAttackRange",
                 new Color(0.55f, 0.58f, 0.62f, 0.2f),
-                Vector2.one * PlayerController.AttackRange * 2f,
+                Vector2.one * PlayerController.DefaultAttackRange * 2f,
                 5);
             TMP_Text levelLabel = CreateWorldLabel(
                 root.transform,
@@ -694,13 +691,21 @@ namespace SimpleGameEditor
                 Color.yellow,
                 new Vector2(0.18f, 0.35f),
                 24);
+            facingMarker.enabled = false;
             TMP_Text levelLabel = CreateWorldLabel(
                 root.transform,
-                $"{archetype} Lv.1",
+                $"{GetEnemyDisplayName(archetype)} 레벨 1",
                 new Vector3(0f, archetype == EnemyArchetype.Boss ? 1.1f : 0.67f, 0f),
                 2.3f,
                 26);
-            enemy.ConfigureVisuals(approachRange, facingMarker, levelLabel);
+            EnemyHealthBar healthBar = CreateWorldHealthBar(
+                root.transform,
+                archetype == EnemyArchetype.Boss ? 1.48f : 0.93f);
+            enemy.ConfigureVisuals(
+                approachRange,
+                facingMarker,
+                levelLabel,
+                healthBar);
 
             EnemyAttackModule attack = root.GetComponent<EnemyAttackModule>();
             if (attack != null)
@@ -731,6 +736,19 @@ namespace SimpleGameEditor
 
             PrefabUtility.SaveAsPrefabAsset(root, path);
             UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        private static string GetEnemyDisplayName(
+            EnemyArchetype archetype)
+        {
+            return archetype switch
+            {
+                EnemyArchetype.Melee => "근접 고블린",
+                EnemyArchetype.Ranged => "원거리 고블린",
+                EnemyArchetype.Shield => "방패병",
+                EnemyArchetype.Boss => "고블린 우두머리",
+                _ => "적"
+            };
         }
 
         private static void ConfigureVisual(
@@ -823,6 +841,8 @@ namespace SimpleGameEditor
             child.transform.localPosition = localPosition;
 
             TextMeshPro label = child.AddComponent<TextMeshPro>();
+            label.font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+                DefaultFontPath);
             label.text = text;
             label.fontSize = fontSize;
             label.color = Color.white;
@@ -830,6 +850,126 @@ namespace SimpleGameEditor
             label.rectTransform.sizeDelta = new Vector2(3f, 1f);
             child.GetComponent<MeshRenderer>().sortingOrder = sortingOrder;
             return label;
+        }
+
+        private static EnemyHealthBar CreateWorldHealthBar(
+            Transform parent,
+            float localY)
+        {
+            var canvasObject = new GameObject(
+                "HealthBarCanvas",
+                typeof(RectTransform),
+                typeof(Canvas),
+                typeof(CanvasScaler));
+            canvasObject.transform.SetParent(parent, false);
+            canvasObject.transform.localPosition =
+                new Vector3(0f, localY, 0f);
+            canvasObject.transform.localScale =
+                Vector3.one * 0.01f;
+
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 40;
+
+            RectTransform canvasRect =
+                canvasObject.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(120f, 20f);
+
+            var sliderObject = new GameObject(
+                "HealthSlider",
+                typeof(RectTransform),
+                typeof(Slider));
+            sliderObject.transform.SetParent(
+                canvasObject.transform,
+                false);
+            RectTransform sliderRect =
+                sliderObject.GetComponent<RectTransform>();
+            sliderRect.anchorMin = Vector2.zero;
+            sliderRect.anchorMax = Vector2.one;
+            sliderRect.offsetMin = Vector2.zero;
+            sliderRect.offsetMax = Vector2.zero;
+
+            Image background = CreateHealthBarImage(
+                sliderObject.transform,
+                "Background",
+                new Color(0.08f, 0.08f, 0.08f, 0.95f),
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            Image fill = CreateHealthBarImage(
+                sliderObject.transform,
+                "Fill",
+                new Color(0.15f, 0.85f, 0.25f, 1f),
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(2f, 2f),
+                new Vector2(-2f, -2f));
+
+            Slider slider = sliderObject.GetComponent<Slider>();
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = 1f;
+            slider.interactable = false;
+            slider.transition = Selectable.Transition.None;
+            slider.fillRect = fill.rectTransform;
+            slider.targetGraphic = background;
+
+            var labelObject = new GameObject(
+                "HealthValue",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(TextMeshProUGUI));
+            labelObject.transform.SetParent(
+                canvasObject.transform,
+                false);
+            TextMeshProUGUI label =
+                labelObject.GetComponent<TextMeshProUGUI>();
+            label.font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+                DefaultFontPath);
+            label.text = "3/3";
+            label.fontSize = 13f;
+            label.color = Color.white;
+            label.alignment = TextAlignmentOptions.Center;
+            label.raycastTarget = false;
+            RectTransform labelRect = label.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+
+            EnemyHealthBar healthBar =
+                parent.gameObject.AddComponent<EnemyHealthBar>();
+            healthBar.Configure(canvasObject, slider, label);
+            return healthBar;
+        }
+
+        private static Image CreateHealthBarImage(
+            Transform parent,
+            string name,
+            Color color,
+            Vector2 anchorMin,
+            Vector2 anchorMax,
+            Vector2 offsetMin,
+            Vector2 offsetMax)
+        {
+            var imageObject = new GameObject(
+                name,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            imageObject.transform.SetParent(parent, false);
+            RectTransform rect =
+                imageObject.GetComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+            Image image = imageObject.GetComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
         }
 
         private static void ConfigurePhysics(GameObject root, float radius)
@@ -887,20 +1027,72 @@ namespace SimpleGameEditor
         private static void EnsureFolders()
         {
             EnsureFolder(AnimationPath + "/Common");
+            EnsureFolder(PlayerAnimationPath);
             EnsureFolder(AnimationPath + "/Goblin");
             EnsureFolder(AnimationPath + "/Skeleton");
             EnsureFolder(AnimatorPath);
             EnsureFolder(RootPath + "/Shared");
+            EnsureFolder(RootPath + "/Prefabs/Player");
             EnsureFolder(RootPath + "/Prefabs/Enemies");
         }
 
-        private static void RemoveLegacyPlayerAssets()
+        private static void MigratePlayerAssets()
         {
-            AssetDatabase.DeleteAsset(LegacyPlayerAnimationPath);
-            AssetDatabase.DeleteAsset(LegacyPlayerControllerPath);
-            AssetDatabase.DeleteAsset(LegacyPlayerPrefabPath);
-            AssetDatabase.DeleteAsset(LegacyPlayerFaceRightPath);
-            AssetDatabase.DeleteAsset(LegacyPlayerFaceLeftPath);
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_Idle.anim",
+                PlayerAnimationPath + "/Player_Idle.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_Run.anim",
+                PlayerAnimationPath + "/Player_Move.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_CombatIdle.anim",
+                PlayerAnimationPath + "/Player_Guard.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_Attack.anim",
+                PlayerAnimationPath + "/Player_Attack.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_Hurt.anim",
+                PlayerAnimationPath + "/Player_Hurt.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_Death.anim",
+                PlayerAnimationPath + "/Player_Death.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_Jump.anim",
+                PlayerAnimationPath + "/Player_Jump.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_Recover.anim",
+                PlayerAnimationPath + "/Player_Recover.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_FaceRight.anim",
+                PlayerAnimationPath + "/Player_FaceRight.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerAnimationPath + "/LightBandit_FaceLeft.anim",
+                PlayerAnimationPath + "/Player_FaceLeft.anim");
+            MoveAssetIfNeeded(
+                SourcePlayerControllerPath,
+                PlayerControllerPath);
+            MoveAssetIfNeeded(
+                SourcePlayerPrefabPath,
+                PlayerPrefabPath);
+        }
+
+        private static void MoveAssetIfNeeded(
+            string sourcePath,
+            string destinationPath)
+        {
+            if (AssetDatabase.LoadMainAssetAtPath(destinationPath) != null ||
+                AssetDatabase.LoadMainAssetAtPath(sourcePath) == null)
+            {
+                return;
+            }
+
+            string error = AssetDatabase.MoveAsset(
+                sourcePath,
+                destinationPath);
+            if (!string.IsNullOrEmpty(error))
+            {
+                throw new InvalidOperationException(error);
+            }
         }
 
         private static void EnsureFolder(string path)

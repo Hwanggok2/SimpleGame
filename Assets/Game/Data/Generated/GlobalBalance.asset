@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.GlobalBalance
   accountExperienceScoreUnit: 5
   accountExperiencePerUnit: 1
-  criticalChancePerCard: 0.1
-  maximumCriticalChance: 0.7
+  criticalChancePerCard: 0.05
+  maximumCriticalChance: 0.5

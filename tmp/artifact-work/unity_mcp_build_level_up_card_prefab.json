@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":301,"method":"tools/call","params":{"name":"execute_menu_item","arguments":{"menu_path":"SimpleGame/Build Level Up Card Prefab"}}}

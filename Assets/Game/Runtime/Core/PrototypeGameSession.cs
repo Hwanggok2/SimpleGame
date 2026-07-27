@@ -1,11 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace SimpleGame
 {
     public sealed class PrototypeGameSession : MonoBehaviour
     {
+        private const float EnemySeparationPadding = 0.08f;
+        private const int SeparationPassCount = 2;
+        private const int SpawnPositionAttemptCount = 32;
+        public const float CardChoiceInputDelay = 0.7f;
+
         [Header("Scene References")]
         [SerializeField] private PlayerRoot player;
         [SerializeField] private PrototypeEnemyFactory enemyFactory;
@@ -22,13 +29,25 @@ namespace SimpleGame
         [SerializeField, Min(1)] private int accountLevel = 1;
 
         private readonly List<EnemyBase> enemies = new();
+        private readonly Dictionary<string, int> cardStacks = new(
+            StringComparer.Ordinal);
+        private readonly List<LevelUpCardDefinition> currentCardChoices =
+            new();
         private GameRunState state = GameRunState.Playing;
         private int pendingCardSelections;
         private bool selectingStartingCards;
         private int continueCount;
+        private GameRunState stateBeforePause = GameRunState.Playing;
+        private bool cardChoicesInteractable;
+        private float cardChoiceUnlockAt;
 
         public event Action<string> HintChanged;
-        public event Action<bool> CriticalCardVisibilityChanged;
+        public event Action<bool> CardSelectionVisibilityChanged;
+        public event Action<IReadOnlyList<LevelUpCardChoiceData>>
+            CardChoicesChanged;
+        public event Action<bool> CardChoiceInteractivityChanged;
+        public event Action<bool> PauseVisibilityChanged;
+        public event Action<string> PauseDetailsChanged;
         public event Action<bool> GameOverVisibilityChanged;
 
         public PlayerRoot Player => player;
@@ -40,6 +59,14 @@ namespace SimpleGame
                 : 0;
         public float ElapsedTime { get; private set; }
         public bool IsPlaying => state == GameRunState.Playing;
+
+        public static string FormatElapsedTime(float elapsedTime)
+        {
+            int totalSeconds = Mathf.Max(
+                0,
+                Mathf.FloorToInt(elapsedTime));
+            return $"{totalSeconds / 60:00}:{totalSeconds % 60:00}";
+        }
 
         public void ConfigureScene(
             PlayerRoot configuredPlayer,
@@ -67,6 +94,12 @@ namespace SimpleGame
             stageSpawner = configuredStageSpawner;
         }
 
+        public void ConfigureHud(
+            PrototypeHUDPresenter configuredPresenter)
+        {
+            hudPresenter = configuredPresenter;
+        }
+
         private void Start()
         {
             Time.timeScale = 1f;
@@ -88,7 +121,8 @@ namespace SimpleGame
                 this,
                 worldCamera,
                 gameData.PlayerLevelExperience,
-                gameData.GlobalBalance);
+                gameData.GlobalBalance,
+                gameData.PlayerBalance);
             enemyFactory.ConfigureAssets(
                 gameData.EnemyAssets,
                 gameData.EnemyBalance);
@@ -99,7 +133,7 @@ namespace SimpleGame
             player.Health.Depleted += OnPlayerDepleted;
             player.Progression.LevelUpCardRequested += OnPlayerLevelUp;
             stageSpawner.Begin(stageId);
-            ShowHint("Survive. Tap the field to move and tap enemies to attack.");
+            ShowHint("10분 동안 생존하세요. 빈 곳을 누르면 이동하고 적을 누르면 공격합니다.");
             QueueCardSelections(
                 CalculateStartingCardSelectionCount(accountLevel),
                 true);
@@ -107,6 +141,19 @@ namespace SimpleGame
 
         private void Update()
         {
+            if (Keyboard.current != null &&
+                Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                TogglePause();
+            }
+
+            if (state == GameRunState.CardSelection &&
+                !cardChoicesInteractable &&
+                Time.unscaledTime >= cardChoiceUnlockAt)
+            {
+                SetCardChoicesInteractable(true);
+            }
+
             if (state != GameRunState.GameOver &&
                 player != null &&
                 !player.IsAlive)
@@ -165,7 +212,10 @@ namespace SimpleGame
             return nearest;
         }
 
-        public EnemyBase FindFirstEnemyOnPath(Vector2 start, Vector2 destination)
+        public EnemyBase FindFirstEnemyOnPath(
+            Vector2 start,
+            Vector2 destination,
+            EnemyBase ignoredEnemy = null)
         {
             Vector2 path = destination - start;
             float pathLengthSquared = path.sqrMagnitude;
@@ -179,12 +229,22 @@ namespace SimpleGame
             float firstProgress = float.MaxValue;
             foreach (EnemyBase enemy in enemies)
             {
-                if (enemy == null || !enemy.IsAlive)
+                if (enemy == null ||
+                    enemy == ignoredEnemy ||
+                    !enemy.IsAlive)
                 {
                     continue;
                 }
 
                 Vector2 enemyPosition = enemy.transform.position;
+                if (!CombatGeometry.IsAheadAlongPath(
+                    enemyPosition,
+                    start,
+                    destination))
+                {
+                    continue;
+                }
+
                 float progress = Mathf.Clamp01(
                     Vector2.Dot(enemyPosition - start, path) /
                     pathLengthSquared);
@@ -207,8 +267,220 @@ namespace SimpleGame
             return first;
         }
 
+        public List<EnemyBase> CollectPiercingTargets(
+            Vector2 start,
+            EnemyBase primary,
+            int additionalTargetCount,
+            float reachAfterPrimary,
+            float halfWidth)
+        {
+            var result = new List<EnemyBase>();
+            if (primary == null || !primary.IsAlive)
+            {
+                return result;
+            }
+
+            result.Add(primary);
+            if (additionalTargetCount <= 0)
+            {
+                return result;
+            }
+
+            Vector2 direction =
+                (Vector2)primary.transform.position - start;
+            float primaryDistance = direction.magnitude;
+            if (primaryDistance <= 0.0001f)
+            {
+                return result;
+            }
+
+            direction /= primaryDistance;
+            var candidates = new List<ProjectedEnemy>();
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy == null ||
+                    enemy == primary ||
+                    !enemy.IsAlive)
+                {
+                    continue;
+                }
+
+                Vector2 offset =
+                    (Vector2)enemy.transform.position - start;
+                float progress = Vector2.Dot(offset, direction);
+                if (progress <= primaryDistance + 0.01f ||
+                    progress > primaryDistance + reachAfterPrimary)
+                {
+                    continue;
+                }
+
+                Vector2 closest = start + direction * progress;
+                float allowedDistance =
+                    halfWidth + GetColliderRadius(enemy);
+                if (Vector2.Distance(
+                        enemy.transform.position,
+                        closest) <= allowedDistance)
+                {
+                    candidates.Add(new ProjectedEnemy(enemy, progress));
+                }
+            }
+
+            candidates.Sort((left, right) =>
+                left.Progress.CompareTo(right.Progress));
+            int count = Mathf.Min(
+                additionalTargetCount,
+                candidates.Count);
+            for (int index = 0; index < count; index++)
+            {
+                result.Add(candidates[index].Enemy);
+            }
+
+            return result;
+        }
+
+        public List<EnemyBase> CollectNearestEnemies(
+            Vector2 center,
+            float radius,
+            int maximumCount,
+            ISet<EnemyBase> excluded)
+        {
+            var candidates = new List<ProjectedEnemy>();
+            float radiusSquared = radius * radius;
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy == null ||
+                    !enemy.IsAlive ||
+                    (excluded != null && excluded.Contains(enemy)))
+                {
+                    continue;
+                }
+
+                float distanceSquared = Vector2.SqrMagnitude(
+                    (Vector2)enemy.transform.position - center);
+                if (distanceSquared <= radiusSquared)
+                {
+                    candidates.Add(new ProjectedEnemy(
+                        enemy,
+                        distanceSquared));
+                }
+            }
+
+            candidates.Sort((left, right) =>
+                left.Progress.CompareTo(right.Progress));
+            int count = Mathf.Min(
+                Mathf.Max(0, maximumCount),
+                candidates.Count);
+            var result = new List<EnemyBase>(count);
+            for (int index = 0; index < count; index++)
+            {
+                result.Add(candidates[index].Enemy);
+            }
+
+            return result;
+        }
+
+        public List<EnemyBase> CollectEnemiesAlongSegment(
+            Vector2 start,
+            Vector2 end,
+            float halfWidth)
+        {
+            var result = new List<EnemyBase>();
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy == null || !enemy.IsAlive)
+                {
+                    continue;
+                }
+
+                if (CombatGeometry.OverlapsSegment(
+                        enemy.transform.position,
+                        GetColliderRadius(enemy),
+                        start,
+                        end,
+                        halfWidth))
+                {
+                    result.Add(enemy);
+                }
+            }
+
+            return result;
+        }
+
+        public Vector2 FindOpenEnemyPosition(
+            Vector2 requestedPosition,
+            float radius,
+            EnemyBase ignoredEnemy = null)
+        {
+            float safeRadius = Mathf.Max(0.1f, radius);
+            for (int attempt = 0;
+                 attempt < SpawnPositionAttemptCount;
+                 attempt++)
+            {
+                Vector2 candidate = requestedPosition;
+                if (attempt > 0)
+                {
+                    float ring = 1f + (attempt - 1) / 8;
+                    float angle = attempt * 2.39996323f;
+                    candidate += new Vector2(
+                        Mathf.Cos(angle),
+                        Mathf.Sin(angle)) *
+                        safeRadius * 2.15f * ring;
+                }
+
+                if (IsEnemyPositionOpen(
+                        candidate,
+                        safeRadius,
+                        ignoredEnemy))
+                {
+                    return candidate;
+                }
+            }
+
+            return requestedPosition;
+        }
+
+        public void SeparateEnemy(EnemyBase mover)
+        {
+            if (mover == null || !mover.IsAlive)
+            {
+                return;
+            }
+
+            Vector2 resolved = mover.transform.position;
+            float moverRadius = GetColliderRadius(mover);
+            for (int pass = 0; pass < SeparationPassCount; pass++)
+            {
+                foreach (EnemyBase other in enemies)
+                {
+                    if (other == null ||
+                        other == mover ||
+                        !other.IsAlive)
+                    {
+                        continue;
+                    }
+
+                    float minimumDistance =
+                        moverRadius +
+                        GetColliderRadius(other) +
+                        EnemySeparationPadding;
+                    resolved = CombatGeometry.PushOutside(
+                        resolved,
+                        mover.GetInstanceID(),
+                        other.transform.position,
+                        other.GetInstanceID(),
+                        minimumDistance);
+                }
+            }
+
+            mover.transform.position = new Vector3(
+                resolved.x,
+                resolved.y,
+                mover.transform.position.z);
+        }
+
         public void OnEnemyDefeated(EnemyBase enemy)
         {
+            enemies.Remove(enemy);
             Score += enemy.Definition.Score;
             player.Progression.AddExperience(enemy.Definition.KillExperience);
         }
@@ -231,52 +503,76 @@ namespace SimpleGame
 
         public void TogglePause()
         {
-            if (state == GameRunState.GameOver ||
-                state == GameRunState.CardSelection)
+            if (state == GameRunState.Paused)
             {
+                state = stateBeforePause;
+                Time.timeScale =
+                    state == GameRunState.CardSelection ? 0f : 1f;
+                PauseVisibilityChanged?.Invoke(false);
+                ShowHint(state == GameRunState.CardSelection
+                    ? "레벨 업: 카드를 선택하세요."
+                    : "게임을 재개했습니다.");
                 return;
             }
 
-            state = state == GameRunState.Paused
-                ? GameRunState.Playing
-                : GameRunState.Paused;
-            Time.timeScale = state == GameRunState.Paused ? 0f : 1f;
-            ShowHint(state == GameRunState.Paused ? "PAUSED" : "RESUMED");
+            stateBeforePause = state;
+            state = GameRunState.Paused;
+            Time.timeScale = 0f;
+            PauseDetailsChanged?.Invoke(BuildPauseDetails());
+            PauseVisibilityChanged?.Invoke(true);
+            ShowHint("일시 정지했습니다. ESC를 누르면 재개합니다.");
         }
 
-        public void SelectCriticalCard()
+        public void SelectCard(int choiceIndex)
         {
             if (state != GameRunState.CardSelection ||
-                pendingCardSelections <= 0)
+                !cardChoicesInteractable ||
+                pendingCardSelections <= 0 ||
+                choiceIndex < 0 ||
+                choiceIndex >= currentCardChoices.Count)
             {
                 return;
             }
 
-            player.Critical.AddCard();
+            LevelUpCardDefinition selected =
+                currentCardChoices[choiceIndex];
+            if (!player.ApplyCard(selected))
+            {
+                return;
+            }
+
+            cardStacks[selected.CardId] = GetCardStack(selected.CardId) + 1;
             pendingCardSelections--;
             if (pendingCardSelections > 0)
             {
-                CriticalCardVisibilityChanged?.Invoke(false);
-                CriticalCardVisibilityChanged?.Invoke(true);
+                ArmCardChoiceDelay();
+                RefreshCardChoices();
+                if (TryFinishEmptyCardSelection())
+                {
+                    return;
+                }
+
                 ShowCardSelectionHint();
                 return;
             }
 
             bool completedStartingCards = selectingStartingCards;
             selectingStartingCards = false;
-            CriticalCardVisibilityChanged?.Invoke(false);
+            currentCardChoices.Clear();
+            SetCardChoicesInteractable(false);
+            CardSelectionVisibilityChanged?.Invoke(false);
             state = GameRunState.Playing;
             Time.timeScale = 1f;
             ShowHint(completedStartingCards
-                ? "Starting cards selected. Game started."
-                : "Critical chance +10% card applied.");
+                ? "시작 카드를 선택했습니다. 게임을 시작합니다."
+                : $"{selected.DisplayName} 카드를 획득했습니다.");
         }
 
         public void SimulateRewardedContinue()
         {
             if (state != GameRunState.GameOver || continueCount >= 2)
             {
-                ShowHint("Continue is available after Game Over, up to two times.");
+                ShowHint("이어하기는 게임 종료 후 최대 두 번 사용할 수 있습니다.");
                 return;
             }
 
@@ -287,8 +583,8 @@ namespace SimpleGame
             state = GameRunState.Playing;
             GameOverVisibilityChanged?.Invoke(false);
             ShowHint(
-                $"Rewarded ad simulated: Continue {continueCount}/2, " +
-                "Player restored to full HP.");
+                $"보상형 광고를 확인한 것으로 처리했습니다. " +
+                $"이어하기 {continueCount}/2, 체력을 모두 회복했습니다.");
         }
 
         public void DebugDamagePlayer()
@@ -296,7 +592,7 @@ namespace SimpleGame
             if (IsPlaying)
             {
                 player.ReceiveDamage(10);
-                ShowHint("Debug: Player took 10 damage.");
+                ShowHint("시험 기능: 플레이어가 피해 10을 받았습니다.");
             }
         }
 
@@ -308,7 +604,7 @@ namespace SimpleGame
             }
 
             player.Progression.AddExperience(5);
-            ShowHint("Debug: Player EXP +5.");
+            ShowHint("시험 기능: 플레이어 경험치가 5 증가했습니다.");
         }
 
         private void OnPlayerDepleted()
@@ -322,10 +618,12 @@ namespace SimpleGame
             pendingCardSelections = 0;
             selectingStartingCards = false;
             Time.timeScale = 1f;
-            CriticalCardVisibilityChanged?.Invoke(false);
+            currentCardChoices.Clear();
+            SetCardChoicesInteractable(false);
+            PauseVisibilityChanged?.Invoke(false);
+            CardSelectionVisibilityChanged?.Invoke(false);
             GameOverVisibilityChanged?.Invoke(true);
-            ShowHint(
-                "Player defeated. CONTINUE simulates a successful rewarded ad.");
+            ShowHint("플레이어가 쓰러졌습니다. 이어하기로 다시 도전할 수 있습니다.");
         }
 
         private void OnPlayerLevelUp()
@@ -335,6 +633,7 @@ namespace SimpleGame
                 return;
             }
 
+            player.Health.RestoreFull();
             foreach (EnemyBase enemy in enemies)
             {
                 if (enemy != null && enemy.IsAlive)
@@ -363,18 +662,147 @@ namespace SimpleGame
             selectingStartingCards |= startingCards;
             state = GameRunState.CardSelection;
             Time.timeScale = 0f;
-            CriticalCardVisibilityChanged?.Invoke(true);
+            ArmCardChoiceDelay();
+            RefreshCardChoices();
+            if (TryFinishEmptyCardSelection())
+            {
+                return;
+            }
+
+            CardSelectionVisibilityChanged?.Invoke(true);
             ShowCardSelectionHint();
+        }
+
+        private void RefreshCardChoices()
+        {
+            currentCardChoices.Clear();
+            int unlockLevel = selectingStartingCards
+                ? Mathf.Max(player.Progression.Level, accountLevel)
+                : player.Progression.Level;
+            currentCardChoices.AddRange(gameData.LevelUpCards.Draw(
+                unlockLevel,
+                GetCardStack,
+                3));
+
+            var choices = new List<LevelUpCardChoiceData>(
+                currentCardChoices.Count);
+            foreach (LevelUpCardDefinition choice in currentCardChoices)
+            {
+                choices.Add(new LevelUpCardChoiceData(
+                    choice,
+                    GetCardStack(choice.CardId)));
+            }
+
+            CardChoicesChanged?.Invoke(choices);
+        }
+
+        private void ArmCardChoiceDelay()
+        {
+            cardChoiceUnlockAt =
+                Time.unscaledTime + CardChoiceInputDelay;
+            SetCardChoicesInteractable(false);
+        }
+
+        private void SetCardChoicesInteractable(bool interactable)
+        {
+            cardChoicesInteractable = interactable;
+            CardChoiceInteractivityChanged?.Invoke(interactable);
+        }
+
+        private string BuildPauseDetails()
+        {
+            var text = new StringBuilder();
+            text.AppendLine("일시 정지");
+            text.AppendLine("ESC를 누르면 게임을 재개합니다.");
+            text.AppendLine();
+            text.AppendLine(
+                $"플레이어 레벨  {player.Progression.Level}    " +
+                $"계정 레벨  {accountLevel}");
+            text.AppendLine(
+                $"점수  {Score}    계정 경험치  " +
+                $"{AccountExperience}    생존 시간  " +
+                FormatElapsedTime(ElapsedTime));
+            text.AppendLine(
+                $"체력  {player.Health.CurrentHealth}/" +
+                $"{player.Health.MaxHealth}    " +
+                $"공격력  {player.AttackPower:0.##}");
+            text.AppendLine(
+                $"치명타 확률  {player.Critical.Chance * 100f:0}%    " +
+                $"이동 속도  {player.MoveSpeed:0.##}");
+            text.AppendLine(
+                $"공격 사거리  {player.AttackRange:0.##}    " +
+                $"후면 피해  x{player.RearAttackMultiplier:0.##}");
+            if (player.Progression.TryGetRequiredExperience(
+                    out int requiredExperience))
+            {
+                text.AppendLine(
+                    $"경험치  {player.Progression.Experience}/" +
+                    $"{requiredExperience}    " +
+                    $"다음 레벨까지  " +
+                    $"{Mathf.Max(0, requiredExperience - player.Progression.Experience)}");
+            }
+
+            text.AppendLine();
+            text.AppendLine("획득한 스킬");
+            bool hasSelectedCard = false;
+            foreach (LevelUpCardDefinition definition
+                in gameData.LevelUpCards.Definitions)
+            {
+                int stack = GetCardStack(definition.CardId);
+                if (stack <= 0)
+                {
+                    continue;
+                }
+
+                hasSelectedCard = true;
+                text.Append("• ");
+                text.Append(definition.DisplayName);
+                text.Append("  레벨 ");
+                text.Append(stack);
+                text.Append('/');
+                text.AppendLine(definition.MaxStack.ToString());
+            }
+
+            if (!hasSelectedCard)
+            {
+                text.AppendLine("없음");
+            }
+
+            return text.ToString();
+        }
+
+        private int GetCardStack(string cardId)
+        {
+            return cardStacks.TryGetValue(cardId, out int count)
+                ? count
+                : 0;
         }
 
         private void ShowCardSelectionHint()
         {
             string source = selectingStartingCards
-                ? $"ACCOUNT Lv.{accountLevel} START BONUS"
-                : "LEVEL UP";
+                ? $"계정 레벨 {accountLevel} 시작 보너스"
+                : "레벨 업";
             ShowHint(
-                $"{source}: select a card " +
-                $"({pendingCardSelections} remaining).");
+                $"{source}: 카드를 선택하세요. " +
+                $"남은 선택 {pendingCardSelections}회");
+        }
+
+        private bool TryFinishEmptyCardSelection()
+        {
+            if (currentCardChoices.Count > 0)
+            {
+                return false;
+            }
+
+            pendingCardSelections = 0;
+            selectingStartingCards = false;
+            SetCardChoicesInteractable(false);
+            CardSelectionVisibilityChanged?.Invoke(false);
+            state = GameRunState.Playing;
+            Time.timeScale = 1f;
+            ShowHint("모든 스킬이 최대 레벨에 도달했습니다.");
+            return true;
         }
 
         private void EnsureCombatFeedback()
@@ -405,7 +833,7 @@ namespace SimpleGame
             combatFeedback.Configure(cameraShake, gameData.CombatFeedback);
         }
 
-        private static float GetColliderRadius(Component owner)
+        public static float GetColliderRadius(Component owner)
         {
             CircleCollider2D circle = owner != null
                 ? owner.GetComponent<CircleCollider2D>()
@@ -418,6 +846,48 @@ namespace SimpleGame
             Vector3 scale = circle.transform.lossyScale;
             return circle.radius *
                 Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
+        }
+
+        private bool IsEnemyPositionOpen(
+            Vector2 position,
+            float radius,
+            EnemyBase ignoredEnemy)
+        {
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy == null ||
+                    enemy == ignoredEnemy ||
+                    !enemy.IsAlive)
+                {
+                    continue;
+                }
+
+                float minimumDistance =
+                    radius +
+                    GetColliderRadius(enemy) +
+                    EnemySeparationPadding;
+                if (Vector2.SqrMagnitude(
+                        position -
+                        (Vector2)enemy.transform.position) <
+                    minimumDistance * minimumDistance)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private readonly struct ProjectedEnemy
+        {
+            public ProjectedEnemy(EnemyBase enemy, float progress)
+            {
+                Enemy = enemy;
+                Progress = progress;
+            }
+
+            public EnemyBase Enemy { get; }
+            public float Progress { get; }
         }
     }
 }

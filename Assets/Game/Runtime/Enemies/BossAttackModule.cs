@@ -81,7 +81,9 @@ namespace SimpleGame
                         Vector2.Distance(player.transform.position, attackCenter) <=
                         owner.Definition.AttackAreaRadius)
                     {
-                        player.ReceiveDamage(owner.Definition.AttackDamage);
+                        player.ReceiveDamage(
+                            owner.Definition.CalculateAttackDamage(
+                                owner.Level));
                     }
                 }
 

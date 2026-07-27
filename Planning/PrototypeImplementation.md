@@ -1,5 +1,7 @@
 # Prototype Implementation
 
+- Last updated: 2026-07-27
+
 ## Final release target
 
 - Final platform: Apps in Toss game mini-app inside the Toss app.
@@ -26,7 +28,9 @@
 
 - Tap/click an empty point: move the Player.
 - Tap/click an enemy: approach and attack.
-- Each touch-command movement segment reaches its destination or attack position within `0.1s`.
+- Empty-point movement uses a base cruise speed of `10 units/s`.
+- A path Enemy is approached at `1.1x` the current speed.
+- After a path Enemy is killed, the remaining route uses `1.2x` speed without stacking per Enemy.
 - `PAUSE`: pause/resume.
 - `PLAYER -10`: apply debug damage to the Player and verify Game Over.
 - `PLAYER XP +5`: trigger the prototype level-up flow.
@@ -34,10 +38,13 @@
 
 ## Implemented rules
 
-- Melee/Ranged front/rear attack table and level-difference immunity.
-- Shield front/rear durability rules and conditional 0.5-second input lock.
-- Boss durability and critical damage rules.
-- Critical card: +10%, repeatable, maximum 70%.
+- Combat uses actual float HP and damage rather than armor or front-damage immunity.
+- Player attack power and Enemy maximum HP use the same `1.7` per-level growth multiplier.
+- Rear attacks deal `3x`; critical attacks multiply the resolved directional damage by `3x`.
+- Lower-level one-hit exceptions remain data-driven per Enemy type.
+- Every Enemy Prefab has a world-space HP Slider and numeric current/maximum HP label.
+- Level-up and starting selections draw three distinct eligible cards by weight.
+- Implemented cards: critical chance, maximum HP, movement speed, and attack range.
 - Boss three-second cycle:
   - `0.0–1.5`: move with warning area.
   - `1.5–2.0`: stop and apply the attack.
@@ -59,19 +66,21 @@
 - `EnemyWorldRecycler` preserves normal Enemy type, level, and accumulated damage while cancelling transient attack/movement state and moving the Enemy to the opposite Spawn boundary. Bosses and dead enemies are excluded.
 - Account EXP conversion: `floor(score / 5)`.
 - UI binding uses enum names as GameObject names and enum indices as cached component slots.
-- Player movement uses a duration-based command: empty-point and enemy-approach movement completes within `0.1s`; no movement occurs when an Enemy is already inside the gray attack range.
+- Player movement uses `Vector2.MoveTowards` with units-per-second data instead of a destination duration. The base speed is `10`; `MOVE_SPEED_UP` adds `8` up to five times, reaching `50 units/s`.
+- `SmoothDamp` eases into cruise speed and a distance-based `SmootherStep` curve eases into the destination. Momentum is preserved only while sweeping through one-hit enemies.
+- Empty movement uses `1.0x`, a path Enemy approach uses `1.1x`, and movement after a real path kill uses `1.2x`. These multipliers never stack.
 - A movement path checks the Player and Enemy Collider radii. The first Enemy intersecting the path becomes the attack target even when the user touched empty space behind it.
-- A one-hit kill resumes movement to the original touch point; an Enemy that survives keeps the Player stopped at the attack-range edge.
-- The same touch command repeatedly acquires the next Enemy intersecting its remaining path. Consecutive one-hit kills are swept in order; the first survivor is attacked once and stops the Player at the attack-range edge.
+- A one-hit kill resumes movement to the original touch point at `1.2x`; an Enemy that survives keeps the Player stopped at the attack-range edge.
+- The same touch command repeatedly acquires the next Enemy intersecting its remaining path. Consecutive one-hit kills keep the `1.2x` escape speed; the first survivor is attacked once and stops the Player at the attack-range edge.
 - Enemy name and level labels use the normal, non-critical combat table relative to the current Player level: green for one hit from either side, white for three front hits/one rear hit, and red for every other case. Labels refresh after Player level-up.
 - Player attacks have no automatic click cooldown. Every valid Enemy click creates one attack request; repeated clicks during approach are queued for the same target.
 - Prototype Enemy touch correction uses a `1.5` world-unit radius instead of the previous `1.1` radius.
-- Player Prefab: `Assets/Resources/Bandits - Pixel Art/Demo/LightBandit.prefab`.
-- Player AnimationClips and AnimatorController: `Assets/Resources/Bandits - Pixel Art/Animations/Light Bandit`.
+- Player Prefab: `Assets/Game/Characters/Prefabs/Player/Player.prefab`.
+- Player AnimationClips: `Assets/Game/Characters/Animations/Player`.
+- Player AnimatorController: `Assets/Game/Characters/Animators/Player.controller`.
 - Melee, Ranged, and Boss Enemy visual: `Resources/Monsters Creatures Fantasy/Sprites/Goblin`.
 - ShieldEnemy visual: `Resources/Monsters Creatures Fantasy/Sprites/Skeleton`.
-- The Resources LightBandit Prefab is the single gameplay Player Prefab. It contains the project Player components, serialized Rigidbody2D/Collider2D, SpriteRenderer, and Animator; the former generated Player Prefab/clip/controller duplicates under `Assets/Game/Characters` are removed.
-- Enemy profile AnimationClips, Goblin/Skeleton AnimatorControllers, and the four Enemy Prefabs remain under `Assets/Game/Characters`.
+- Player and Enemy gameplay Prefabs, AnimationClips, and AnimatorControllers are stored under `Assets/Game/Characters`. Only source Sprite Sheets remain under `Assets/Resources`.
 - `PrototypeEnemyFactory` instantiates saved Enemy Prefabs instead of creating GameObjects and components at runtime.
 - Player and Enemy Prefabs serialize one Rigidbody2D, one Collider2D, and all fixed range, warning, marker, and label objects. Camera follow/shake, world area, world recycler, nine Tilemap chunks, and CombatFeedback components are saved in the Scene; runtime code contains no `AddComponent` or fixed-child construction.
 - Shared `CharacterSpriteAnimator` only forwards Motion, FaceLeft, Attack, Hurt, and Death parameters to each Prefab's Animator. It does not load Sprite arrays or advance frames in code.
@@ -96,6 +105,8 @@ The current prototype reads balance and schedule data through
   - `Generated/PlayerLevelExperience.asset`
   - `Generated/AccountLevelExperience.asset`
   - `Generated/GlobalBalance.asset`
+  - `Generated/PlayerBalanceTable.asset`
+  - `Generated/LevelUpCardTable.asset`
 - Unity-authored area:
   - `Catalogs/EnemyAssetCatalog.asset`
   - `Profiles/CombatFeedbackProfile.asset`
@@ -115,23 +126,24 @@ the Scene registry, and asks `PrototypeEnemyFactory` to create the configured En
 Prefab. Fixed components remain serialized in the Scene or Prefab; none of these
 runtime data paths construct fixed components with `AddComponent`.
 
-The current `StageSpawnSchedule` mirrors the drafted sheet: 14 WAVE_01 enemies at
-1 second and one level-5 GoblinBoss at 120 seconds. Account EXP requirements use
+The current `StageSpawnSchedule` contains 29 rows. Account EXP requirements use
 `40, 60, 100, 200`, and score conversion uses `floor(score / 5)`.
 
-The Player EXP requirements are provisional: levels 1–20 currently retain the old
-prototype curve `3 + level * 2`. The final Player EXP sheet must replace these values.
-The actual `.xlsx` importer and row-validation report are still pending; until they
-exist, `SimpleGame/Data/Create or Update Data Assets` seeds the generated assets.
+The Player EXP requirements are provisional: levels 1–20 currently use
+`3 + level * 2`. The final Player EXP sheet may replace these values.
+The `.xlsx` importer validates seven required sheets and updates the generated
+ScriptableObjects only after all validation succeeds.
 No production save system, account backend, analytics, or rewarded-ad SDK is included.
 
 ## Verification
 
 - Unity script compilation: passed with no errors.
-- EditMode combat, data, facing, and world-area tests: `44 passed / 0 failed`.
+- EditMode combat, data, facing, movement-speed, and world-area tests: `41 passed / 0 failed`.
+- Prototype Scene Play Mode smoke test: entered and exited successfully with `0` Console errors.
 - Game data validation:
   - four Enemy balance rows and four Prefab mappings;
-  - 15 scheduled spawns;
+  - 29 scheduled spawns;
+  - one Player balance row and four level-up card rows;
   - 28 Scene spawn points;
   - no duplicate runtime spawn ID or unresolved Enemy/SpawnPoint ID.
 - Scene and generated data assets contain no missing script references.

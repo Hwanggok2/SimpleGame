@@ -1,0 +1,475 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace SimpleGame
+{
+    public sealed class PlayerCombatAbilities : MonoBehaviour
+    {
+        public const float HitHealChance = 0.05f;
+        public const float StaticSearchRadius = 3.2f;
+        public const float PiercingReach = 4.5f;
+        public const float PiercingHalfWidth = 0.42f;
+        public const float PiercingWindowDuration = 0.4f;
+        public const float SeverDelay = 0.5f;
+        public const float SeverReuseCooldown = 0.3f;
+        public const float SeverHalfWidth = 0.17f;
+
+        [SerializeField] private int piercingLevel;
+        [SerializeField] private int severLevel;
+        [SerializeField] private int hitHealLevel;
+        [SerializeField] private int staticChargeLevel;
+        [SerializeField] private int movingSlashLevel;
+        [SerializeField] private int shieldBypassLevel;
+        [SerializeField] private float severDamageMultiplier = 2f;
+        [SerializeField] private int hitHealAmount = 2;
+        [SerializeField] private float staticDamageMultiplier = 0.75f;
+        [SerializeField] private float movingSlashDamageMultiplier = 1.5f;
+        [SerializeField] private float shieldBypassChancePerLevel = 0.1f;
+
+        private readonly HashSet<EnemyBase> directTargets = new();
+        private PlayerRoot owner;
+        private PrototypeGameSession session;
+        private float piercingWindowEndsAt;
+        private int piercingTargetsConsumed;
+        private float nextSeverAvailableTime;
+
+        public int PiercingLevel => piercingLevel;
+        public int StaticChargeLevel => staticChargeLevel;
+        public int MovingSlashLevel => movingSlashLevel;
+        public int ShieldBypassLevel => shieldBypassLevel;
+        public float ShieldBypassChance =>
+            CalculateShieldBypassChance(
+                shieldBypassLevel,
+                shieldBypassChancePerLevel);
+        public bool HasSever => severLevel > 0;
+
+        public void Configure(
+            PlayerRoot configuredOwner,
+            PrototypeGameSession configuredSession)
+        {
+            owner = configuredOwner;
+            session = configuredSession;
+            piercingLevel = 0;
+            severLevel = 0;
+            hitHealLevel = 0;
+            staticChargeLevel = 0;
+            movingSlashLevel = 0;
+            shieldBypassLevel = 0;
+            severDamageMultiplier = 2f;
+            hitHealAmount = 2;
+            staticDamageMultiplier = 0.75f;
+            movingSlashDamageMultiplier = 1.5f;
+            shieldBypassChancePerLevel = 0.1f;
+            piercingWindowEndsAt = 0f;
+            piercingTargetsConsumed = 0;
+            nextSeverAvailableTime = 0f;
+        }
+
+        public bool ApplyCard(LevelUpCardDefinition card)
+        {
+            if (card == null)
+            {
+                return false;
+            }
+
+            switch (card.TargetStat)
+            {
+                case PlayerStatId.Piercing:
+                    piercingLevel = AddLevel(
+                        piercingLevel,
+                        card.MaxStack,
+                        card.Value);
+                    break;
+                case PlayerStatId.Sever:
+                    severLevel = AddLevel(
+                        severLevel,
+                        card.MaxStack,
+                        1f);
+                    severDamageMultiplier = Mathf.Max(0f, card.Value);
+                    break;
+                case PlayerStatId.HitHeal:
+                    hitHealLevel = AddLevel(
+                        hitHealLevel,
+                        card.MaxStack,
+                        1f);
+                    hitHealAmount = Mathf.Max(
+                        1,
+                        Mathf.RoundToInt(card.Value));
+                    break;
+                case PlayerStatId.StaticCharge:
+                    staticChargeLevel = AddLevel(
+                        staticChargeLevel,
+                        card.MaxStack,
+                        1f);
+                    staticDamageMultiplier = Mathf.Max(0f, card.Value);
+                    break;
+                case PlayerStatId.MovingSlash:
+                    movingSlashLevel = AddLevel(
+                        movingSlashLevel,
+                        card.MaxStack,
+                        1f);
+                    movingSlashDamageMultiplier =
+                        Mathf.Max(0f, card.Value);
+                    break;
+                case PlayerStatId.ShieldBypass:
+                    shieldBypassLevel = AddLevel(
+                        shieldBypassLevel,
+                        card.MaxStack,
+                        1f);
+                    shieldBypassChancePerLevel =
+                        Mathf.Clamp01(card.Value);
+                    break;
+                default:
+                    return false;
+            }
+
+            return true;
+        }
+
+        public PlayerAttackExecution ExecuteNormalAttack(
+            EnemyBase primary,
+            bool critical)
+        {
+            if (primary == null ||
+                !primary.IsAlive ||
+                owner == null ||
+                session == null)
+            {
+                return default;
+            }
+
+            int availablePiercingTargets =
+                GetAvailablePiercingTargetCount();
+            List<EnemyBase> targets = session.CollectPiercingTargets(
+                owner.transform.position,
+                primary,
+                availablePiercingTargets,
+                PiercingReach,
+                PiercingHalfWidth);
+            directTargets.Clear();
+            foreach (EnemyBase target in targets)
+            {
+                directTargets.Add(target);
+            }
+
+            AttackSide primarySide = ResolveSide(primary);
+            CombatResult primaryResult = default;
+            bool primaryDamaged = false;
+            bool anyDamage = false;
+            int piercedTargetsThisAttack = 0;
+            foreach (EnemyBase target in targets)
+            {
+                bool isPrimary = target == primary;
+                AttackSide side = isPrimary
+                    ? primarySide
+                    : ResolveSide(target);
+                CombatResult baseResult = CombatResolver.Resolve(
+                    target.Definition,
+                    owner.Progression.Level,
+                    target.Level,
+                    owner.AttackPower,
+                    owner.RearAttackMultiplier,
+                    side,
+                    critical);
+                float skillBaseDamage = CalculateSkillBaseDamage(side);
+                float bonusDamage = 0f;
+                if (isPrimary && staticChargeLevel > 0)
+                {
+                    bonusDamage +=
+                        skillBaseDamage * staticDamageMultiplier;
+                }
+
+                var combinedResult = new CombatResult(
+                    baseResult.Damage + bonusDamage,
+                    baseResult.TargetMaxHealth,
+                    isPrimary
+                        ? baseResult.PlayerReaction
+                        : PlayerAttackReaction.None);
+                bool damaged = target.ReceivePlayerAttack(
+                    combinedResult,
+                    owner,
+                    side,
+                    critical);
+                if (damaged)
+                {
+                    HandleSuccessfulHit();
+                    anyDamage = true;
+                    if (!isPrimary)
+                    {
+                        piercedTargetsThisAttack++;
+                    }
+                }
+
+                if (isPrimary)
+                {
+                    primaryResult = combinedResult;
+                    primaryDamaged = damaged;
+                }
+            }
+
+            ConsumePiercingTargets(piercedTargetsThisAttack);
+            if (HasSever &&
+                primaryDamaged &&
+                TryReserveSever())
+            {
+                StartCoroutine(SpawnSeverAfterDelay(
+                    primary.transform.position));
+            }
+
+            if (staticChargeLevel > 0)
+            {
+                int adjacentCount =
+                    CalculateStaticAdjacentTargetCount(
+                        staticChargeLevel);
+                List<EnemyBase> adjacent =
+                    session.CollectNearestEnemies(
+                        primary.transform.position,
+                        StaticSearchRadius,
+                        adjacentCount,
+                        directTargets);
+                foreach (EnemyBase enemy in adjacent)
+                {
+                    Vector2 arcStart = primary.transform.position;
+                    Vector2 arcEnd = enemy.transform.position;
+                    bool staticDamageApplied = ApplySkillHit(
+                        enemy,
+                        staticDamageMultiplier);
+                    if (staticDamageApplied)
+                    {
+                        SlashTrailEffect.ShowStaticArc(
+                            arcStart,
+                            arcEnd);
+                        anyDamage = true;
+                    }
+                }
+            }
+
+            return new PlayerAttackExecution(
+                primaryResult,
+                primaryDamaged,
+                anyDamage,
+                critical);
+        }
+
+        public bool ApplySkillHit(
+            EnemyBase enemy,
+            float damageMultiplier)
+        {
+            if (enemy == null || !enemy.IsAlive || owner == null)
+            {
+                return false;
+            }
+
+            AttackSide side = ResolveSide(enemy);
+            float damage =
+                CalculateSkillBaseDamage(side) *
+                Mathf.Max(0f, damageMultiplier);
+            var result = new CombatResult(
+                damage,
+                enemy.Definition.CalculateMaxHealth(enemy.Level),
+                PlayerAttackReaction.None);
+            bool damaged = enemy.ReceivePlayerAttack(
+                result,
+                owner,
+                side,
+                false);
+            if (damaged)
+            {
+                HandleSuccessfulHit();
+            }
+
+            return damaged;
+        }
+
+        public void TrySpawnMovingSlash(Vector2 movementDirection)
+        {
+            if (movingSlashLevel <= 0 ||
+                movementDirection.sqrMagnitude <= 0.0001f ||
+                Random.value > CalculateMovingSlashChance(
+                    movingSlashLevel))
+            {
+                return;
+            }
+
+            MovingSlashProjectile.Spawn(
+                owner,
+                session,
+                movementDirection,
+                CalculateMovingSlashMaximumHits(movingSlashLevel),
+                CalculateMovingSlashSize(movingSlashLevel),
+                movingSlashDamageMultiplier);
+        }
+
+        public static int CalculateStaticAdjacentTargetCount(int level)
+        {
+            return Mathf.Max(0, level) * 2 + 1;
+        }
+
+        public static float CalculateMovingSlashChance(int level)
+        {
+            return level <= 0
+                ? 0f
+                : Mathf.Clamp01(0.1f + 0.03f * (level - 1));
+        }
+
+        public static int CalculateMovingSlashMaximumHits(int level)
+        {
+            return Mathf.Max(0, level);
+        }
+
+        public static float CalculateMovingSlashSize(int level)
+        {
+            return level <= 0
+                ? 0f
+                : 1f + 0.1f * (level - 1);
+        }
+
+        public static float CalculateShieldBypassChance(
+            int level,
+            float chancePerLevel = 0.1f)
+        {
+            return Mathf.Clamp01(
+                Mathf.Max(0, level) *
+                Mathf.Clamp01(chancePerLevel));
+        }
+
+        public static int CalculateHitHealAmount(
+            int level,
+            int amountPerLevel = 2)
+        {
+            return Mathf.Max(0, level) *
+                Mathf.Max(0, amountPerLevel);
+        }
+
+        public static int CalculateRemainingPiercingTargets(
+            int level,
+            int consumed)
+        {
+            return Mathf.Max(
+                0,
+                Mathf.Max(0, level) -
+                Mathf.Max(0, consumed));
+        }
+
+        public static bool IsSeverCooldownReady(
+            float currentTime,
+            float nextAvailableTime)
+        {
+            return currentTime >= nextAvailableTime;
+        }
+
+        public bool RollShieldBypass()
+        {
+            return shieldBypassLevel > 0 &&
+                Random.value < ShieldBypassChance;
+        }
+
+        private static int AddLevel(
+            int current,
+            int maximum,
+            float amount)
+        {
+            int increase = Mathf.Max(1, Mathf.RoundToInt(amount));
+            return Mathf.Min(Mathf.Max(1, maximum), current + increase);
+        }
+
+        private AttackSide ResolveSide(EnemyBase enemy)
+        {
+            return CombatResolver.GetAttackSide(
+                enemy.Facing.Direction,
+                enemy.transform.position,
+                owner.transform.position);
+        }
+
+        private float CalculateSkillBaseDamage(AttackSide side)
+        {
+            float sideMultiplier = side == AttackSide.Rear
+                ? owner.RearAttackMultiplier
+                : 1f;
+            return owner.AttackPower * sideMultiplier;
+        }
+
+        private void HandleSuccessfulHit()
+        {
+            if (hitHealLevel > 0 &&
+                Random.value <= HitHealChance)
+            {
+                owner.Health.Heal(CalculateHitHealAmount(
+                    hitHealLevel,
+                    hitHealAmount));
+            }
+        }
+
+        private int GetAvailablePiercingTargetCount()
+        {
+            if (piercingLevel <= 0)
+            {
+                return 0;
+            }
+
+            if (Time.time >= piercingWindowEndsAt)
+            {
+                piercingWindowEndsAt =
+                    Time.time + PiercingWindowDuration;
+                piercingTargetsConsumed = 0;
+            }
+
+            return CalculateRemainingPiercingTargets(
+                piercingLevel,
+                piercingTargetsConsumed);
+        }
+
+        private void ConsumePiercingTargets(int count)
+        {
+            piercingTargetsConsumed = Mathf.Min(
+                piercingLevel,
+                piercingTargetsConsumed +
+                Mathf.Max(0, count));
+        }
+
+        private bool TryReserveSever()
+        {
+            if (!IsSeverCooldownReady(
+                    Time.time,
+                    nextSeverAvailableTime))
+            {
+                return false;
+            }
+
+            nextSeverAvailableTime =
+                Time.time + SeverReuseCooldown;
+            return true;
+        }
+
+        private IEnumerator SpawnSeverAfterDelay(
+            Vector2 piercedPosition)
+        {
+            yield return new WaitForSeconds(SeverDelay);
+            if (owner == null ||
+                session == null ||
+                !owner.IsAlive)
+            {
+                yield break;
+            }
+
+            Vector2 currentPlayerPosition =
+                owner.transform.position;
+            SlashTrailEffect.Show(
+                piercedPosition,
+                currentPlayerPosition,
+                SeverHalfWidth * 2f,
+                0.32f);
+
+            List<EnemyBase> severTargets =
+                session.CollectEnemiesAlongSegment(
+                    piercedPosition,
+                    currentPlayerPosition,
+                    SeverHalfWidth);
+            foreach (EnemyBase enemy in severTargets)
+            {
+                ApplySkillHit(enemy, severDamageMultiplier);
+            }
+        }
+    }
+}

@@ -15,8 +15,21 @@ namespace SimpleGameEditor
 {
     public static class PrototypeSceneBuilder
     {
+        public const string LevelUpCardPrefabPath =
+            "Assets/Game/UI/Prefabs/LevelUpCard.prefab";
+        public const string PrototypeHudPrefabPath =
+            "Assets/Game/UI/Prefabs/PrototypeHUD.prefab";
+        public const string CardSelectionPanelPrefabPath =
+            "Assets/Game/UI/Prefabs/CardSelectionPanel.prefab";
+        public const string PauseDetailsPanelPrefabPath =
+            "Assets/Game/UI/Prefabs/PauseDetailsPanel.prefab";
+        public const string GameOverPanelPrefabPath =
+            "Assets/Game/UI/Prefabs/GameOverPanel.prefab";
         private const string ScenePath = "Assets/Scenes/PrototypeScene.unity";
         private const string WorldTilePath = "Assets/Game/World/Tiles";
+        private const float LevelUpCardWidth = 300f;
+        private const float LevelUpCardHeight =
+            LevelUpCardWidth * 1920f / 1080f;
         private const int ChunkCellCount = 8;
         private const float WorldCellSize = 2.56f;
 
@@ -78,6 +91,64 @@ namespace SimpleGameEditor
             EditorSceneManager.SaveScene(scene, ScenePath);
             Selection.activeGameObject = systems;
             Debug.Log($"Prototype scene created: {ScenePath}");
+        }
+
+        [MenuItem("SimpleGame/Build Level Up Card Prefab")]
+        public static void BuildLevelUpCardPrefab()
+        {
+            ConfigureLevelUpCardPrefabAsset();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log(
+                $"Level-up card prefab updated: {LevelUpCardPrefabPath}");
+        }
+
+        [MenuItem("SimpleGame/Update Card Selection UI")]
+        public static void UpdateCardSelectionUi()
+        {
+            EnsureUiPrefabAssets();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log(
+                "Level-up card and card-selection prefab references " +
+                "are up to date.");
+        }
+
+        [MenuItem("SimpleGame/Migrate Scene UI To Prefabs")]
+        public static void MigrateSceneUiToPrefabs()
+        {
+            Scene scene = EditorSceneManager.GetActiveScene();
+            if (scene.path != ScenePath)
+            {
+                throw new InvalidOperationException(
+                    $"Open {ScenePath} before migrating its UI.");
+            }
+
+            PrototypeGameSession session =
+                UnityEngine.Object.FindAnyObjectByType<
+                    PrototypeGameSession>(
+                    FindObjectsInactive.Include);
+            if (session == null)
+            {
+                throw new InvalidOperationException(
+                    "PrototypeGameSession was not found.");
+            }
+
+            GameObject existingHud = GameObject.Find("PrototypeHUD");
+            if (existingHud != null)
+            {
+                UnityEngine.Object.DestroyImmediate(existingHud);
+            }
+
+            PrototypeHUDPresenter presenter = CreateHud();
+            session.ConfigureHud(presenter);
+            EditorUtility.SetDirty(session);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            AssetDatabase.SaveAssets();
+            Debug.Log(
+                "Scene UI migrated: persistent HUD is a prefab " +
+                "instance and transient panels are runtime-only.");
         }
 
         private static Camera CreateCamera()
@@ -153,7 +224,7 @@ namespace SimpleGameEditor
                 11f,
                 -4.8f,
                 4.8f,
-                6,
+                8,
                 points);
             CreateHorizontalSpawnGroup(
                 root.transform,
@@ -162,7 +233,7 @@ namespace SimpleGameEditor
                 -11f,
                 -4.8f,
                 4.8f,
-                6,
+                8,
                 points);
 
             SpawnPointRegistry registry =
@@ -335,6 +406,61 @@ namespace SimpleGameEditor
 
         private static PrototypeHUDPresenter CreateHud()
         {
+            EnsureUiPrefabAssets();
+            GameObject prefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    PrototypeHudPrefabPath);
+            var instance =
+                (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            instance.name = "PrototypeHUD";
+            EnsureEventSystem();
+            return instance.GetComponent<PrototypeHUDPresenter>();
+        }
+
+        private static void EnsureUiPrefabAssets()
+        {
+            EnsureAssetFolder("Assets/Game/UI/Prefabs");
+            ConfigureLevelUpCardPrefabAsset();
+
+            GameObject cardSelectionPrefab =
+                LoadOrCreatePrefab(
+                    CardSelectionPanelPrefabPath,
+                    CreateCardSelectionPanelPrefab);
+            GameObject pausePrefab =
+                LoadOrCreatePrefab(
+                    PauseDetailsPanelPrefabPath,
+                    CreatePauseDetailsPanelPrefab);
+            GameObject gameOverPrefab =
+                LoadOrCreatePrefab(
+                    GameOverPanelPrefabPath,
+                    CreateGameOverPanelPrefab);
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(
+                    PrototypeHudPrefabPath) == null)
+            {
+                CreatePrototypeHudPrefab(
+                    cardSelectionPrefab,
+                    pausePrefab,
+                    gameOverPrefab);
+            }
+
+            AssetDatabase.SaveAssets();
+        }
+
+        private static GameObject LoadOrCreatePrefab(
+            string path,
+            Func<GameObject> create)
+        {
+            GameObject prefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            return prefab != null ? prefab : create();
+        }
+
+        private static GameObject CreatePrototypeHudPrefab(
+            GameObject cardSelectionPrefab,
+            GameObject pausePrefab,
+            GameObject gameOverPrefab)
+        {
             var canvasObject = new GameObject(
                 "PrototypeHUD",
                 typeof(RectTransform),
@@ -349,25 +475,29 @@ namespace SimpleGameEditor
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 0.5f;
 
-            var eventSystemObject = new GameObject(
-                "EventSystem",
-                typeof(EventSystem),
-                typeof(InputSystemUIInputModule));
-
             GameObject topPanel = CreatePanel(
                 canvasObject.transform,
                 "TopPanel",
                 new Color(0.04f, 0.07f, 0.08f, 0.9f),
                 new Vector2(0f, 1f),
                 new Vector2(1f, 1f),
-                new Vector2(0f, -270f),
+                new Vector2(0f, -142f),
                 Vector2.zero);
-
-            CreateText(topPanel.transform, HudTextId.Score, "SCORE 0", 34, 20f, -48f);
-            CreateText(topPanel.transform, HudTextId.Time, "TIME 0.0", 34, 20f, -92f);
-            CreateText(topPanel.transform, HudTextId.PlayerLevel, "PLAYER Lv.1", 30, 20f, -136f);
-            CreateText(topPanel.transform, HudTextId.CriticalChance, "CRIT 0%", 30, 20f, -176f);
-            CreateText(topPanel.transform, HudTextId.PlayerHp, "PLAYER HP 10/10", 28, 20f, -216f);
+            TMP_Text timeLabel = CreateTextObject(
+                topPanel.transform,
+                HudTextId.Time.ToString(),
+                "00:00",
+                34f);
+            ConfigureTimeLabel(timeLabel);
+            TMP_Text hpLabel = CreateTextObject(
+                topPanel.transform,
+                HudTextId.PlayerHp.ToString(),
+                "체력 10/10",
+                26f);
+            ConfigureHpLabel(hpLabel);
+            Slider experienceSlider = CreateExperienceSlider(
+                topPanel.transform,
+                out TMP_Text experienceLabel);
 
             GameObject hintPanel = CreatePanel(
                 canvasObject.transform,
@@ -377,67 +507,237 @@ namespace SimpleGameEditor
                 new Vector2(1f, 0f),
                 Vector2.zero,
                 new Vector2(0f, 150f));
-            CreateStretchText(
+            TMP_Text hintLabel = CreateStretchText(
                 hintPanel.transform,
                 HudTextId.Hint,
-                "Tap the field to move. Tap an enemy to attack.",
-                29);
+                "빈 곳을 누르면 이동하고 적을 누르면 공격합니다.",
+                29f);
 
-            GameObject buttonPanel = CreatePanel(
+            var modalRootObject = new GameObject(
+                "ModalRoot",
+                typeof(RectTransform));
+            modalRootObject.transform.SetParent(
                 canvasObject.transform,
-                "DebugButtons",
-                new Color(0f, 0f, 0f, 0f),
-                new Vector2(0f, 0f),
-                new Vector2(1f, 0f),
-                new Vector2(15f, 165f),
-                new Vector2(-15f, 305f));
-            CreateButton(buttonPanel.transform, HudButtonId.Pause, "PAUSE", 10f);
-            CreateButton(buttonPanel.transform, HudButtonId.DamagePlayer, "PLAYER -10", 225f);
-            CreateButton(buttonPanel.transform, HudButtonId.GrantXp, "PLAYER XP +5", 440f);
-            CreateButton(buttonPanel.transform, HudButtonId.ContinueAd, "CONTINUE (AD TEST)", 655f, 390f);
+                false);
+            StretchRect(
+                modalRootObject.GetComponent<RectTransform>());
 
-            GameObject criticalPanel = CreatePanel(
-                canvasObject.transform,
-                "CriticalCardPanel",
+            var hudView =
+                canvasObject.AddComponent<PrototypeHUDView>();
+            hudView.Configure(
+                timeLabel,
+                hpLabel,
+                hintLabel,
+                experienceSlider,
+                experienceLabel,
+                modalRootObject.transform,
+                cardSelectionPrefab,
+                pausePrefab,
+                gameOverPrefab);
+            var presenter =
+                canvasObject.AddComponent<PrototypeHUDPresenter>();
+            presenter.Configure(hudView);
+
+            return SaveTemporaryPrefab(
+                canvasObject,
+                PrototypeHudPrefabPath);
+        }
+
+        private static GameObject CreateCardSelectionPanelPrefab()
+        {
+            GameObject panel = CreatePanel(
+                null,
+                "CardSelectionPanel",
                 new Color(0.04f, 0.02f, 0.09f, 0.94f),
-                new Vector2(0.12f, 0.34f),
-                new Vector2(0.88f, 0.66f),
+                new Vector2(0.04f, 0.3f),
+                new Vector2(0.96f, 0.7f),
                 Vector2.zero,
                 Vector2.zero);
-            CreatePanelTitle(criticalPanel.transform, "LEVEL UP\nSELECT A CARD", 46);
-            CreateButton(
-                criticalPanel.transform,
-                HudButtonId.CriticalCard,
-                "CRITICAL CHANCE +10%\n(REPEATABLE / MAX 70%)",
-                120f,
-                540f,
-                -245f,
-                140f);
+            CreatePanelTitle(
+                panel.transform,
+                "레벨 업\n카드를 선택하세요",
+                46f);
+            CreateCardChoiceButtons(panel.transform);
+            return SaveTemporaryPrefab(
+                panel,
+                CardSelectionPanelPrefabPath);
+        }
 
-            GameObject gameOverPanel = CreatePanel(
-                canvasObject.transform,
+        private static GameObject CreatePauseDetailsPanelPrefab()
+        {
+            GameObject panel = CreatePanel(
+                null,
+                "PauseDetailsPanel",
+                new Color(0.025f, 0.035f, 0.045f, 0.96f),
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            TMP_Text label = CreateTextObject(
+                panel.transform,
+                "PauseDetails",
+                "일시 정지",
+                31f);
+            RectTransform labelRect = label.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(70f, 70f);
+            labelRect.offsetMax = new Vector2(-70f, -70f);
+            label.alignment = TextAlignmentOptions.TopLeft;
+            return SaveTemporaryPrefab(
+                panel,
+                PauseDetailsPanelPrefabPath);
+        }
+
+        private static GameObject CreateGameOverPanelPrefab()
+        {
+            GameObject panel = CreatePanel(
+                null,
                 "GameOverPanel",
                 new Color(0.12f, 0.01f, 0.01f, 0.94f),
                 new Vector2(0.12f, 0.38f),
                 new Vector2(0.88f, 0.62f),
                 Vector2.zero,
                 Vector2.zero);
-            CreateStretchText(
-                gameOverPanel.transform,
-                HudTextId.GameOverTitle,
-                "GAME OVER",
-                48);
+            TMP_Text title = CreateTextObject(
+                panel.transform,
+                "GameOverTitle",
+                "게임 종료",
+                48f);
+            RectTransform titleRect = title.rectTransform;
+            titleRect.anchorMin = new Vector2(0f, 0.28f);
+            titleRect.anchorMax = Vector2.one;
+            titleRect.offsetMin = new Vector2(30f, 15f);
+            titleRect.offsetMax = new Vector2(-30f, -20f);
+            title.alignment = TextAlignmentOptions.Center;
 
-            var hudView = canvasObject.AddComponent<PrototypeHUDView>();
-            hudView.Configure(
-                canvasObject.transform,
-                canvasObject.transform,
-                criticalPanel,
-                gameOverPanel);
+            Button continueButton = CreateButtonVisual(
+                HudButtonId.ContinueAd.ToString(),
+                "이어하기");
+            continueButton.transform.SetParent(panel.transform, false);
+            RectTransform buttonRect =
+                continueButton.GetComponent<RectTransform>();
+            buttonRect.anchorMin = new Vector2(0.5f, 0f);
+            buttonRect.anchorMax = new Vector2(0.5f, 0f);
+            buttonRect.pivot = new Vector2(0.5f, 0f);
+            buttonRect.anchoredPosition = new Vector2(0f, 28f);
+            buttonRect.sizeDelta = new Vector2(400f, 100f);
+            return SaveTemporaryPrefab(
+                panel,
+                GameOverPanelPrefabPath);
+        }
 
-            var presenter = canvasObject.AddComponent<PrototypeHUDPresenter>();
-            presenter.Configure(hudView);
-            return presenter;
+        private static GameObject SaveTemporaryPrefab(
+            GameObject root,
+            string path)
+        {
+            GameObject prefab =
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+            return prefab;
+        }
+
+        private static void EnsureEventSystem()
+        {
+            if (UnityEngine.Object.FindAnyObjectByType<EventSystem>(
+                    FindObjectsInactive.Include) != null)
+            {
+                return;
+            }
+
+            _ = new GameObject(
+                "EventSystem",
+                typeof(EventSystem),
+                typeof(InputSystemUIInputModule));
+        }
+
+        private static void ConfigureTimeLabel(TMP_Text label)
+        {
+            RectTransform rect = label.rectTransform;
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -8f);
+            rect.sizeDelta = new Vector2(300f, 42f);
+            label.fontStyle = FontStyles.Bold;
+            label.alignment = TextAlignmentOptions.Center;
+        }
+
+        private static void ConfigureHpLabel(TMP_Text label)
+        {
+            RectTransform rect = label.rectTransform;
+            rect.anchorMin = Vector2.one;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = Vector2.one;
+            rect.anchoredPosition = new Vector2(-18f, -102f);
+            rect.sizeDelta = new Vector2(300f, 34f);
+            label.alignment = TextAlignmentOptions.Right;
+        }
+
+        private static Slider CreateExperienceSlider(
+            Transform parent,
+            out TMP_Text experienceLabel)
+        {
+            var sliderObject = new GameObject(
+                "ExperienceBar",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Slider));
+            sliderObject.transform.SetParent(parent, false);
+            RectTransform sliderRect =
+                sliderObject.GetComponent<RectTransform>();
+            sliderRect.anchorMin = new Vector2(0f, 1f);
+            sliderRect.anchorMax = new Vector2(1f, 1f);
+            sliderRect.offsetMin = new Vector2(0f, -98f);
+            sliderRect.offsetMax = new Vector2(0f, -54f);
+            sliderObject.GetComponent<Image>().color =
+                new Color(0.08f, 0.11f, 0.12f, 0.98f);
+
+            var fillObject = new GameObject(
+                "Fill",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            fillObject.transform.SetParent(
+                sliderObject.transform,
+                false);
+            RectTransform fillRect =
+                fillObject.GetComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = new Vector2(3f, 3f);
+            fillRect.offsetMax = new Vector2(-3f, -3f);
+            Image fillImage = fillObject.GetComponent<Image>();
+            fillImage.color =
+                new Color(0.15f, 0.82f, 0.72f, 1f);
+
+            Slider slider = sliderObject.GetComponent<Slider>();
+            slider.transition = Selectable.Transition.None;
+            slider.interactable = false;
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.fillRect = fillRect;
+            slider.targetGraphic = fillImage;
+
+            experienceLabel = CreateTextObject(
+                sliderObject.transform,
+                "ExperienceLabel",
+                "다음 레벨까지 경험치 10",
+                25f);
+            StretchRect(experienceLabel.rectTransform);
+            experienceLabel.fontStyle = FontStyles.Bold;
+            experienceLabel.alignment =
+                TextAlignmentOptions.Center;
+            return slider;
+        }
+
+        private static void StretchRect(RectTransform rect)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private static GameObject CreatePanel(
@@ -464,25 +764,7 @@ namespace SimpleGameEditor
             return panel;
         }
 
-        private static void CreateText(
-            Transform parent,
-            HudTextId id,
-            string value,
-            float fontSize,
-            float x,
-            float y)
-        {
-            TMP_Text label = CreateTextObject(parent, id.ToString(), value, fontSize);
-            RectTransform rect = label.rectTransform;
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(x, y);
-            rect.sizeDelta = new Vector2(520f, 40f);
-            label.alignment = TextAlignmentOptions.Left;
-        }
-
-        private static void CreateStretchText(
+        private static TMP_Text CreateStretchText(
             Transform parent,
             HudTextId id,
             string value,
@@ -495,6 +777,7 @@ namespace SimpleGameEditor
             rect.offsetMin = new Vector2(25f, 15f);
             rect.offsetMax = new Vector2(-25f, -15f);
             label.alignment = TextAlignmentOptions.Center;
+            return label;
         }
 
         private static TMP_Text CreateTextObject(
@@ -510,6 +793,8 @@ namespace SimpleGameEditor
                 typeof(TextMeshProUGUI));
             textObject.transform.SetParent(parent, false);
             TMP_Text label = textObject.GetComponent<TMP_Text>();
+            label.font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+                CharacterAssetBuilder.DefaultFontPath);
             label.text = value;
             label.fontSize = fontSize;
             label.color = Color.white;
@@ -530,28 +815,180 @@ namespace SimpleGameEditor
             label.alignment = TextAlignmentOptions.Center;
         }
 
-        private static Button CreateButton(
+        private static void CreateCardChoiceButtons(Transform parent)
+        {
+            GameObject prefab = ConfigureLevelUpCardPrefabAsset();
+            CreateCardChoiceButton(
+                parent,
+                prefab,
+                HudButtonId.CardChoice0,
+                20f);
+            CreateCardChoiceButton(
+                parent,
+                prefab,
+                HudButtonId.CardChoice1,
+                350f);
+            CreateCardChoiceButton(
+                parent,
+                prefab,
+                HudButtonId.CardChoice2,
+                680f);
+        }
+
+        private static GameObject ConfigureLevelUpCardPrefabAsset()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                LevelUpCardPrefabPath);
+            if (prefab == null)
+            {
+                throw new InvalidOperationException(
+                    $"Level-up card prefab not found: " +
+                    LevelUpCardPrefabPath);
+            }
+
+            GameObject contents = PrefabUtility.LoadPrefabContents(
+                LevelUpCardPrefabPath);
+            try
+            {
+                Image frame = contents.GetComponent<Image>();
+                Button rootButton = contents.GetComponent<Button>();
+                Transform inner = contents.transform.Find(
+                    "LevelUpCard_In");
+                Transform title = inner?.Find("Label");
+                Transform skill = contents.transform.Find(
+                    "Panel/Skill_Text");
+                if (frame == null ||
+                    rootButton == null ||
+                    inner == null ||
+                    title == null ||
+                    skill == null)
+                {
+                    throw new InvalidOperationException(
+                        "LevelUpCard prefab requires root Image/Button, " +
+                        "LevelUpCard_In/Label, and Panel/Skill_Text.");
+                }
+
+                Image innerBackground = inner.GetComponent<Image>();
+                TMP_Text titleText = title.GetComponent<TMP_Text>();
+                TMP_Text skillText = skill.GetComponent<TMP_Text>();
+                if (innerBackground == null ||
+                    titleText == null ||
+                    skillText == null)
+                {
+                    throw new InvalidOperationException(
+                        "LevelUpCard visual references are incomplete.");
+                }
+
+                Button innerButton = inner.GetComponent<Button>();
+                if (innerButton != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(innerButton);
+                }
+
+                foreach (Graphic graphic in
+                         contents.GetComponentsInChildren<Graphic>(true))
+                {
+                    graphic.raycastTarget = graphic == frame;
+                }
+
+                Outline outline =
+                    contents.GetComponent<Outline>() ??
+                    contents.AddComponent<Outline>();
+                outline.effectDistance = new Vector2(3f, -3f);
+                outline.useGraphicAlpha = true;
+
+                Shadow glow = null;
+                foreach (Shadow effect in
+                         contents.GetComponents<Shadow>())
+                {
+                    if (effect.GetType() == typeof(Shadow))
+                    {
+                        glow = effect;
+                        break;
+                    }
+                }
+
+                glow ??= contents.AddComponent<Shadow>();
+                glow.effectDistance = new Vector2(0f, -7f);
+                glow.useGraphicAlpha = true;
+
+                RectTransform rect =
+                    contents.GetComponent<RectTransform>();
+                rect.anchorMin = new Vector2(0f, 0.5f);
+                rect.anchorMax = new Vector2(0f, 0.5f);
+                rect.pivot = new Vector2(0f, 0.5f);
+                rect.anchoredPosition = Vector2.zero;
+                rect.sizeDelta = new Vector2(
+                    LevelUpCardWidth,
+                    LevelUpCardHeight);
+
+                RectTransform descriptionPanel =
+                    skill.parent.GetComponent<RectTransform>();
+                descriptionPanel.anchoredPosition =
+                    new Vector2(0f, -155f);
+                descriptionPanel.sizeDelta =
+                    new Vector2(0f, 190f);
+                titleText.enableAutoSizing = true;
+                titleText.fontSizeMin = 18f;
+                titleText.fontSizeMax = 26f;
+                skillText.enableAutoSizing = true;
+                skillText.fontSizeMin = 14f;
+                skillText.fontSizeMax = 20f;
+                skillText.color = new Color(
+                    0.16f,
+                    0.18f,
+                    0.21f,
+                    1f);
+
+                LevelUpCardView cardView =
+                    contents.GetComponent<LevelUpCardView>() ??
+                    contents.AddComponent<LevelUpCardView>();
+                cardView.ConfigureReferences(
+                    frame,
+                    innerBackground,
+                    titleText,
+                    skillText,
+                    outline,
+                    glow);
+                rootButton.targetGraphic = frame;
+                PrefabUtility.SaveAsPrefabAsset(
+                    contents,
+                    LevelUpCardPrefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
+
+            return AssetDatabase.LoadAssetAtPath<GameObject>(
+                LevelUpCardPrefabPath);
+        }
+
+        private static Button CreateCardChoiceButton(
             Transform parent,
+            GameObject prefab,
             HudButtonId id,
-            string labelText,
-            float x,
-            float width = 200f,
-            float y = 0f,
-            float height = 110f)
+            float x)
+        {
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(
+                prefab,
+                parent);
+            instance.name = id.ToString();
+            RectTransform rect = instance.GetComponent<RectTransform>();
+            rect.anchoredPosition = new Vector2(x, -70f);
+            return instance.GetComponent<Button>();
+        }
+
+        private static Button CreateButtonVisual(
+            string objectName,
+            string labelText)
         {
             var buttonObject = new GameObject(
-                id.ToString(),
+                objectName,
                 typeof(RectTransform),
                 typeof(CanvasRenderer),
                 typeof(Image),
                 typeof(Button));
-            buttonObject.transform.SetParent(parent, false);
-            RectTransform rect = buttonObject.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 0.5f);
-            rect.anchorMax = new Vector2(0f, 0.5f);
-            rect.pivot = new Vector2(0f, 0.5f);
-            rect.anchoredPosition = new Vector2(x, y);
-            rect.sizeDelta = new Vector2(width, height);
 
             Image image = buttonObject.GetComponent<Image>();
             image.color = new Color(0.12f, 0.42f, 0.62f, 0.96f);

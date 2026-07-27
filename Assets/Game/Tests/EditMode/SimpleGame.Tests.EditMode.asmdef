@@ -3,7 +3,8 @@
   "rootNamespace": "SimpleGame.Tests",
   "references": [
     "SimpleGame.Runtime",
-    "SimpleGame.Editor"
+    "SimpleGame.Editor",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [
     "Editor"

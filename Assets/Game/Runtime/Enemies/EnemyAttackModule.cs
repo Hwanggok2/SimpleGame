@@ -95,7 +95,8 @@ namespace SimpleGame
             if (distance <= owner.Definition.AttackRange + 0.35f)
             {
                 owner.PlayAttackFacingDirection();
-                currentTarget.ReceiveDamage(owner.Definition.AttackDamage);
+                currentTarget.ReceiveDamage(
+                    owner.Definition.CalculateAttackDamage(owner.Level));
             }
 
             windingUp = false;

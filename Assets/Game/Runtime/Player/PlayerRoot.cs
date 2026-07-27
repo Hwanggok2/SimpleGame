@@ -8,6 +8,8 @@ namespace SimpleGame
     [RequireComponent(typeof(PlayerMovement))]
     [RequireComponent(typeof(CriticalSystem))]
     [RequireComponent(typeof(PlayerProgression))]
+    [RequireComponent(typeof(PlayerStats))]
+    [RequireComponent(typeof(PlayerCombatAbilities))]
     [RequireComponent(typeof(PlayerController))]
     public sealed class PlayerRoot : MonoBehaviour, IPrototypeDamageTarget
     {
@@ -16,20 +18,37 @@ namespace SimpleGame
         [SerializeField] private CriticalSystem critical;
         [SerializeField] private PlayerProgression progression;
         [SerializeField] private PlayerController controller;
+        [SerializeField] private PlayerStats stats;
+        [SerializeField] private PlayerCombatAbilities combatAbilities;
         [SerializeField] private CharacterSpriteAnimator characterAnimation;
         [SerializeField] private SpriteRenderer attackRangeRenderer;
         [SerializeField] private TMP_Text levelLabel;
+        [SerializeField] private string playerId = "LightBandit";
 
         private const float FrontRecoilDistance = 1.2f;
         private const float FrontRecoilMoveDuration = 0.18f;
         private const float FrontRecoilInputLockDuration = 0.5f;
 
         private Coroutine inputLockRoutine;
+        private int moveSpeedCardLevel;
 
         public HealthComponent Health => health;
         public PlayerMovement Movement => movement;
         public CriticalSystem Critical => critical;
         public PlayerProgression Progression => progression;
+        public PlayerCombatAbilities CombatAbilities => combatAbilities;
+        public float AttackPower =>
+            stats.GetAttackPower(progression.Level);
+        public float RearAttackMultiplier =>
+            stats.RearAttackMultiplier;
+        public float MoveSpeed => stats.MoveSpeed;
+        public float AttackRange => stats.AttackRange;
+        public float PathEnemyApproachSpeedMultiplier =>
+            stats.PathEnemyApproachSpeedMultiplier;
+        public float PostKillEscapeSpeedMultiplier =>
+            stats.PostKillEscapeSpeedMultiplier;
+        public float MoveArrivalTolerance =>
+            stats.MoveArrivalTolerance;
         public Transform TargetTransform => transform;
         public bool IsAlive => health != null && health.IsAlive;
         public bool IsInputLocked { get; private set; }
@@ -46,32 +65,129 @@ namespace SimpleGame
             PrototypeGameSession session,
             Camera worldCamera,
             LevelExperienceTable experienceTable,
-            GlobalBalance globalBalance)
+            GlobalBalance globalBalance,
+            PlayerBalanceTable playerBalance)
         {
             health = GetComponent<HealthComponent>();
             movement = GetComponent<PlayerMovement>();
             critical = GetComponent<CriticalSystem>();
             progression = GetComponent<PlayerProgression>();
             controller = GetComponent<PlayerController>();
+            stats = GetComponent<PlayerStats>();
+            combatAbilities = GetComponent<PlayerCombatAbilities>();
+            if (combatAbilities == null)
+            {
+                combatAbilities = gameObject.AddComponent<
+                    PlayerCombatAbilities>();
+            }
             characterAnimation = GetComponent<CharacterSpriteAnimator>();
-            if (characterAnimation == null)
+            if (characterAnimation == null || stats == null)
             {
                 Debug.LogError(
-                    "Player prefab requires CharacterSpriteAnimator.",
+                    "Player prefab requires CharacterSpriteAnimator " +
+                    "and PlayerStats.",
                     this);
                 return;
             }
 
-            health.Configure(10);
+            if (playerBalance == null ||
+                !playerBalance.TryGet(
+                    playerId,
+                    out PlayerDefinition definition))
+            {
+                Debug.LogError(
+                    $"Player balance not found: {playerId}",
+                    this);
+                return;
+            }
+
+            stats.Configure(definition);
+            health.Configure(definition.BaseMaxHp);
             progression.Configure(experienceTable);
             critical.Configure(
                 globalBalance.CriticalChancePerCard,
                 globalBalance.MaximumCriticalChance);
+            critical.Add(definition.BaseCriticalChance);
+            combatAbilities.Configure(this, session);
+            moveSpeedCardLevel = 0;
+            movement.SetMaximumSpeedActive(false);
             BuildVisual();
             movement.Configure(
-                PlayerMovement.DefaultMoveDuration,
+                stats.MoveSpeed,
                 characterAnimation);
-            controller.Configure(this, session, worldCamera);
+            controller.Configure(
+                this,
+                session,
+                worldCamera,
+                stats.AttackRange);
+        }
+
+        public bool ApplyCard(LevelUpCardDefinition card)
+        {
+            if (card == null || card.Operation != StatOperation.Add)
+            {
+                return false;
+            }
+
+            switch (card.TargetStat)
+            {
+                case PlayerStatId.CriticalChance:
+                    critical.Add(card.Value);
+                    break;
+                case PlayerStatId.MaxHp:
+                    health.IncreaseMaximum(
+                        Mathf.RoundToInt(card.Value),
+                        true);
+                    break;
+                case PlayerStatId.MoveSpeed:
+                    stats.AddMoveSpeed(card.Value);
+                    movement.SetMoveSpeed(stats.MoveSpeed);
+                    moveSpeedCardLevel = Mathf.Min(
+                        card.MaxStack,
+                        moveSpeedCardLevel + 1);
+                    movement.SetMaximumSpeedActive(
+                        moveSpeedCardLevel >= card.MaxStack);
+                    break;
+                case PlayerStatId.AttackRange:
+                    stats.AddAttackRange(card.Value);
+                    controller.SetAttackRange(stats.AttackRange);
+                    RefreshAttackRangeVisual();
+                    break;
+                case PlayerStatId.Piercing:
+                case PlayerStatId.Sever:
+                case PlayerStatId.HitHeal:
+                case PlayerStatId.StaticCharge:
+                case PlayerStatId.MovingSlash:
+                case PlayerStatId.ShieldBypass:
+                    return combatAbilities.ApplyCard(card);
+                default:
+                    return false;
+            }
+
+            return true;
+        }
+
+        public PlayerAttackExecution AttackEnemy(
+            EnemyBase enemy,
+            bool criticalHit)
+        {
+            return combatAbilities.ExecuteNormalAttack(
+                enemy,
+                criticalHit);
+        }
+
+        public bool ApplySkillHit(
+            EnemyBase enemy,
+            float damageMultiplier)
+        {
+            return combatAbilities.ApplySkillHit(
+                enemy,
+                damageMultiplier);
+        }
+
+        public void TrySpawnMovingSlash(Vector2 movementDirection)
+        {
+            combatAbilities.TrySpawnMovingSlash(movementDirection);
         }
 
         public void ReceiveDamage(int amount)
@@ -164,15 +280,23 @@ namespace SimpleGame
                 return;
             }
 
-            attackRangeRenderer.transform.localScale =
-                Vector3.one * PlayerController.AttackRange * 2f;
-            levelLabel.text = "PLAYER";
+            RefreshAttackRangeVisual();
+            levelLabel.text = "플레이어";
 
             if (!characterAnimation.IsConfigured)
             {
                 Debug.LogError(
                     "Player prefab has no configured Animator or SpriteRenderer.",
                     this);
+            }
+        }
+
+        private void RefreshAttackRangeVisual()
+        {
+            if (attackRangeRenderer != null && stats != null)
+            {
+                attackRangeRenderer.transform.localScale =
+                    Vector3.one * stats.AttackRange * 2f;
             }
         }
     }

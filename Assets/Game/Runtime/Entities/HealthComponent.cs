@@ -44,6 +44,32 @@ namespace SimpleGame
             currentHealth = maxHealth;
         }
 
+        public int Heal(int amount)
+        {
+            if (!IsAlive || amount <= 0)
+            {
+                return 0;
+            }
+
+            int previous = currentHealth;
+            currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
+            return currentHealth - previous;
+        }
+
+        public void IncreaseMaximum(int amount, bool restoreAddedHealth)
+        {
+            if (amount <= 0)
+            {
+                return;
+            }
+
+            maxHealth += amount;
+            if (restoreAddedHealth)
+            {
+                currentHealth += amount;
+            }
+        }
+
         public void RestoreFraction(float fraction)
         {
             currentHealth = Mathf.Clamp(

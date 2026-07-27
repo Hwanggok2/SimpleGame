@@ -31,6 +31,10 @@ namespace SimpleGameEditor
             GeneratedPath + "/AccountLevelExperience.asset";
         private const string GlobalBalancePath =
             GeneratedPath + "/GlobalBalance.asset";
+        private const string PlayerBalancePath =
+            GeneratedPath + "/PlayerBalanceTable.asset";
+        private const string LevelUpCardPath =
+            GeneratedPath + "/LevelUpCardTable.asset";
 
         [MenuItem("SimpleGame/Data/Create or Update Data Assets")]
         public static void BuildAndWireActiveScene()
@@ -88,10 +92,12 @@ namespace SimpleGameEditor
             }
 
             if (manifest.PlayerLevelExperience.Rows.Count == 0 ||
-                manifest.AccountLevelExperience.Rows.Count == 0)
+                manifest.AccountLevelExperience.Rows.Count == 0 ||
+                manifest.PlayerBalance.Definitions.Count == 0 ||
+                manifest.LevelUpCards.Definitions.Count == 0)
             {
                 throw new InvalidOperationException(
-                    "Player or account level EXP table is empty.");
+                    "Player, card, or level EXP data is empty.");
             }
 
             PrototypeGameSession session =
@@ -146,7 +152,7 @@ namespace SimpleGameEditor
                 playerLevels.Configure(
                     Enumerable.Range(1, 20)
                         .Select(level =>
-                            new LevelExperienceRow(level, 3 + level * 2)));
+                            new LevelExperienceRow(level, 6 + level * 2)));
             }
 
             LevelExperienceTable accountLevels =
@@ -170,7 +176,30 @@ namespace SimpleGameEditor
                     out bool globalBalanceCreated);
             if (globalBalanceCreated)
             {
-                globalBalance.Configure(5, 1, 0.1f, 0.7f);
+                globalBalance.Configure(5, 1, 0.05f, 0.5f);
+            }
+
+            PlayerBalanceTable playerBalance =
+                CreateOrLoad<PlayerBalanceTable>(
+                    PlayerBalancePath,
+                    out bool playerBalanceCreated);
+            if (playerBalanceCreated ||
+                playerBalance.Definitions.Count == 0)
+            {
+                playerBalance.Configure(new[]
+                {
+                    CreateDefaultPlayerDefinition()
+                });
+            }
+
+            LevelUpCardTable levelUpCards =
+                CreateOrLoad<LevelUpCardTable>(
+                    LevelUpCardPath,
+                    out bool levelUpCardsCreated);
+            if (levelUpCardsCreated ||
+                levelUpCards.Definitions.Count == 0)
+            {
+                levelUpCards.Configure(CreateDefaultLevelUpCards());
             }
 
             EnemyAssetCatalog enemyCatalog =
@@ -219,6 +248,8 @@ namespace SimpleGameEditor
                 playerLevels,
                 accountLevels,
                 globalBalance,
+                playerBalance,
+                levelUpCards,
                 enemyCatalog,
                 feedback);
 
@@ -228,6 +259,8 @@ namespace SimpleGameEditor
                 playerLevels,
                 accountLevels,
                 globalBalance,
+                playerBalance,
+                levelUpCards,
                 enemyCatalog,
                 feedback,
                 manifest);
@@ -365,6 +398,192 @@ namespace SimpleGameEditor
                 "GoblinBoss",
                 5));
             return result;
+        }
+
+        private static PlayerDefinition CreateDefaultPlayerDefinition()
+        {
+            return new PlayerDefinition(
+                "LightBandit",
+                1,
+                10,
+                1f,
+                1.7f,
+                3f,
+                10f,
+                1.1f,
+                1.2f,
+                0.08f,
+                1.2f,
+                0f,
+                true);
+        }
+
+        private static IEnumerable<LevelUpCardDefinition>
+            CreateDefaultLevelUpCards()
+        {
+            return new[]
+            {
+                new LevelUpCardDefinition(
+                    "CRIT_CHANCE_UP",
+                    "CARD_CRIT_NAME",
+                    "치명타 강화",
+                    "치명타 확률이 5% 증가합니다. 최대 50%까지 적용됩니다.",
+                    LevelUpCardEffectType.StatModifier,
+                    PlayerStatId.CriticalChance,
+                    StatOperation.Add,
+                    0.05f,
+                    5,
+                    100,
+                    1,
+                    string.Empty,
+                    "일반",
+                    "ICON_CRIT",
+                    true),
+                new LevelUpCardDefinition(
+                    "MAX_HP_UP",
+                    "CARD_HP_NAME",
+                    "체력 강화",
+                    "최대 체력과 현재 체력이 5 증가합니다.",
+                    LevelUpCardEffectType.StatModifier,
+                    PlayerStatId.MaxHp,
+                    StatOperation.Add,
+                    5f,
+                    5,
+                    100,
+                    1,
+                    string.Empty,
+                    "일반",
+                    "ICON_HP",
+                    true),
+                new LevelUpCardDefinition(
+                    "MOVE_SPEED_UP",
+                    "CARD_SPEED_NAME",
+                    "이동 속도 강화",
+                    "이동 속도가 1 증가합니다. 최대 레벨에서는 목적지까지 약 0.1초에 이동합니다.",
+                    LevelUpCardEffectType.StatModifier,
+                    PlayerStatId.MoveSpeed,
+                    StatOperation.Add,
+                    1f,
+                    5,
+                    80,
+                    2,
+                    string.Empty,
+                    "희귀",
+                    "ICON_SPEED",
+                    true),
+                new LevelUpCardDefinition(
+                    "ATTACK_RANGE_UP",
+                    "CARD_RANGE_NAME",
+                    "공격 범위 강화",
+                    "기본 공격 사거리가 0.15 증가합니다.",
+                    LevelUpCardEffectType.StatModifier,
+                    PlayerStatId.AttackRange,
+                    StatOperation.Add,
+                    0.15f,
+                    3,
+                    70,
+                    3,
+                    string.Empty,
+                    "희귀",
+                    "ICON_RANGE",
+                    true),
+                new LevelUpCardDefinition(
+                    "PIERCING_UP",
+                    "CARD_PIERCING_NAME",
+                    "관통",
+                    "0.4초 판정창 동안 적 1명을 추가로 관통합니다. 반복 공격해도 판정창이 끝날 때까지 카드 레벨만큼만 추가 관통하며, 최대 5명입니다.",
+                    LevelUpCardEffectType.UpgradeRank,
+                    PlayerStatId.Piercing,
+                    StatOperation.Add,
+                    1f,
+                    5,
+                    90,
+                    2,
+                    string.Empty,
+                    "일반",
+                    "ICON_PIERCING",
+                    true),
+                new LevelUpCardDefinition(
+                    "SEVER_TRAIL",
+                    "CARD_SEVER_NAME",
+                    "절단",
+                    "공격 0.5초 뒤 첫 공격 대상 위치부터 플레이어 현재 위치까지 참격을 만듭니다. 재사용 대기시간은 0.3초이며 구간의 적에게 기본 공격력의 2배 피해를 줍니다.",
+                    LevelUpCardEffectType.UpgradeRank,
+                    PlayerStatId.Sever,
+                    StatOperation.Add,
+                    2f,
+                    1,
+                    45,
+                    3,
+                    "PIERCING_UP",
+                    "영웅",
+                    "ICON_SEVER",
+                    true),
+                new LevelUpCardDefinition(
+                    "HIT_HEAL",
+                    "CARD_HIT_HEAL_NAME",
+                    "흡혈",
+                    "적에게 피해를 줄 때마다 5% 확률로 체력을 카드 레벨당 2 회복합니다. 1/2/3레벨 회복량은 2/4/6입니다.",
+                    LevelUpCardEffectType.UpgradeRank,
+                    PlayerStatId.HitHeal,
+                    StatOperation.Add,
+                    2f,
+                    3,
+                    55,
+                    4,
+                    string.Empty,
+                    "희귀",
+                    "ICON_HIT_HEAL",
+                    true),
+                new LevelUpCardDefinition(
+                    "STATIC_CHARGE",
+                    "CARD_STATIC_NAME",
+                    "정전기",
+                    "공격 대상과 주변 적에게 공격력의 0.75배 피해를 줍니다. 레벨마다 주변 대상이 2명 증가합니다.",
+                    LevelUpCardEffectType.UpgradeRank,
+                    PlayerStatId.StaticCharge,
+                    StatOperation.Add,
+                    0.75f,
+                    5,
+                    60,
+                    4,
+                    string.Empty,
+                    "희귀",
+                    "ICON_STATIC",
+                    true),
+                new LevelUpCardDefinition(
+                    "MOVING_SLASH",
+                    "CARD_MOVING_SLASH_NAME",
+                    "참격",
+                    "이동 시 참격을 생성합니다. 레벨마다 확률 3%, 관통 1명, 크기 10%가 증가합니다.",
+                    LevelUpCardEffectType.UpgradeRank,
+                    PlayerStatId.MovingSlash,
+                    StatOperation.Add,
+                    1.5f,
+                    5,
+                    65,
+                    3,
+                    string.Empty,
+                    "희귀",
+                    "ICON_MOVING_SLASH",
+                    true),
+                new LevelUpCardDefinition(
+                    "SHIELD_BYPASS",
+                    "CARD_SHIELD_BYPASS_NAME",
+                    "방패 우회",
+                    "방패병 정면 공격 시 반동과 0.5초 조작 불가를 무시할 확률이 레벨마다 10% 증가합니다.",
+                    LevelUpCardEffectType.UpgradeRank,
+                    PlayerStatId.ShieldBypass,
+                    StatOperation.Add,
+                    0.1f,
+                    3,
+                    55,
+                    3,
+                    string.Empty,
+                    "희귀",
+                    "ICON_SHIELD_BYPASS",
+                    true)
+            };
         }
 
         private static EnemyAssetEntry CreateEnemyAssetEntry(

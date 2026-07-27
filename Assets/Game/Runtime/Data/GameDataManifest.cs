@@ -13,6 +13,8 @@ namespace SimpleGame
         [SerializeField] private LevelExperienceTable playerLevelExperience;
         [SerializeField] private LevelExperienceTable accountLevelExperience;
         [SerializeField] private GlobalBalance globalBalance;
+        [SerializeField] private PlayerBalanceTable playerBalance;
+        [SerializeField] private LevelUpCardTable levelUpCards;
 
         [Header("Unity Asset Catalogs")]
         [SerializeField] private EnemyAssetCatalog enemyAssets;
@@ -25,6 +27,8 @@ namespace SimpleGame
         public LevelExperienceTable AccountLevelExperience =>
             accountLevelExperience;
         public GlobalBalance GlobalBalance => globalBalance;
+        public PlayerBalanceTable PlayerBalance => playerBalance;
+        public LevelUpCardTable LevelUpCards => levelUpCards;
         public EnemyAssetCatalog EnemyAssets => enemyAssets;
         public CombatFeedbackProfile CombatFeedback => combatFeedback;
 
@@ -34,6 +38,8 @@ namespace SimpleGame
             playerLevelExperience != null &&
             accountLevelExperience != null &&
             globalBalance != null &&
+            playerBalance != null &&
+            levelUpCards != null &&
             enemyAssets != null &&
             combatFeedback != null;
 
@@ -43,6 +49,8 @@ namespace SimpleGame
             LevelExperienceTable configuredPlayerLevelExperience,
             LevelExperienceTable configuredAccountLevelExperience,
             GlobalBalance configuredGlobalBalance,
+            PlayerBalanceTable configuredPlayerBalance,
+            LevelUpCardTable configuredLevelUpCards,
             EnemyAssetCatalog configuredEnemyAssets,
             CombatFeedbackProfile configuredCombatFeedback)
         {
@@ -51,6 +59,8 @@ namespace SimpleGame
             playerLevelExperience = configuredPlayerLevelExperience;
             accountLevelExperience = configuredAccountLevelExperience;
             globalBalance = configuredGlobalBalance;
+            playerBalance = configuredPlayerBalance;
+            levelUpCards = configuredLevelUpCards;
             enemyAssets = configuredEnemyAssets;
             combatFeedback = configuredCombatFeedback;
         }

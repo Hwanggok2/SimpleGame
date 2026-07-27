@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":106,"method":"tools/call","params":{"name":"read_console","arguments":{"action":"get","types":["error"],"count":"20","format":"detailed","include_stacktrace":true}}}

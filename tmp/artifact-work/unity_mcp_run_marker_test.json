@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":204,"method":"tools/call","params":{"name":"run_tests","arguments":{"mode":"EditMode","test_names":["SimpleGame.Tests.GameDataTests.EnemyVisuals_DisableLegacyFacingMarker"],"include_failed_tests":true,"include_details":true,"init_timeout":120000}}}

@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":104,"method":"tools/call","params":{"name":"execute_menu_item","arguments":{"menu_path":"SimpleGame/데이터/엑셀 불러오기"}}}

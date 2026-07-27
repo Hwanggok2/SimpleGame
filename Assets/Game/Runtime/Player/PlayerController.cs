@@ -6,26 +6,36 @@ namespace SimpleGame
 {
     public sealed class PlayerController : MonoBehaviour
     {
-        public const float AttackRange = 0.72f;
+        public const float DefaultAttackRange = 0.72f;
         private const float EnemySelectionRadius = 1.5f;
 
         private PlayerRoot root;
         private PrototypeGameSession session;
         private Camera worldCamera;
         private EnemyBase pendingEnemy;
+        private EnemyBase ignoredPathEnemy;
         private Vector2 destination;
         private bool hasDestination;
         private bool shieldApproachOnly;
+        private bool postKillEscapeActive;
         private int pendingAttackCount;
+        private float attackRange = DefaultAttackRange;
 
         public void Configure(
             PlayerRoot playerRoot,
             PrototypeGameSession gameSession,
-            Camera camera)
+            Camera camera,
+            float configuredAttackRange)
         {
             root = playerRoot;
             session = gameSession;
             worldCamera = camera;
+            SetAttackRange(configuredAttackRange);
+        }
+
+        public void SetAttackRange(float value)
+        {
+            attackRange = Mathf.Max(0.1f, value);
         }
 
         private void Update()
@@ -72,17 +82,27 @@ namespace SimpleGame
             Vector3 world = worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, -worldCamera.transform.position.z));
             destination = world;
+            Vector2 commandOrigin = transform.position;
+            ignoredPathEnemy = null;
             EnemyBase directEnemy = session.FindEnemyNear(
                 destination,
                 EnemySelectionRadius);
+            if (directEnemy != null &&
+                !IsTargetInCommandDirection(
+                    commandOrigin,
+                    destination,
+                    directEnemy.transform.position))
+            {
+                directEnemy = null;
+            }
+
             EnemyBase pathEnemy = session.FindFirstEnemyOnPath(
-                transform.position,
+                commandOrigin,
                 destination);
             bool interceptedOnPath =
-                pathEnemy != null && pathEnemy != directEnemy;
-            EnemyBase selectedEnemy = pathEnemy != null
-                ? pathEnemy
-                : directEnemy;
+                directEnemy == null && pathEnemy != null;
+            EnemyBase selectedEnemy =
+                SelectCommandEnemy(directEnemy, pathEnemy);
             if (selectedEnemy != null &&
                 hasDestination &&
                 pendingEnemy == selectedEnemy)
@@ -97,13 +117,16 @@ namespace SimpleGame
 
             pendingEnemy = selectedEnemy;
             pendingAttackCount = pendingEnemy == null ? 0 : 1;
+            postKillEscapeActive = false;
             shieldApproachOnly = pendingEnemy != null &&
                 !interceptedOnPath &&
                 pendingEnemy.Archetype == EnemyArchetype.Shield &&
                 Vector2.Distance(transform.position, pendingEnemy.transform.position) >
                     pendingEnemy.Definition.ApproachRange;
             hasDestination = true;
-            root.Movement.BeginMove();
+            root.TrySpawnMovingSlash(
+                destination - (Vector2)transform.position);
+            BeginCurrentMove();
         }
 
         private void TickCommand()
@@ -117,25 +140,35 @@ namespace SimpleGame
             {
                 pendingEnemy = session.FindFirstEnemyOnPath(
                     transform.position,
-                    destination);
+                    destination,
+                    ignoredPathEnemy);
                 if (pendingEnemy == null)
                 {
-                    hasDestination =
-                        !root.Movement.StepTowards(destination, 0.08f);
+                    bool reachedDestination = root.Movement.StepTowards(
+                        destination,
+                        root.MoveArrivalTolerance);
+                    hasDestination = !reachedDestination;
+                    if (reachedDestination)
+                    {
+                        ignoredPathEnemy = null;
+                        postKillEscapeActive = false;
+                    }
+
                     return;
                 }
 
                 pendingAttackCount = 1;
                 shieldApproachOnly = false;
-                root.Movement.BeginMove();
+                BeginCurrentMove();
             }
 
             float stoppingDistance = shieldApproachOnly
                 ? pendingEnemy.Definition.ApproachRange
-                : AttackRange;
+                : attackRange;
             bool reached = root.Movement.StepTowards(
                 pendingEnemy.transform.position,
-                stoppingDistance);
+                stoppingDistance,
+                true);
             if (!reached)
             {
                 return;
@@ -143,7 +176,7 @@ namespace SimpleGame
 
             if (shieldApproachOnly)
             {
-                session.ShowHint("Shield approach reached. Tap the Shield again for a close attack.");
+                session.ShowHint("방패병의 안쪽에 도착했습니다. 다시 누르면 근접 공격합니다.");
                 CancelCommand();
                 return;
             }
@@ -152,35 +185,42 @@ namespace SimpleGame
             while (pendingAttackCount > 0 && targetEnemy.IsAlive)
             {
                 pendingAttackCount--;
-                AttackSide side = CombatResolver.GetAttackSide(
-                    targetEnemy.Facing.Direction,
-                    targetEnemy.transform.position,
-                    transform.position);
                 bool critical = root.Critical.Roll();
-                CombatResult result = CombatResolver.Resolve(
-                    targetEnemy.Archetype,
-                    root.Progression.Level,
-                    targetEnemy.Level,
-                    side,
-                    critical);
 
                 root.PlayAttack(targetEnemy.transform.position);
-                bool damageApplied = targetEnemy.ReceivePlayerAttack(
-                    result,
-                    root,
-                    side,
-                    critical);
-                if (result.PlayerReaction == PlayerAttackReaction.Recoil)
+                PlayerAttackExecution execution =
+                    root.AttackEnemy(targetEnemy, critical);
+                bool shieldRecoil =
+                    execution.PrimaryResult.PlayerReaction ==
+                        PlayerAttackReaction.Recoil &&
+                    targetEnemy.Archetype ==
+                        EnemyArchetype.Shield;
+                bool bypassedShield =
+                    shieldRecoil &&
+                    root.CombatAbilities.RollShieldBypass();
+                PlayerAttackReaction effectiveReaction =
+                    shieldRecoil && !bypassedShield
+                        ? PlayerAttackReaction.Recoil
+                        : PlayerAttackReaction.None;
+                if (bypassedShield)
+                {
+                    session.ShowHint(
+                        "방패 우회 성공! 반동과 조작 불가를 무시했습니다.");
+                }
+
+                if (effectiveReaction ==
+                    PlayerAttackReaction.Recoil)
                 {
                     root.ApplyFrontRecoil(targetEnemy.transform.position);
                 }
 
                 session.PlayCombatFeedback(
-                    damageApplied,
+                    execution.AnyDamageApplied,
                     critical,
-                    result.PlayerReaction);
+                    effectiveReaction);
 
-                if (result.PlayerReaction == PlayerAttackReaction.Recoil)
+                if (effectiveReaction ==
+                    PlayerAttackReaction.Recoil)
                 {
                     CancelCommand();
                     return;
@@ -188,26 +228,98 @@ namespace SimpleGame
             }
 
             bool defeated = !targetEnemy.IsAlive;
-            if (!defeated)
+            bool hasPiercing =
+                root.CombatAbilities.PiercingLevel > 0;
+            if (!ShouldContinueAfterPathAttack(
+                defeated,
+                hasPiercing))
             {
                 CancelCommand();
                 return;
             }
 
             pendingEnemy = null;
+            ignoredPathEnemy = defeated
+                ? null
+                : targetEnemy;
             shieldApproachOnly = false;
             pendingAttackCount = 0;
+            postKillEscapeActive = defeated;
             hasDestination = true;
-            root.Movement.BeginMove();
+            root.Movement.BeginMove(
+                destination,
+                defeated
+                    ? root.PostKillEscapeSpeedMultiplier
+                    : 1f);
+        }
+
+        private void BeginCurrentMove()
+        {
+            if (pendingEnemy == null)
+            {
+                float multiplier = postKillEscapeActive
+                    ? root.PostKillEscapeSpeedMultiplier
+                    : 1f;
+                root.Movement.BeginMove(destination, multiplier);
+                return;
+            }
+
+            float speedMultiplier = postKillEscapeActive
+                ? root.PostKillEscapeSpeedMultiplier
+                : root.PathEnemyApproachSpeedMultiplier;
+            root.Movement.BeginMove(
+                pendingEnemy.transform.position,
+                speedMultiplier);
         }
 
         public void CancelCommand()
         {
             pendingEnemy = null;
+            ignoredPathEnemy = null;
             hasDestination = false;
             shieldApproachOnly = false;
+            postKillEscapeActive = false;
             pendingAttackCount = 0;
             root?.Movement.CancelMove();
+        }
+
+        public static bool IsTargetInCommandDirection(
+            Vector2 origin,
+            Vector2 destination,
+            Vector2 target)
+        {
+            Vector2 commandDirection = destination - origin;
+            if (commandDirection.sqrMagnitude <= 0.0001f)
+            {
+                return true;
+            }
+
+            Vector2 targetOffset = target - origin;
+            if (targetOffset.sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+
+            return CombatGeometry.IsAheadAlongPath(
+                target,
+                origin,
+                destination);
+        }
+
+        public static bool ShouldContinueAfterPathAttack(
+            bool targetDefeated,
+            bool hasPiercing)
+        {
+            return targetDefeated || hasPiercing;
+        }
+
+        public static EnemyBase SelectCommandEnemy(
+            EnemyBase directEnemy,
+            EnemyBase pathEnemy)
+        {
+            return directEnemy != null
+                ? directEnemy
+                : pathEnemy;
         }
     }
 }

@@ -14,42 +14,102 @@ MonoBehaviour:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.LevelExperienceTable
   rows:
   - level: 1
-    requiredExperienceToNext: 5
+    requiredExperienceToNext: 8
   - level: 2
-    requiredExperienceToNext: 7
+    requiredExperienceToNext: 10
   - level: 3
-    requiredExperienceToNext: 9
+    requiredExperienceToNext: 12
   - level: 4
-    requiredExperienceToNext: 11
+    requiredExperienceToNext: 14
   - level: 5
-    requiredExperienceToNext: 13
+    requiredExperienceToNext: 16
   - level: 6
-    requiredExperienceToNext: 15
+    requiredExperienceToNext: 18
   - level: 7
-    requiredExperienceToNext: 17
+    requiredExperienceToNext: 20
   - level: 8
-    requiredExperienceToNext: 19
+    requiredExperienceToNext: 22
   - level: 9
-    requiredExperienceToNext: 21
+    requiredExperienceToNext: 24
   - level: 10
-    requiredExperienceToNext: 23
+    requiredExperienceToNext: 26
   - level: 11
-    requiredExperienceToNext: 25
+    requiredExperienceToNext: 28
   - level: 12
-    requiredExperienceToNext: 27
+    requiredExperienceToNext: 30
   - level: 13
-    requiredExperienceToNext: 29
+    requiredExperienceToNext: 32
   - level: 14
-    requiredExperienceToNext: 31
+    requiredExperienceToNext: 34
   - level: 15
-    requiredExperienceToNext: 33
+    requiredExperienceToNext: 36
   - level: 16
-    requiredExperienceToNext: 35
+    requiredExperienceToNext: 38
   - level: 17
-    requiredExperienceToNext: 37
+    requiredExperienceToNext: 40
   - level: 18
-    requiredExperienceToNext: 39
+    requiredExperienceToNext: 42
   - level: 19
-    requiredExperienceToNext: 41
+    requiredExperienceToNext: 44
   - level: 20
-    requiredExperienceToNext: 43
+    requiredExperienceToNext: 46
+  - level: 21
+    requiredExperienceToNext: 48
+  - level: 22
+    requiredExperienceToNext: 50
+  - level: 23
+    requiredExperienceToNext: 52
+  - level: 24
+    requiredExperienceToNext: 54
+  - level: 25
+    requiredExperienceToNext: 56
+  - level: 26
+    requiredExperienceToNext: 58
+  - level: 27
+    requiredExperienceToNext: 60
+  - level: 28
+    requiredExperienceToNext: 62
+  - level: 29
+    requiredExperienceToNext: 64
+  - level: 30
+    requiredExperienceToNext: 66
+  - level: 31
+    requiredExperienceToNext: 68
+  - level: 32
+    requiredExperienceToNext: 70
+  - level: 33
+    requiredExperienceToNext: 72
+  - level: 34
+    requiredExperienceToNext: 74
+  - level: 35
+    requiredExperienceToNext: 76
+  - level: 36
+    requiredExperienceToNext: 78
+  - level: 37
+    requiredExperienceToNext: 80
+  - level: 38
+    requiredExperienceToNext: 82
+  - level: 39
+    requiredExperienceToNext: 84
+  - level: 40
+    requiredExperienceToNext: 86
+  - level: 41
+    requiredExperienceToNext: 88
+  - level: 42
+    requiredExperienceToNext: 90
+  - level: 43
+    requiredExperienceToNext: 92
+  - level: 44
+    requiredExperienceToNext: 94
+  - level: 45
+    requiredExperienceToNext: 96
+  - level: 46
+    requiredExperienceToNext: 98
+  - level: 47
+    requiredExperienceToNext: 100
+  - level: 48
+    requiredExperienceToNext: 102
+  - level: 49
+    requiredExperienceToNext: 104
+  - level: 50
+    requiredExperienceToNext: 0

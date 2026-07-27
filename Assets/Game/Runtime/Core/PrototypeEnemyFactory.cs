@@ -48,9 +48,14 @@ namespace SimpleGame
                 return null;
             }
 
+            float radius =
+                PrototypeGameSession.GetColliderRadius(prefab);
+            Vector2 spawnPosition = session != null
+                ? session.FindOpenEnemyPosition(position, radius)
+                : position;
             EnemyBase enemy = Instantiate(
                 prefab,
-                position,
+                spawnPosition,
                 Quaternion.identity,
                 enemyRoot);
             enemy.name = $"{enemyId}_Lv{level}";

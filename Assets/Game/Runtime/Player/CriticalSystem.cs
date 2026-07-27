@@ -22,9 +22,16 @@ namespace SimpleGame
             return UnityEngine.Random.value < chance;
         }
 
+        public void Add(float amount)
+        {
+            chance = Mathf.Min(
+                maximumChance,
+                chance + Mathf.Max(0f, amount));
+        }
+
         public void AddCard()
         {
-            chance = Mathf.Min(maximumChance, chance + cardIncrease);
+            Add(cardIncrease);
         }
     }
 }

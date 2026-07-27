@@ -16,6 +16,8 @@ namespace SimpleGameEditor
         public List<StageSpawnEntry> SpawnEntries { get; } = new();
         public List<LevelExperienceRow> PlayerLevels { get; } = new();
         public List<LevelExperienceRow> AccountLevels { get; } = new();
+        public List<PlayerDefinition> PlayerDefinitions { get; } = new();
+        public List<LevelUpCardDefinition> LevelUpCards { get; } = new();
         public int AccountExperienceScoreUnit { get; set; }
         public int AccountExperiencePerUnit { get; set; }
         public float CriticalChancePerCard { get; set; }
@@ -86,6 +88,12 @@ namespace SimpleGameEditor
             ParseGlobalBalance(
                 workbook.ReadSheet("GlobalBalance"),
                 model);
+            ParsePlayerBalance(
+                workbook.ReadSheet("PlayerBalance"),
+                model);
+            ParseLevelUpCards(
+                workbook.ReadSheet("LevelUpCard"),
+                model);
             ValidateReferences(model);
             return model;
         }
@@ -109,7 +117,13 @@ namespace SimpleGameEditor
                 "FacingTurnDelay",
                 "PostAttackFacingLock",
                 "KillExperience",
-                "Score");
+                "Score",
+                "BaseMaxHp",
+                "HpGrowthMultiplier",
+                "LevelDifficultyOffset",
+                "OneHitPlayerLevelAdvantage",
+                "CombatProfileId",
+                "ShowHpBar");
             var enemyIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (ExcelRow row in table.DataRows)
             {
@@ -151,7 +165,16 @@ namespace SimpleGameEditor
                     table.NonNegativeFloat(row, "FacingTurnDelay"),
                     table.NonNegativeFloat(row, "PostAttackFacingLock"),
                     table.NonNegativeInt(row, "KillExperience"),
-                    table.NonNegativeInt(row, "Score")));
+                    table.NonNegativeInt(row, "Score"),
+                    table.PositiveFloat(row, "BaseMaxHp"),
+                    table.PositiveFloat(row, "HpGrowthMultiplier"),
+                    table.NonNegativeInt(row, "LevelDifficultyOffset"),
+                    table.OptionalNonNegativeInt(
+                        row,
+                        "OneHitPlayerLevelAdvantage",
+                        -1),
+                    table.RequiredText(row, "CombatProfileId"),
+                    table.Boolean(row, "ShowHpBar")));
             }
 
             RequireDataRows(table);
@@ -296,6 +319,151 @@ namespace SimpleGameEditor
             }
         }
 
+        private static void ParsePlayerBalance(
+            ExcelSheet sheet,
+            GameDataExcelModel model)
+        {
+            var table = new ExcelTable(
+                sheet,
+                "PlayerId",
+                "StartLevel",
+                "BaseMaxHp",
+                "BaseAttackPower",
+                "AttackGrowthMultiplier",
+                "RearAttackMultiplier",
+                "BaseMoveSpeed",
+                "PathEnemyApproachSpeedMultiplier",
+                "PostKillEscapeSpeedMultiplier",
+                "MoveArrivalTolerance",
+                "AttackRange",
+                "BaseCriticalChance",
+                "Enabled");
+            var playerIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ExcelRow row in table.DataRows)
+            {
+                string playerId = table.RequiredText(row, "PlayerId");
+                ValidateIdentifier(sheet.Name, row, "PlayerId", playerId);
+                if (!playerIds.Add(playerId))
+                {
+                    throw table.Error(
+                        row,
+                        "PlayerId",
+                        $"duplicate PlayerId '{playerId}'");
+                }
+
+                float baseMoveSpeed = table.PositiveFloat(
+                    row,
+                    "BaseMoveSpeed");
+                float approachMultiplier = table.PositiveFloat(
+                    row,
+                    "PathEnemyApproachSpeedMultiplier");
+                float escapeMultiplier = table.PositiveFloat(
+                    row,
+                    "PostKillEscapeSpeedMultiplier");
+                float arrivalTolerance = table.PositiveFloat(
+                    row,
+                    "MoveArrivalTolerance");
+                if (approachMultiplier < 1f)
+                {
+                    throw table.Error(
+                        row,
+                        "PathEnemyApproachSpeedMultiplier",
+                        "must be greater than or equal to 1");
+                }
+
+                if (escapeMultiplier < approachMultiplier)
+                {
+                    throw table.Error(
+                        row,
+                        "PostKillEscapeSpeedMultiplier",
+                        "must be greater than or equal to " +
+                        "PathEnemyApproachSpeedMultiplier");
+                }
+
+                model.PlayerDefinitions.Add(new PlayerDefinition(
+                    playerId,
+                    table.PositiveInt(row, "StartLevel"),
+                    table.PositiveInt(row, "BaseMaxHp"),
+                    table.PositiveFloat(row, "BaseAttackPower"),
+                    table.PositiveFloat(
+                        row,
+                        "AttackGrowthMultiplier"),
+                    table.PositiveFloat(row, "RearAttackMultiplier"),
+                    baseMoveSpeed,
+                    approachMultiplier,
+                    escapeMultiplier,
+                    arrivalTolerance,
+                    table.PositiveFloat(row, "AttackRange"),
+                    table.Rate(row, "BaseCriticalChance"),
+                    table.Boolean(row, "Enabled")));
+            }
+
+            RequireDataRows(table);
+        }
+
+        private static void ParseLevelUpCards(
+            ExcelSheet sheet,
+            GameDataExcelModel model)
+        {
+            var table = new ExcelTable(
+                sheet,
+                "CardId",
+                "NameKey",
+                "DisplayName",
+                "Description",
+                "EffectType",
+                "TargetStat",
+                "Operation",
+                "Value",
+                "MaxStack",
+                "SelectionWeight",
+                "MinPlayerLevel",
+                "RequiredCardId",
+                "Rarity",
+                "IconId",
+                "Enabled");
+            var cardIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ExcelRow row in table.DataRows)
+            {
+                string cardId = table.RequiredText(row, "CardId");
+                ValidateIdentifier(sheet.Name, row, "CardId", cardId);
+                if (!cardIds.Add(cardId))
+                {
+                    throw table.Error(
+                        row,
+                        "CardId",
+                        $"duplicate CardId '{cardId}'");
+                }
+
+                LevelUpCardEffectType effectType = table.EnumValue<
+                    LevelUpCardEffectType>(row, "EffectType");
+                PlayerStatId targetStat = table.EnumValue<PlayerStatId>(
+                    row,
+                    "TargetStat");
+                StatOperation operation = table.EnumValue<StatOperation>(
+                    row,
+                    "Operation");
+                model.LevelUpCards.Add(new LevelUpCardDefinition(
+                    cardId,
+                    table.RequiredText(row, "NameKey"),
+                    table.RequiredText(row, "DisplayName"),
+                    table.RequiredText(row, "Description"),
+                    effectType,
+                    targetStat,
+                    operation,
+                    table.NonNegativeFloat(row, "Value"),
+                    table.PositiveInt(row, "MaxStack"),
+                    table.NonNegativeInt(row, "SelectionWeight"),
+                    table.PositiveInt(row, "MinPlayerLevel"),
+                    table.OptionalText(row, "RequiredCardId"),
+                    table.RequiredText(row, "Rarity"),
+                    table.RequiredText(row, "IconId"),
+                    table.Boolean(row, "Enabled")));
+            }
+
+            RequireDataRows(table);
+        }
+
         private static void ValidateReferences(GameDataExcelModel model)
         {
             var enemyIds = new HashSet<string>(
@@ -307,7 +475,29 @@ namespace SimpleGameEditor
                 {
                     throw new InvalidDataException(
                         $"StageSpawn references unknown EnemyId " +
-                        $"'{entry.EnemyId}' in {entry.RuntimeId}.");
+                    $"'{entry.EnemyId}' in {entry.RuntimeId}.");
+                }
+            }
+
+            var cardIds = new HashSet<string>(
+                model.LevelUpCards.Select(value => value.CardId),
+                StringComparer.Ordinal);
+            foreach (LevelUpCardDefinition card in model.LevelUpCards)
+            {
+                if (string.IsNullOrWhiteSpace(card.RequiredCardId))
+                {
+                    continue;
+                }
+
+                if (string.Equals(
+                        card.CardId,
+                        card.RequiredCardId,
+                        StringComparison.Ordinal) ||
+                    !cardIds.Contains(card.RequiredCardId))
+                {
+                    throw new InvalidDataException(
+                        $"LevelUpCard '{card.CardId}' has invalid " +
+                        $"RequiredCardId '{card.RequiredCardId}'.");
                 }
             }
         }
@@ -340,7 +530,7 @@ namespace SimpleGameEditor
     public static class GameDataExcelImporter
     {
         public const string DefaultWorkbookRelativePath =
-            "Planning/GameData.xlsx";
+            "Planning/GameData_10min_Balance.xlsx";
 
         public static string DefaultWorkbookPath =>
             Path.GetFullPath(Path.Combine(
@@ -348,7 +538,7 @@ namespace SimpleGameEditor
                 "..",
                 DefaultWorkbookRelativePath));
 
-        [MenuItem("SimpleGame/Data/Import Excel", false, 20)]
+        [MenuItem("SimpleGame/데이터/엑셀 불러오기", false, 20)]
         public static void ImportDefaultWorkbook()
         {
             string path = DefaultWorkbookPath;
@@ -367,13 +557,13 @@ namespace SimpleGameEditor
             ImportFromMenu(path);
         }
 
-        [MenuItem("SimpleGame/Data/Import Excel", true)]
+        [MenuItem("SimpleGame/데이터/엑셀 불러오기", true)]
         private static bool CanImportDefaultWorkbook()
         {
             return !EditorApplication.isPlayingOrWillChangePlaymode;
         }
 
-        [MenuItem("SimpleGame/Data/Import Excel From...", false, 21)]
+        [MenuItem("SimpleGame/데이터/다른 엑셀 불러오기...", false, 21)]
         public static void ImportSelectedWorkbook()
         {
             string path = EditorUtility.OpenFilePanel(
@@ -386,7 +576,7 @@ namespace SimpleGameEditor
             }
         }
 
-        [MenuItem("SimpleGame/Data/Import Excel From...", true)]
+        [MenuItem("SimpleGame/데이터/다른 엑셀 불러오기...", true)]
         private static bool CanImportSelectedWorkbook()
         {
             return !EditorApplication.isPlayingOrWillChangePlaymode;
@@ -404,7 +594,9 @@ namespace SimpleGameEditor
                 manifest.StageSpawnSchedule,
                 manifest.PlayerLevelExperience,
                 manifest.AccountLevelExperience,
-                manifest.GlobalBalance
+                manifest.GlobalBalance,
+                manifest.PlayerBalance,
+                manifest.LevelUpCards
             };
             Undo.RecordObjects(generatedAssets, "Import Game Data from Excel");
 
@@ -417,6 +609,8 @@ namespace SimpleGameEditor
                 data.AccountExperiencePerUnit,
                 data.CriticalChancePerCard,
                 data.MaximumCriticalChance);
+            manifest.PlayerBalance.Configure(data.PlayerDefinitions);
+            manifest.LevelUpCards.Configure(data.LevelUpCards);
 
             foreach (UnityEngine.Object asset in generatedAssets)
             {
@@ -437,26 +631,32 @@ namespace SimpleGameEditor
             {
                 GameDataImportSummary summary = ImportFromPath(path);
                 string message =
-                    $"Excel import complete: {summary.EnemyCount} enemies, " +
-                    $"{summary.SpawnCount} spawns, " +
-                    $"{summary.PlayerLevelCount} player levels, " +
-                    $"{summary.AccountLevelCount} account levels.";
+                    $"엑셀 불러오기 완료: 적 {summary.EnemyCount}종, " +
+                    $"스폰 {summary.SpawnCount}개, " +
+                    $"플레이어 레벨 {summary.PlayerLevelCount}개, " +
+                    $"계정 레벨 {summary.AccountLevelCount}개.";
                 Debug.Log($"{message}\nSource: {path}");
-                EditorUtility.DisplayDialog(
-                    "SimpleGame Data Import",
-                    message,
-                    "OK");
+                if (!Application.isBatchMode)
+                {
+                    EditorUtility.DisplayDialog(
+                        "SimpleGame 데이터 불러오기",
+                        message,
+                        "확인");
+                }
             }
             catch (Exception exception)
             {
                 string message =
-                    $"Excel import failed. Existing generated data was kept." +
+                    $"엑셀 불러오기에 실패했습니다. 기존 생성 데이터는 유지됩니다." +
                     $"\n\n{exception.Message}";
                 Debug.LogError($"{message}\nSource: {path}");
-                EditorUtility.DisplayDialog(
-                    "SimpleGame Data Import",
-                    message,
-                    "OK");
+                if (!Application.isBatchMode)
+                {
+                    EditorUtility.DisplayDialog(
+                        "SimpleGame 데이터 불러오기",
+                        message,
+                        "확인");
+                }
             }
         }
 
@@ -569,6 +769,11 @@ namespace SimpleGameEditor
             return value;
         }
 
+        public string OptionalText(ExcelRow row, string columnName)
+        {
+            return Read(row, columnName).Trim();
+        }
+
         public int PositiveInt(ExcelRow row, string columnName)
         {
             int value = ReadInt(row, columnName);
@@ -602,6 +807,82 @@ namespace SimpleGameEditor
             }
 
             return value;
+        }
+
+        public float PositiveFloat(
+            ExcelRow row,
+            string columnName)
+        {
+            float value = ReadFloat(row, columnName);
+            if (value <= 0f)
+            {
+                throw Error(row, columnName, "must be greater than 0");
+            }
+
+            return value;
+        }
+
+        public int OptionalNonNegativeInt(
+            ExcelRow row,
+            string columnName,
+            int emptyValue)
+        {
+            string value = Read(row, columnName);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return emptyValue;
+            }
+
+            int parsed = ReadInt(row, columnName);
+            if (parsed < 0)
+            {
+                throw Error(row, columnName, "must be 0 or greater");
+            }
+
+            return parsed;
+        }
+
+        public bool Boolean(ExcelRow row, string columnName)
+        {
+            string value = RequiredText(row, columnName);
+            if (string.Equals(value, "1", StringComparison.Ordinal) ||
+                string.Equals(
+                    value,
+                    "true",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(value, "0", StringComparison.Ordinal) ||
+                string.Equals(
+                    value,
+                    "false",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            throw Error(
+                row,
+                columnName,
+                $"'{value}' is not a boolean");
+        }
+
+        public T EnumValue<T>(ExcelRow row, string columnName)
+            where T : struct, Enum
+        {
+            string value = RequiredText(row, columnName);
+            if (Enum.TryParse(value, true, out T result) &&
+                Enum.IsDefined(typeof(T), result))
+            {
+                return result;
+            }
+
+            throw Error(
+                row,
+                columnName,
+                $"unknown {typeof(T).Name} '{value}'");
         }
 
         public float Rate(ExcelRow row, string columnName)

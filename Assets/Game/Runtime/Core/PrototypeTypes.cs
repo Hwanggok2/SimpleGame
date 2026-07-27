@@ -47,21 +47,66 @@ namespace SimpleGame
         Dangerous
     }
 
+    public enum LevelUpCardEffectType
+    {
+        StatModifier,
+        UpgradeRank
+    }
+
+    public enum PlayerStatId
+    {
+        CriticalChance,
+        MaxHp,
+        MoveSpeed,
+        AttackRange,
+        Piercing,
+        Sever,
+        HitHeal,
+        StaticCharge,
+        MovingSlash,
+        ShieldBypass
+    }
+
+    public enum StatOperation
+    {
+        Add
+    }
+
     public readonly struct CombatResult
     {
         public CombatResult(
-            int damage,
-            int requiredDurability,
+            float damage,
+            float targetMaxHealth,
             PlayerAttackReaction playerReaction)
         {
             Damage = damage;
-            RequiredDurability = requiredDurability;
+            TargetMaxHealth = targetMaxHealth;
             PlayerReaction = playerReaction;
         }
 
-        public int Damage { get; }
-        public int RequiredDurability { get; }
+        public float Damage { get; }
+        public float TargetMaxHealth { get; }
         public PlayerAttackReaction PlayerReaction { get; }
+    }
+
+    public readonly struct PlayerAttackExecution
+    {
+        public PlayerAttackExecution(
+            CombatResult primaryResult,
+            bool primaryDamageApplied,
+            bool anyDamageApplied,
+            bool critical)
+        {
+            PrimaryResult = primaryResult;
+            PrimaryDamageApplied = primaryDamageApplied;
+            AnyDamageApplied = anyDamageApplied;
+            Critical = critical;
+        }
+
+        public CombatResult PrimaryResult { get; }
+        public bool PrimaryDamageApplied { get; }
+        public bool AnyDamageApplied { get; }
+        public bool Critical { get; }
     }
 
     [Serializable]
@@ -81,6 +126,12 @@ namespace SimpleGame
         [SerializeField] private float postAttackFacingLock;
         [SerializeField] private int killExperience;
         [SerializeField] private int score;
+        [SerializeField] private float baseMaxHp;
+        [SerializeField] private float hpGrowthMultiplier;
+        [SerializeField] private int levelDifficultyOffset;
+        [SerializeField] private int oneHitPlayerLevelAdvantage;
+        [SerializeField] private string combatProfileId;
+        [SerializeField] private bool showHpBar;
 
         public EnemyDefinition(
             string enemyId,
@@ -96,7 +147,13 @@ namespace SimpleGame
             float facingTurnDelay,
             float postAttackFacingLock,
             int killExperience,
-            int score)
+            int score,
+            float baseMaxHp,
+            float hpGrowthMultiplier,
+            int levelDifficultyOffset,
+            int oneHitPlayerLevelAdvantage,
+            string combatProfileId,
+            bool showHpBar)
         {
             this.enemyId = enemyId;
             this.archetype = archetype;
@@ -112,6 +169,13 @@ namespace SimpleGame
             this.postAttackFacingLock = postAttackFacingLock;
             this.killExperience = killExperience;
             this.score = score;
+            this.baseMaxHp = baseMaxHp;
+            this.hpGrowthMultiplier = hpGrowthMultiplier;
+            this.levelDifficultyOffset = levelDifficultyOffset;
+            this.oneHitPlayerLevelAdvantage =
+                oneHitPlayerLevelAdvantage;
+            this.combatProfileId = combatProfileId;
+            this.showHpBar = showHpBar;
         }
 
         public string EnemyId => enemyId;
@@ -128,6 +192,40 @@ namespace SimpleGame
         public float PostAttackFacingLock => postAttackFacingLock;
         public int KillExperience => killExperience;
         public int Score => score;
+        public float BaseMaxHp => baseMaxHp;
+        public float HpGrowthMultiplier => hpGrowthMultiplier;
+        public int LevelDifficultyOffset => levelDifficultyOffset;
+        public int OneHitPlayerLevelAdvantage =>
+            oneHitPlayerLevelAdvantage;
+        public string CombatProfileId => combatProfileId;
+        public bool ShowHpBar => showHpBar;
+
+        public float CalculateMaxHealth(int enemyLevel)
+        {
+            int effectiveLevel = Mathf.Max(
+                1,
+                enemyLevel - levelDifficultyOffset);
+            return Mathf.Max(
+                1f,
+                baseMaxHp * Mathf.Pow(
+                    Mathf.Max(1f, hpGrowthMultiplier),
+                    effectiveLevel - 1));
+        }
+
+        public int CalculateAttackDamage(int enemyLevel)
+        {
+            return Mathf.Max(
+                0,
+                Mathf.CeilToInt(
+                    attackDamage *
+                    (1f + 0.05f * Mathf.Max(0, enemyLevel - 1))));
+        }
+
+        public bool IsOneHitTarget(int playerLevel, int enemyLevel)
+        {
+            return oneHitPlayerLevelAdvantage >= 0 &&
+                playerLevel - enemyLevel >= oneHitPlayerLevelAdvantage;
+        }
     }
 
     public static class PrototypeEnemyDefinitions
@@ -165,7 +263,13 @@ namespace SimpleGame
                     0.5f,
                     0f,
                     2,
-                    5),
+                    5,
+                    3f,
+                    1.7f,
+                    0,
+                    1,
+                    "StandardMelee",
+                    true),
                 EnemyArchetype.Ranged => new EnemyDefinition(
                     GetEnemyId(archetype),
                     archetype,
@@ -180,7 +284,13 @@ namespace SimpleGame
                     0.5f,
                     1f,
                     2,
-                    5),
+                    5,
+                    3f,
+                    1.7f,
+                    1,
+                    0,
+                    "StandardRanged",
+                    true),
                 EnemyArchetype.Shield => new EnemyDefinition(
                     GetEnemyId(archetype),
                     archetype,
@@ -195,7 +305,13 @@ namespace SimpleGame
                     0.5f,
                     0f,
                     0,
-                    0),
+                    0,
+                    3f,
+                    1.7f,
+                    0,
+                    2,
+                    "Shield",
+                    true),
                 EnemyArchetype.Boss => new EnemyDefinition(
                     GetEnemyId(archetype),
                     archetype,
@@ -210,7 +326,13 @@ namespace SimpleGame
                     0.5f,
                     0f,
                     5,
-                    25),
+                    25,
+                    15f,
+                    1.7f,
+                    0,
+                    -1,
+                    "Boss",
+                    true),
                 _ => throw new ArgumentOutOfRangeException(nameof(archetype), archetype, null)
             };
         }

@@ -149,6 +149,414 @@ namespace SimpleGame.Tests
         }
 
         [Test]
+        public void LevelUpCardTable_DrawsThreeDistinctEligibleCards()
+        {
+            LevelUpCardTable table =
+                ScriptableObject.CreateInstance<LevelUpCardTable>();
+            table.Configure(new[]
+            {
+                CreateCard("A", 1),
+                CreateCard("B", 1),
+                CreateCard("C", 2),
+                CreateCard("D", 3)
+            });
+
+            var choices = table.Draw(3, _ => 0, 3);
+
+            Assert.That(choices, Has.Count.EqualTo(3));
+            Assert.That(
+                new System.Collections.Generic.HashSet<string>(
+                    System.Linq.Enumerable.Select(
+                        choices,
+                        choice => choice.CardId)),
+                Has.Count.EqualTo(3));
+            Object.DestroyImmediate(table);
+        }
+
+        [Test]
+        public void LevelUpCardTable_RequiresPrerequisiteCard()
+        {
+            LevelUpCardTable table =
+                ScriptableObject.CreateInstance<LevelUpCardTable>();
+            table.Configure(new[]
+            {
+                CreateCard("PIERCING_UP", 1),
+                CreateCard("SEVER_TRAIL", 1, "PIERCING_UP")
+            });
+
+            var locked = table.Draw(1, _ => 0, 2);
+            var unlocked = table.Draw(
+                1,
+                cardId => cardId == "PIERCING_UP" ? 1 : 0,
+                2);
+
+            Assert.That(
+                System.Linq.Enumerable.Any(
+                    locked,
+                    card => card.CardId == "SEVER_TRAIL"),
+                Is.False);
+            Assert.That(
+                System.Linq.Enumerable.Any(
+                    unlocked,
+                    card => card.CardId == "SEVER_TRAIL"),
+                Is.True);
+            Object.DestroyImmediate(table);
+        }
+
+        [Test]
+        public void PlayerMoveSpeed_ReachesFifteenAfterFiveUpgrades()
+        {
+            var owner = new GameObject("PlayerMoveSpeedTest");
+            PlayerStats stats = owner.AddComponent<PlayerStats>();
+            stats.Configure(new PlayerDefinition(
+                "LightBandit",
+                1,
+                10,
+                1f,
+                1.7f,
+                3f,
+                10f,
+                1.1f,
+                1.2f,
+                0.08f,
+                1.2f,
+                0f,
+                true));
+
+            Assert.That(stats.MoveSpeed, Is.EqualTo(10f));
+            for (int index = 0; index < 5; index++)
+            {
+                stats.AddMoveSpeed(1f);
+            }
+
+            Assert.That(stats.MoveSpeed, Is.EqualTo(15f));
+            Assert.That(
+                stats.MoveSpeed * stats.PathEnemyApproachSpeedMultiplier,
+                Is.EqualTo(16.5f).Within(0.001f));
+            Assert.That(
+                stats.MoveSpeed * stats.PostKillEscapeSpeedMultiplier,
+                Is.EqualTo(18f).Within(0.001f));
+            Object.DestroyImmediate(owner);
+        }
+
+        [TestCase(1, 3)]
+        [TestCase(3, 7)]
+        [TestCase(5, 11)]
+        public void StaticCharge_TargetCountMatchesDesign(
+            int level,
+            int expectedTargets)
+        {
+            Assert.That(
+                PlayerCombatAbilities
+                    .CalculateStaticAdjacentTargetCount(level),
+                Is.EqualTo(expectedTargets));
+        }
+
+        [TestCase(0f, "00:00")]
+        [TestCase(59.9f, "00:59")]
+        [TestCase(810f, "13:30")]
+        public void GameSession_FormatsElapsedTime(
+            float elapsed,
+            string expected)
+        {
+            Assert.That(
+                PrototypeGameSession.FormatElapsedTime(elapsed),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(1f, 10f)]
+        [TestCase(10f, 100f)]
+        [TestCase(20f, 200f)]
+        public void MaximumMoveSpeed_ReachesDestinationInPointOneSeconds(
+            float distance,
+            float expectedSpeed)
+        {
+            Assert.That(
+                PlayerMovement.CalculateMaximumTravelSpeed(distance),
+                Is.EqualTo(expectedSpeed).Within(0.001f));
+        }
+
+        [TestCase(1, 0.1f, 1, 1f)]
+        [TestCase(5, 0.22f, 5, 1.4f)]
+        public void MovingSlash_UpgradeMathMatchesDesign(
+            int level,
+            float expectedChance,
+            int expectedHits,
+            float expectedSize)
+        {
+            Assert.That(
+                PlayerCombatAbilities.CalculateMovingSlashChance(level),
+                Is.EqualTo(expectedChance).Within(0.0001f));
+            Assert.That(
+                PlayerCombatAbilities
+                    .CalculateMovingSlashMaximumHits(level),
+                Is.EqualTo(expectedHits));
+            Assert.That(
+                PlayerCombatAbilities.CalculateMovingSlashSize(level),
+                Is.EqualTo(expectedSize).Within(0.0001f));
+        }
+
+        [TestCase(0, 0f)]
+        [TestCase(1, 0.1f)]
+        [TestCase(2, 0.2f)]
+        [TestCase(3, 0.3f)]
+        public void ShieldBypass_ChanceIncreasesTenPercentPerLevel(
+            int level,
+            float expected)
+        {
+            Assert.That(
+                PlayerCombatAbilities.CalculateShieldBypassChance(level),
+                Is.EqualTo(expected).Within(0.0001f));
+        }
+
+        [Test]
+        public void LevelUpCard_RarityColorsAreVisuallyDistinct()
+        {
+            Color common =
+                LevelUpCardView.ResolveRarityColor("일반");
+            Color rare =
+                LevelUpCardView.ResolveRarityColor("희귀");
+            Color hero =
+                LevelUpCardView.ResolveRarityColor("영웅");
+
+            Assert.That(rare, Is.Not.EqualTo(common));
+            Assert.That(hero, Is.Not.EqualTo(common));
+            Assert.That(hero, Is.Not.EqualTo(rare));
+        }
+
+        [TestCase(0, 0)]
+        [TestCase(1, 2)]
+        [TestCase(2, 4)]
+        [TestCase(3, 6)]
+        public void HitHeal_AmountIncreasesTwoPerCardLevel(
+            int level,
+            int expected)
+        {
+            Assert.That(
+                PlayerCombatAbilities.CalculateHitHealAmount(level),
+                Is.EqualTo(expected));
+            Assert.That(
+                PlayerCombatAbilities.HitHealChance,
+                Is.EqualTo(0.05f).Within(0.0001f));
+        }
+
+        [TestCase(1, 0, 1)]
+        [TestCase(1, 1, 0)]
+        [TestCase(5, 1, 4)]
+        [TestCase(5, 5, 0)]
+        public void Piercing_WindowBudgetPreservesCardLevelDifference(
+            int level,
+            int consumed,
+            int expectedRemaining)
+        {
+            Assert.That(
+                PlayerCombatAbilities
+                    .CalculateRemainingPiercingTargets(
+                        level,
+                        consumed),
+                Is.EqualTo(expectedRemaining));
+            Assert.That(
+                PlayerCombatAbilities.PiercingWindowDuration,
+                Is.EqualTo(0.4f).Within(0.0001f));
+        }
+
+        [TestCase(0.29f, 0.3f, false)]
+        [TestCase(0.3f, 0.3f, true)]
+        public void Sever_CooldownDiscardsEarlyTrigger(
+            float currentTime,
+            float nextAvailableTime,
+            bool expected)
+        {
+            Assert.That(
+                PlayerCombatAbilities.IsSeverCooldownReady(
+                    currentTime,
+                    nextAvailableTime),
+                Is.EqualTo(expected));
+            Assert.That(
+                PlayerCombatAbilities.SeverDelay,
+                Is.EqualTo(0.5f).Within(0.0001f));
+            Assert.That(
+                PlayerCombatAbilities.SeverReuseCooldown,
+                Is.EqualTo(0.3f).Within(0.0001f));
+        }
+
+        [Test]
+        public void Sever_DamagesEnemiesOverlappingItsSegment()
+        {
+            Assert.That(
+                CombatGeometry.OverlapsSegment(
+                    new Vector2(2f, 0.4f),
+                    0.25f,
+                    Vector2.zero,
+                    new Vector2(4f, 0f),
+                    PlayerCombatAbilities.SeverHalfWidth),
+                Is.True);
+            Assert.That(
+                CombatGeometry.OverlapsSegment(
+                    new Vector2(2f, 0.5f),
+                    0.25f,
+                    Vector2.zero,
+                    new Vector2(4f, 0f),
+                    PlayerCombatAbilities.SeverHalfWidth),
+                Is.False);
+        }
+
+        [Test]
+        public void EnemySeparation_PushesOverlappingPositionOutside()
+        {
+            Vector2 resolved = CombatGeometry.PushOutside(
+                Vector2.zero,
+                1,
+                Vector2.zero,
+                2,
+                1.25f);
+
+            Assert.That(
+                Vector2.Distance(resolved, Vector2.zero),
+                Is.EqualTo(1.25f).Within(0.001f));
+        }
+
+        [TestCase(2f, 0f, 1f, 0f, true)]
+        [TestCase(-2f, 0f, 1f, 0f, false)]
+        [TestCase(0f, -2f, 1f, 0f, false)]
+        public void PlayerCommand_OnlySelectsEnemiesInInputDirection(
+            float destinationX,
+            float destinationY,
+            float enemyX,
+            float enemyY,
+            bool expected)
+        {
+            Assert.That(
+                PlayerController.IsTargetInCommandDirection(
+                    Vector2.zero,
+                    new Vector2(destinationX, destinationY),
+                    new Vector2(enemyX, enemyY)),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(false, false, false)]
+        public void PlayerCommand_ContinuesOnlyAfterKillOrPiercing(
+            bool targetDefeated,
+            bool hasPiercing,
+            bool expected)
+        {
+            Assert.That(
+                PlayerController.ShouldContinueAfterPathAttack(
+                    targetDefeated,
+                    hasPiercing),
+                Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void PlayerCommand_DirectTouchTakesPriorityOverPathEnemy()
+        {
+            var directObject = new GameObject("DirectEnemy");
+            var pathObject = new GameObject("PathEnemy");
+            try
+            {
+                EnemyBase directEnemy =
+                    directObject.AddComponent<MeleeEnemy>();
+                EnemyBase pathEnemy =
+                    pathObject.AddComponent<MeleeEnemy>();
+
+                Assert.That(
+                    PlayerController.SelectCommandEnemy(
+                        directEnemy,
+                        pathEnemy),
+                    Is.SameAs(directEnemy));
+                Assert.That(
+                    PlayerController.SelectCommandEnemy(
+                        null,
+                        pathEnemy),
+                    Is.SameAs(pathEnemy));
+            }
+            finally
+            {
+                Object.DestroyImmediate(directObject);
+                Object.DestroyImmediate(pathObject);
+            }
+        }
+
+        [Test]
+        public void EnemyVisuals_DisableLegacyFacingMarker()
+        {
+            var enemyObject = new GameObject("Enemy");
+            var markerObject = new GameObject("FacingMarker");
+            markerObject.transform.SetParent(enemyObject.transform);
+            try
+            {
+                EnemyBase enemy =
+                    enemyObject.AddComponent<MeleeEnemy>();
+                SpriteRenderer marker =
+                    markerObject.AddComponent<SpriteRenderer>();
+                marker.enabled = true;
+
+                enemy.ConfigureVisuals(
+                    null,
+                    marker,
+                    null,
+                    null);
+
+                Assert.That(marker.enabled, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(enemyObject);
+            }
+        }
+
+        [Test]
+        public void Health_HealAddsWithoutExceedingMaximum()
+        {
+            var owner = new GameObject("HealTest");
+            HealthComponent health = owner.AddComponent<HealthComponent>();
+            health.Configure(10);
+            health.ApplyDamage(7);
+
+            Assert.That(health.Heal(5), Is.EqualTo(5));
+            Assert.That(health.CurrentHealth, Is.EqualTo(8));
+            Assert.That(health.Heal(5), Is.EqualTo(2));
+            Assert.That(health.CurrentHealth, Is.EqualTo(10));
+            Object.DestroyImmediate(owner);
+        }
+
+        [Test]
+        public void Health_RestoreFullFillsMissingHealth()
+        {
+            var owner = new GameObject("RestoreFullTest");
+            HealthComponent health = owner.AddComponent<HealthComponent>();
+            health.Configure(10);
+            health.ApplyDamage(7);
+
+            health.RestoreFull();
+
+            Assert.That(health.CurrentHealth, Is.EqualTo(health.MaxHealth));
+            Object.DestroyImmediate(owner);
+        }
+
+        [Test]
+        public void EnemyHealth_ReportsCurrentAndMaximumHealth()
+        {
+            var owner = new GameObject("EnemyHealthTest");
+            EnemyHealth health = owner.AddComponent<EnemyHealth>();
+            health.Configure(5.1f);
+
+            bool applied = health.Apply(new CombatResult(
+                3f,
+                5.1f,
+                PlayerAttackReaction.None));
+
+            Assert.That(applied, Is.True);
+            Assert.That(health.MaxHealth, Is.EqualTo(5.1f).Within(0.001f));
+            Assert.That(
+                health.CurrentHealth,
+                Is.EqualTo(2.1f).Within(0.001f));
+            Object.DestroyImmediate(owner);
+        }
+
+        [Test]
         public void WorldArea_RepositionsEnemyOnOppositeInnerBoundary()
         {
             Vector2 result =
@@ -175,6 +583,29 @@ namespace SimpleGame.Tests
 
             Assert.That(facing.Direction.x, Is.LessThan(0f));
             Object.DestroyImmediate(owner);
+        }
+
+        private static LevelUpCardDefinition CreateCard(
+            string cardId,
+            int minimumLevel,
+            string requiredCardId = "")
+        {
+            return new LevelUpCardDefinition(
+                cardId,
+                cardId,
+                cardId,
+                "테스트 카드 설명",
+                LevelUpCardEffectType.StatModifier,
+                PlayerStatId.MaxHp,
+                StatOperation.Add,
+                1f,
+                3,
+                1,
+                minimumLevel,
+                requiredCardId,
+                "Common",
+                "ICON",
+                true);
         }
     }
 }

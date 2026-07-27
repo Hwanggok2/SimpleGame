@@ -21,6 +21,7 @@ namespace SimpleGame
         [SerializeField] private SpriteRenderer approachRangeRenderer;
         [SerializeField] private SpriteRenderer facingMarker;
         [SerializeField] private TMP_Text levelLabel;
+        [SerializeField] private EnemyHealthBar healthBar;
 
         private Collider2D hitCollider;
         private Coroutine deathRoutine;
@@ -38,11 +39,18 @@ namespace SimpleGame
         public void ConfigureVisuals(
             SpriteRenderer configuredApproachRange,
             SpriteRenderer configuredFacingMarker,
-            TMP_Text configuredLevelLabel)
+            TMP_Text configuredLevelLabel,
+            EnemyHealthBar configuredHealthBar)
         {
             approachRangeRenderer = configuredApproachRange;
             facingMarker = configuredFacingMarker;
+            if (facingMarker != null)
+            {
+                facingMarker.enabled = false;
+            }
+
             levelLabel = configuredLevelLabel;
+            healthBar = configuredHealthBar;
         }
 
         public void Configure(
@@ -76,7 +84,8 @@ namespace SimpleGame
                 deathRoutine = null;
             }
 
-            health.ResetHealth();
+            health.Configure(Definition.CalculateMaxHealth(level));
+            healthBar?.Bind(health, Definition.ShowHpBar);
             characterAnimation.Revive();
             facing.Configure(Definition.FacingTurnDelay);
             if (hitCollider != null)
@@ -96,6 +105,7 @@ namespace SimpleGame
         {
             facing.Face(position);
             movement.StepTowards(position, facing.Direction);
+            Session?.SeparateEnemy(this);
         }
 
         public void FaceTowards(Vector2 position)
@@ -155,9 +165,11 @@ namespace SimpleGame
             }
 
             levelLabel.color = CombatResolver.GetThreatLevel(
-                Archetype,
+                Definition,
                 Session.Player.Progression.Level,
-                level) switch
+                level,
+                Session.Player.AttackPower,
+                Session.Player.RearAttackMultiplier) switch
             {
                 EnemyThreatLevel.OneHit => Color.green,
                 EnemyThreatLevel.ThreeFrontOneRear => Color.white,
@@ -181,9 +193,15 @@ namespace SimpleGame
                 (Vector2)attacker.transform.position -
                 (Vector2)transform.position;
 
+            string enemyName = GetDisplayName();
+            string sideText = side == AttackSide.Front
+                ? "정면"
+                : "후면";
             string resultText = damaged
-                ? $"{Archetype} Lv.{level}: {side} {(critical ? "CRIT " : string.Empty)}-{result.Damage}"
-                : $"{Archetype} Lv.{level}: FRONT IMMUNE";
+                ? $"{enemyName} 레벨 {level}: {sideText} " +
+                    $"{(critical ? "치명타 " : string.Empty)}" +
+                    $"피해 {result.Damage:0.##}"
+                : $"{enemyName} 레벨 {level}: 정면 방어";
             Session.ShowHint(resultText);
 
             if (!health.IsAlive)
@@ -218,7 +236,12 @@ namespace SimpleGame
             attack?.Cancel();
             bossAttack?.Cancel();
             movement.StopImmediately();
-            transform.position = position;
+            transform.position = Session != null
+                ? Session.FindOpenEnemyPosition(
+                    position,
+                    PrototypeGameSession.GetColliderRadius(this),
+                    this)
+                : position;
             facing.FaceImmediate(targetPosition);
             stateMachine.ResetAfterReposition();
         }
@@ -259,8 +282,20 @@ namespace SimpleGame
             facingMarker.transform.localPosition = new Vector3(0f, -size * 0.55f, 0f);
             levelLabel.transform.localPosition =
                 new Vector3(0f, size * 0.82f, 0f);
-            levelLabel.text = $"{Definition.EnemyId} Lv.{level}";
+            levelLabel.text = $"{GetDisplayName()} 레벨 {level}";
             RefreshLevelLabel();
+        }
+
+        private string GetDisplayName()
+        {
+            return Archetype switch
+            {
+                EnemyArchetype.Melee => "근접 고블린",
+                EnemyArchetype.Ranged => "원거리 고블린",
+                EnemyArchetype.Shield => "방패병",
+                EnemyArchetype.Boss => "고블린 우두머리",
+                _ => "적"
+            };
         }
 
         private void SetGameplayVisualsVisible(bool visible)
@@ -272,13 +307,15 @@ namespace SimpleGame
 
             if (facingMarker != null)
             {
-                facingMarker.enabled = visible;
+                facingMarker.enabled = false;
             }
 
             if (levelLabel != null)
             {
                 levelLabel.enabled = visible;
             }
+
+            healthBar?.SetVisible(visible && Definition.ShowHpBar);
         }
 
         private IEnumerator DeactivateAfterDeath(float delay)

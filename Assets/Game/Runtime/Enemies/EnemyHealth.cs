@@ -1,19 +1,26 @@
+using System;
 using UnityEngine;
 
 namespace SimpleGame
 {
     public sealed class EnemyHealth : MonoBehaviour
     {
-        [SerializeField] private int accumulatedDamage;
+        [SerializeField] private float maxHealth = 1f;
+        [SerializeField] private float currentHealth = 1f;
         [SerializeField] private bool alive = true;
 
-        public int AccumulatedDamage => accumulatedDamage;
+        public event Action<float, float> Changed;
+
+        public float MaxHealth => maxHealth;
+        public float CurrentHealth => currentHealth;
         public bool IsAlive => alive;
 
-        public void ResetHealth()
+        public void Configure(float configuredMaxHealth)
         {
-            accumulatedDamage = 0;
+            maxHealth = Mathf.Max(1f, configuredMaxHealth);
+            currentHealth = maxHealth;
             alive = true;
+            Changed?.Invoke(currentHealth, maxHealth);
         }
 
         public bool Apply(CombatResult result)
@@ -23,11 +30,9 @@ namespace SimpleGame
                 return false;
             }
 
-            accumulatedDamage += result.Damage;
-            if (accumulatedDamage >= result.RequiredDurability)
-            {
-                alive = false;
-            }
+            currentHealth = Mathf.Max(0f, currentHealth - result.Damage);
+            alive = currentHealth > 0.0001f;
+            Changed?.Invoke(currentHealth, maxHealth);
 
             return true;
         }

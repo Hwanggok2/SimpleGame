@@ -5,69 +5,127 @@ namespace SimpleGame.Tests
 {
     public sealed class CombatResolverTests
     {
-        [TestCase(EnemyArchetype.Ranged, 1, 1, AttackSide.Front, 1, 1)]
-        [TestCase(EnemyArchetype.Ranged, 1, 2, AttackSide.Front, 1, 3)]
-        [TestCase(EnemyArchetype.Ranged, 1, 3, AttackSide.Front, 0, 2)]
-        [TestCase(EnemyArchetype.Ranged, 1, 3, AttackSide.Rear, 1, 2)]
-        [TestCase(EnemyArchetype.Melee, 1, 1, AttackSide.Front, 1, 3)]
-        [TestCase(EnemyArchetype.Melee, 1, 1, AttackSide.Rear, 3, 3)]
-        [TestCase(EnemyArchetype.Melee, 1, 2, AttackSide.Front, 0, 2)]
-        [TestCase(EnemyArchetype.Melee, 1, 2, AttackSide.Rear, 1, 2)]
-        public void Resolve_MatchesDesignTable(
+        [TestCase(
+            EnemyArchetype.Melee,
+            1,
+            1,
+            AttackSide.Front,
+            1f,
+            3f)]
+        [TestCase(
+            EnemyArchetype.Melee,
+            1,
+            1,
+            AttackSide.Rear,
+            3f,
+            3f)]
+        [TestCase(
+            EnemyArchetype.Melee,
+            1,
+            2,
+            AttackSide.Front,
+            1f,
+            5.1f)]
+        [TestCase(
+            EnemyArchetype.Melee,
+            1,
+            2,
+            AttackSide.Rear,
+            3f,
+            5.1f)]
+        [TestCase(
+            EnemyArchetype.Ranged,
+            1,
+            1,
+            AttackSide.Front,
+            3f,
+            3f)]
+        [TestCase(
+            EnemyArchetype.Ranged,
+            1,
+            2,
+            AttackSide.Front,
+            1f,
+            3f)]
+        [TestCase(
+            EnemyArchetype.Ranged,
+            1,
+            3,
+            AttackSide.Rear,
+            3f,
+            5.1f)]
+        public void Resolve_UsesAttackPowerAndScaledHealth(
             EnemyArchetype archetype,
             int playerLevel,
             int enemyLevel,
             AttackSide side,
-            int expectedDamage,
-            int expectedDurability)
+            float expectedDamage,
+            float expectedMaxHealth)
         {
+            EnemyDefinition definition =
+                PrototypeEnemyDefinitions.Create(archetype);
             CombatResult result = CombatResolver.Resolve(
-                archetype,
+                definition,
                 playerLevel,
                 enemyLevel,
+                PlayerAttack(playerLevel),
+                3f,
                 side,
                 false);
 
-            Assert.That(result.Damage, Is.EqualTo(expectedDamage));
-            Assert.That(result.RequiredDurability, Is.EqualTo(expectedDurability));
+            Assert.That(
+                result.Damage,
+                Is.EqualTo(expectedDamage).Within(0.001f));
+            Assert.That(
+                result.TargetMaxHealth,
+                Is.EqualTo(expectedMaxHealth).Within(0.001f));
         }
 
         [Test]
-        public void Resolve_RearCritical_UsesThreeRearHits()
+        public void Resolve_CriticalMultipliesDamageWithoutArmor()
         {
-            CombatResult result = CombatResolver.Resolve(
-                EnemyArchetype.Boss,
+            EnemyDefinition definition =
+                PrototypeEnemyDefinitions.Create(EnemyArchetype.Melee);
+
+            CombatResult front = CombatResolver.Resolve(
+                definition,
                 1,
-                5,
+                2,
+                1f,
+                3f,
+                AttackSide.Front,
+                true);
+            CombatResult rear = CombatResolver.Resolve(
+                definition,
+                1,
+                2,
+                1f,
+                3f,
                 AttackSide.Rear,
                 true);
 
-            Assert.That(result.Damage, Is.EqualTo(9));
-            Assert.That(result.RequiredDurability, Is.EqualTo(15));
+            Assert.That(front.Damage, Is.EqualTo(3f));
+            Assert.That(rear.Damage, Is.EqualTo(9f));
         }
 
-        [TestCase(EnemyArchetype.Shield, 3, 1, AttackSide.Front, false)]
-        [TestCase(EnemyArchetype.Shield, 2, 1, AttackSide.Front, true)]
-        [TestCase(EnemyArchetype.Shield, 1, 1, AttackSide.Front, true)]
-        [TestCase(EnemyArchetype.Shield, 1, 2, AttackSide.Front, true)]
-        [TestCase(EnemyArchetype.Shield, 1, 2, AttackSide.Rear, false)]
-        [TestCase(EnemyArchetype.Melee, 1, 2, AttackSide.Front, true)]
-        [TestCase(EnemyArchetype.Ranged, 1, 3, AttackSide.Front, true)]
-        [TestCase(EnemyArchetype.Melee, 1, 1, AttackSide.Front, false)]
-        [TestCase(EnemyArchetype.Ranged, 1, 2, AttackSide.Front, false)]
-        [TestCase(EnemyArchetype.Boss, 1, 5, AttackSide.Front, false)]
-        public void Resolve_AssignsFrontRecoilOnlyToDesignedCases(
-            EnemyArchetype archetype,
+        [TestCase(3, 1, false)]
+        [TestCase(2, 1, true)]
+        [TestCase(1, 1, true)]
+        [TestCase(1, 2, true)]
+        public void Resolve_ShieldFrontRecoilUsesOneHitException(
             int playerLevel,
             int enemyLevel,
-            AttackSide side,
             bool expectedRecoil)
         {
+            EnemyDefinition definition =
+                PrototypeEnemyDefinitions.Create(EnemyArchetype.Shield);
             CombatResult result = CombatResolver.Resolve(
-                archetype,
+                definition,
                 playerLevel,
                 enemyLevel,
-                side,
+                PlayerAttack(playerLevel),
+                3f,
+                AttackSide.Front,
                 false);
 
             Assert.That(
@@ -76,17 +134,45 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void Resolve_CriticalFrontHitBypassesDamageImmunityAndRecoil()
+        public void Resolve_CriticalShieldFrontHitBypassesRecoil()
         {
+            EnemyDefinition definition =
+                PrototypeEnemyDefinitions.Create(EnemyArchetype.Shield);
             CombatResult result = CombatResolver.Resolve(
-                EnemyArchetype.Melee,
+                definition,
                 1,
                 2,
+                1f,
+                3f,
                 AttackSide.Front,
                 true);
 
-            Assert.That(result.Damage, Is.GreaterThan(0));
-            Assert.That(result.PlayerReaction, Is.EqualTo(PlayerAttackReaction.None));
+            Assert.That(result.Damage, Is.EqualTo(3f));
+            Assert.That(
+                result.PlayerReaction,
+                Is.EqualTo(PlayerAttackReaction.None));
+        }
+
+        [TestCase(EnemyArchetype.Melee)]
+        [TestCase(EnemyArchetype.Ranged)]
+        [TestCase(EnemyArchetype.Boss)]
+        public void Resolve_HigherLevelNonShieldNeverLocksPlayerInput(
+            EnemyArchetype archetype)
+        {
+            EnemyDefinition definition =
+                PrototypeEnemyDefinitions.Create(archetype);
+            CombatResult result = CombatResolver.Resolve(
+                definition,
+                1,
+                20,
+                1f,
+                3f,
+                AttackSide.Front,
+                false);
+
+            Assert.That(
+                result.PlayerReaction,
+                Is.EqualTo(PlayerAttackReaction.None));
         }
 
         [TestCase(true, true, PlayerAttackReaction.Recoil, CombatFeedbackLevel.CriticalHit)]
@@ -100,7 +186,10 @@ namespace SimpleGame.Tests
             CombatFeedbackLevel expected)
         {
             Assert.That(
-                CombatFeedbackResolver.Resolve(damageApplied, critical, reaction),
+                CombatFeedbackResolver.Resolve(
+                    damageApplied,
+                    critical,
+                    reaction),
                 Is.EqualTo(expected));
         }
 
@@ -108,18 +197,40 @@ namespace SimpleGame.Tests
         public void ShieldDefinition_UsesCyanApproachRange()
         {
             Assert.That(
-                PrototypeEnemyDefinitions.Create(EnemyArchetype.Shield).ApproachRange,
+                PrototypeEnemyDefinitions
+                    .Create(EnemyArchetype.Shield)
+                    .ApproachRange,
                 Is.EqualTo(2.25f));
+        }
+
+        [TestCase(1, 2)]
+        [TestCase(10, 3)]
+        [TestCase(14, 4)]
+        public void EnemyAttackDamage_ScalesGraduallyWithLevel(
+            int level,
+            int expectedDamage)
+        {
+            Assert.That(
+                PrototypeEnemyDefinitions
+                    .Create(EnemyArchetype.Melee)
+                    .CalculateAttackDamage(level),
+                Is.EqualTo(expectedDamage));
         }
 
         [Test]
         public void GetAttackSide_UsesEnemyFacing()
         {
             Assert.That(
-                CombatResolver.GetAttackSide(Vector2.up, Vector2.zero, Vector2.up),
+                CombatResolver.GetAttackSide(
+                    Vector2.up,
+                    Vector2.zero,
+                    Vector2.up),
                 Is.EqualTo(AttackSide.Front));
             Assert.That(
-                CombatResolver.GetAttackSide(Vector2.up, Vector2.zero, Vector2.down),
+                CombatResolver.GetAttackSide(
+                    Vector2.up,
+                    Vector2.zero,
+                    Vector2.down),
                 Is.EqualTo(AttackSide.Rear));
         }
 
@@ -144,11 +255,6 @@ namespace SimpleGame.Tests
             2,
             EnemyThreatLevel.ThreeFrontOneRear)]
         [TestCase(
-            EnemyArchetype.Shield,
-            1,
-            5,
-            EnemyThreatLevel.ThreeFrontOneRear)]
-        [TestCase(
             EnemyArchetype.Melee,
             1,
             2,
@@ -158,23 +264,27 @@ namespace SimpleGame.Tests
             1,
             3,
             EnemyThreatLevel.Dangerous)]
-        [TestCase(
-            EnemyArchetype.Boss,
-            5,
-            1,
-            EnemyThreatLevel.Dangerous)]
-        public void ThreatLevel_UsesNormalFrontAndRearHitCounts(
+        public void ThreatLevel_UsesCurrentHitCounts(
             EnemyArchetype archetype,
             int playerLevel,
             int enemyLevel,
             EnemyThreatLevel expected)
         {
+            EnemyDefinition definition =
+                PrototypeEnemyDefinitions.Create(archetype);
             Assert.That(
                 CombatResolver.GetThreatLevel(
-                    archetype,
+                    definition,
                     playerLevel,
-                    enemyLevel),
+                    enemyLevel,
+                    PlayerAttack(playerLevel),
+                    3f),
                 Is.EqualTo(expected));
+        }
+
+        private static float PlayerAttack(int level)
+        {
+            return Mathf.Pow(1.7f, level - 1);
         }
     }
 }

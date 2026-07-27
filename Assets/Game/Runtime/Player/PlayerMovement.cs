@@ -5,61 +5,141 @@ namespace SimpleGame
 {
     public sealed class PlayerMovement : MonoBehaviour
     {
-        public const float DefaultMoveDuration = 0.1f;
+        public const float DefaultMoveSpeed = 10f;
+        public const float DefaultArrivalTolerance = 0.08f;
+        public const float MaximumSpeedTravelDuration = 0.1f;
+        private const float MinimumSpeedFactor = 0.15f;
 
         [SerializeField, Min(0.01f)]
-        private float moveDuration = DefaultMoveDuration;
+        private float moveSpeed = DefaultMoveSpeed;
+        [SerializeField, Min(0.01f)]
+        private float accelerationSmoothTime = 0.06f;
+        [SerializeField, Min(0.01f)]
+        private float decelerationSmoothTime = 0.05f;
 
-        private Vector2 moveStart;
-        private float moveStartedAt;
+        private float activeSpeedMultiplier = 1f;
+        private float currentMoveSpeed;
+        private float speedSmoothVelocity;
+        private Vector2 activeDirection;
         private bool isMoveActive;
+        private bool maximumSpeedActive;
+        private float maximumTravelSpeed;
         private CharacterSpriteAnimator characterAnimation;
 
         public void Configure(
-            float duration,
+            float configuredMoveSpeed,
             CharacterSpriteAnimator animation)
         {
-            moveDuration = Mathf.Max(0.01f, duration);
+            SetMoveSpeed(configuredMoveSpeed);
             characterAnimation = animation;
         }
 
-        public void BeginMove()
+        public void SetMoveSpeed(float value)
         {
-            moveStart = transform.position;
-            moveStartedAt = Time.time;
-            isMoveActive = true;
+            moveSpeed = Mathf.Max(0.01f, value);
         }
 
-        public bool StepTowards(Vector2 destination, float stoppingDistance)
+        public void SetMaximumSpeedActive(bool active)
+        {
+            maximumSpeedActive = active;
+            if (!active)
+            {
+                maximumTravelSpeed = 0f;
+            }
+        }
+
+        public void BeginMove(Vector2 destination)
+        {
+            BeginMove(destination, 1f);
+        }
+
+        public void BeginMove(
+            Vector2 destination,
+            float speedMultiplier)
+        {
+            Vector2 direction =
+                destination - (Vector2)transform.position;
+            if (currentMoveSpeed > 0.01f &&
+                activeDirection.sqrMagnitude > 0.0001f &&
+                Vector2.Dot(
+                    direction.normalized,
+                    activeDirection) < 0f)
+            {
+                ResetMomentum();
+            }
+
+            activeSpeedMultiplier = Mathf.Max(0.01f, speedMultiplier);
+            activeDirection = direction.normalized;
+            isMoveActive = true;
+            maximumTravelSpeed = maximumSpeedActive
+                ? CalculateMaximumTravelSpeed(direction.magnitude) *
+                    activeSpeedMultiplier
+                : 0f;
+            characterAnimation?.SetMoving(direction);
+        }
+
+        public bool StepTowards(
+            Vector2 destination,
+            float stoppingDistance,
+            bool preserveMomentumOnReach = false)
         {
             Vector2 current = transform.position;
             if (Vector2.Distance(current, destination) <= stoppingDistance)
             {
-                isMoveActive = false;
-                characterAnimation?.SetIdle();
+                CompleteMove(preserveMomentumOnReach);
                 return true;
             }
 
             if (!isMoveActive)
             {
-                BeginMove();
+                BeginMove(destination);
             }
 
-            Vector2 startToDestination = destination - moveStart;
+            Vector2 direction = destination - current;
+            activeDirection = direction.normalized;
             Vector2 targetPosition = destination -
-                startToDestination.normalized * stoppingDistance;
-            float progress = Mathf.Clamp01(
-                (Time.time - moveStartedAt) / moveDuration);
-            Vector2 next = Vector2.Lerp(moveStart, targetPosition, progress);
-            characterAnimation?.SetMoving(destination - current);
+                direction.normalized * stoppingDistance;
+            float targetSpeed = maximumSpeedActive
+                ? maximumTravelSpeed
+                : moveSpeed * activeSpeedMultiplier;
+            float brakingDistance = Mathf.Max(
+                DefaultArrivalTolerance,
+                targetSpeed * decelerationSmoothTime);
+            float brakingProgress = Mathf.Clamp01(
+                Vector2.Distance(current, targetPosition) /
+                brakingDistance);
+            float brakingFactor = Mathf.Lerp(
+                MinimumSpeedFactor,
+                1f,
+                SmootherStep(brakingProgress));
+            float desiredSpeed = targetSpeed * brakingFactor;
+            if (maximumSpeedActive)
+            {
+                currentMoveSpeed = targetSpeed;
+            }
+            else
+            {
+                float smoothTime = desiredSpeed >= currentMoveSpeed
+                    ? accelerationSmoothTime
+                    : decelerationSmoothTime;
+                currentMoveSpeed = Mathf.SmoothDamp(
+                    currentMoveSpeed,
+                    desiredSpeed,
+                    ref speedSmoothVelocity,
+                    smoothTime);
+            }
+            Vector2 next = Vector2.MoveTowards(
+                current,
+                targetPosition,
+                currentMoveSpeed * Time.deltaTime);
+            characterAnimation?.SetMoving(direction);
             transform.position = new Vector3(next.x, next.y, transform.position.z);
 
-            bool reached = progress >= 1f ||
+            bool reached = next == targetPosition ||
                 Vector2.Distance(next, destination) <= stoppingDistance;
             if (reached)
             {
-                isMoveActive = false;
-                characterAnimation?.SetIdle();
+                CompleteMove(preserveMomentumOnReach);
             }
 
             return reached;
@@ -68,6 +148,7 @@ namespace SimpleGame
         public void CancelMove()
         {
             isMoveActive = false;
+            ResetMomentum();
             characterAnimation?.SetIdle();
         }
 
@@ -100,6 +181,37 @@ namespace SimpleGame
             }
 
             transform.position = destination;
+        }
+
+        private void CompleteMove(bool preserveMomentum)
+        {
+            isMoveActive = false;
+            if (!preserveMomentum)
+            {
+                ResetMomentum();
+            }
+
+            characterAnimation?.SetIdle();
+        }
+
+        private void ResetMomentum()
+        {
+            currentMoveSpeed = 0f;
+            speedSmoothVelocity = 0f;
+            activeDirection = Vector2.zero;
+            maximumTravelSpeed = 0f;
+        }
+
+        public static float CalculateMaximumTravelSpeed(float distance)
+        {
+            return Mathf.Max(0f, distance) /
+                MaximumSpeedTravelDuration;
+        }
+
+        private static float SmootherStep(float value)
+        {
+            float t = Mathf.Clamp01(value);
+            return t * t * t * (t * (t * 6f - 15f) + 10f);
         }
     }
 }
