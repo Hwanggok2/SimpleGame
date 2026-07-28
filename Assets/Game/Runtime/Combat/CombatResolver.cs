@@ -20,37 +20,31 @@ namespace SimpleGame
 
         public static CombatResult Resolve(
             EnemyDefinition definition,
-            int playerLevel,
-            int enemyLevel,
+            float targetMaxHealth,
             float playerAttackPower,
             float rearAttackMultiplier,
             AttackSide side,
             bool critical)
         {
-            float targetMaxHealth =
-                definition.CalculateMaxHealth(enemyLevel);
-            bool oneHit = definition.IsOneHitTarget(
-                playerLevel,
-                enemyLevel);
-            float damage = oneHit
-                ? targetMaxHealth
-                : Mathf.Max(0f, playerAttackPower) *
-                    (side == AttackSide.Rear
-                        ? Mathf.Max(1f, rearAttackMultiplier)
-                        : 1f);
-            if (critical && !oneHit)
+            float safeTargetMaxHealth =
+                Mathf.Max(1f, targetMaxHealth);
+            float damage = Mathf.Max(0f, playerAttackPower) *
+                (side == AttackSide.Rear
+                    ? Mathf.Max(1f, rearAttackMultiplier)
+                    : 1f);
+            if (critical)
             {
                 damage *= 3f;
             }
 
             bool causesRecoil = side == AttackSide.Front &&
                 definition.Archetype == EnemyArchetype.Shield &&
-                !oneHit &&
+                damage < safeTargetMaxHealth &&
                 !critical;
 
             return new CombatResult(
                 damage,
-                targetMaxHealth,
+                safeTargetMaxHealth,
                 causesRecoil
                     ? PlayerAttackReaction.Recoil
                     : PlayerAttackReaction.None);
@@ -58,23 +52,20 @@ namespace SimpleGame
 
         public static EnemyThreatLevel GetThreatLevel(
             EnemyDefinition definition,
-            int playerLevel,
-            int enemyLevel,
+            float targetMaxHealth,
             float playerAttackPower,
             float rearAttackMultiplier)
         {
             CombatResult front = Resolve(
                 definition,
-                playerLevel,
-                enemyLevel,
+                targetMaxHealth,
                 playerAttackPower,
                 rearAttackMultiplier,
                 AttackSide.Front,
                 false);
             CombatResult rear = Resolve(
                 definition,
-                playerLevel,
-                enemyLevel,
+                targetMaxHealth,
                 playerAttackPower,
                 rearAttackMultiplier,
                 AttackSide.Rear,
@@ -90,6 +81,16 @@ namespace SimpleGame
             return frontHits == 3 && rearHits == 1
                 ? EnemyThreatLevel.ThreeFrontOneRear
                 : EnemyThreatLevel.Dangerous;
+        }
+
+        public static bool CanPiercePastTarget(
+            EnemyArchetype archetype,
+            AttackSide side,
+            bool targetDefeatedByAttack)
+        {
+            return archetype != EnemyArchetype.Shield ||
+                side != AttackSide.Front ||
+                targetDefeatedByAttack;
         }
 
         private static int GetRequiredHitCount(CombatResult result)

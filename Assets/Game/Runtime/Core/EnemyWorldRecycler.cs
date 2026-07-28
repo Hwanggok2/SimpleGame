@@ -7,25 +7,30 @@ namespace SimpleGame
         private const float CheckInterval = 0.2f;
 
         [SerializeField] private PrototypeGameSession session;
+        [SerializeField] private EnemyWorldService enemyWorld;
         [SerializeField] private PlayerWorldArea worldArea;
         private float nextCheckAt;
 
         public void Configure(
             PrototypeGameSession gameSession,
+            EnemyWorldService configuredEnemyWorld,
             PlayerWorldArea area)
         {
             session = gameSession;
+            enemyWorld = configuredEnemyWorld;
             worldArea = area;
         }
 
         public void RepositionAllNormalEnemies()
         {
-            if (session == null || worldArea == null)
+            if (session == null ||
+                enemyWorld == null ||
+                worldArea == null)
             {
                 return;
             }
 
-            foreach (EnemyBase enemy in session.Enemies)
+            foreach (EnemyBase enemy in enemyWorld.Enemies)
             {
                 if (CanReposition(enemy))
                 {
@@ -37,6 +42,7 @@ namespace SimpleGame
         private void Update()
         {
             if (session == null ||
+                enemyWorld == null ||
                 worldArea == null ||
                 !session.IsPlaying ||
                 Time.time < nextCheckAt)
@@ -45,7 +51,7 @@ namespace SimpleGame
             }
 
             nextCheckAt = Time.time + CheckInterval;
-            foreach (EnemyBase enemy in session.Enemies)
+            foreach (EnemyBase enemy in enemyWorld.Enemies)
             {
                 if (CanReposition(enemy) &&
                     worldArea.IsOutsideRecycleArea(

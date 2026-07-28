@@ -95,8 +95,9 @@ namespace SimpleGame
                 return;
             }
 
-            int currentSign = GetHorizontalSign(owner.Facing.Direction);
-            int desiredSign = GetHorizontalSign(
+            int currentSign = Direction2D.GetHorizontalSign(
+                owner.Facing.Direction);
+            int desiredSign = Direction2D.GetHorizontalSign(
                 playerPosition - (Vector2)transform.position);
             if (desiredSign == 0 || desiredSign == currentSign)
             {
@@ -120,16 +121,6 @@ namespace SimpleGame
             }
 
             owner.GuardCurrentDirection();
-        }
-
-        private static int GetHorizontalSign(Vector2 direction)
-        {
-            if (Mathf.Abs(direction.x) <= 0.01f)
-            {
-                return 0;
-            }
-
-            return direction.x < 0f ? -1 : 1;
         }
     }
 }

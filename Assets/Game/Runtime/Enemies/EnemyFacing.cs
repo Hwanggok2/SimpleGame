@@ -16,7 +16,7 @@ namespace SimpleGame
         public void Configure(float configuredTurnDelay)
         {
             turnDelay = Mathf.Max(0f, configuredTurnDelay);
-            horizontalSign = GetHorizontalSign(direction);
+            horizontalSign = Direction2D.GetHorizontalSign(direction);
             pendingHorizontalSign = 0;
         }
 
@@ -36,7 +36,7 @@ namespace SimpleGame
             Vector2 desiredDirection = next.normalized;
             SetDirection(
                 desiredDirection,
-                GetHorizontalSign(desiredDirection));
+                Direction2D.GetHorizontalSign(desiredDirection));
         }
 
         public void Face(Vector2 targetPosition, float currentTime)
@@ -48,7 +48,8 @@ namespace SimpleGame
             }
 
             Vector2 desiredDirection = next.normalized;
-            int desiredHorizontalSign = GetHorizontalSign(desiredDirection);
+            int desiredHorizontalSign =
+                Direction2D.GetHorizontalSign(desiredDirection);
             if (turnDelay <= 0f ||
                 horizontalSign == 0 ||
                 desiredHorizontalSign == 0 ||
@@ -80,16 +81,6 @@ namespace SimpleGame
             }
 
             pendingHorizontalSign = 0;
-        }
-
-        private static int GetHorizontalSign(Vector2 value)
-        {
-            if (Mathf.Abs(value.x) <= 0.01f)
-            {
-                return 0;
-            }
-
-            return value.x < 0f ? -1 : 1;
         }
     }
 }

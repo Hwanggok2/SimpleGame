@@ -119,9 +119,8 @@ namespace SimpleGameEditor
                 "KillExperience",
                 "Score",
                 "BaseMaxHp",
-                "HpGrowthMultiplier",
+                "HpGrowthRate",
                 "LevelDifficultyOffset",
-                "OneHitPlayerLevelAdvantage",
                 "CombatProfileId",
                 "ShowHpBar");
             var enemyIds = new HashSet<string>(StringComparer.Ordinal);
@@ -167,12 +166,8 @@ namespace SimpleGameEditor
                     table.NonNegativeInt(row, "KillExperience"),
                     table.NonNegativeInt(row, "Score"),
                     table.PositiveFloat(row, "BaseMaxHp"),
-                    table.PositiveFloat(row, "HpGrowthMultiplier"),
+                    table.NonNegativeFloat(row, "HpGrowthRate"),
                     table.NonNegativeInt(row, "LevelDifficultyOffset"),
-                    table.OptionalNonNegativeInt(
-                        row,
-                        "OneHitPlayerLevelAdvantage",
-                        -1),
                     table.RequiredText(row, "CombatProfileId"),
                     table.Boolean(row, "ShowHpBar")));
             }
@@ -204,6 +199,16 @@ namespace SimpleGameEditor
                 ValidateIdentifier(sheet.Name, row, "StageId", stageId);
                 ValidateIdentifier(sheet.Name, row, "WaveId", waveId);
                 ValidateIdentifier(sheet.Name, row, "EnemyId", enemyId);
+                if (!StageSpawnEntry.TryParseWaveNumber(
+                        waveId,
+                        out _))
+                {
+                    throw table.Error(
+                        row,
+                        "WaveId",
+                        $"expected WAVE_<positive number>, got '{waveId}'");
+                }
+
                 if (!model.EnemyDefinitions.Any(definition =>
                         string.Equals(
                             definition.EnemyId,
@@ -329,7 +334,7 @@ namespace SimpleGameEditor
                 "StartLevel",
                 "BaseMaxHp",
                 "BaseAttackPower",
-                "AttackGrowthMultiplier",
+                "AttackGrowthRate",
                 "RearAttackMultiplier",
                 "BaseMoveSpeed",
                 "PathEnemyApproachSpeedMultiplier",
@@ -385,9 +390,9 @@ namespace SimpleGameEditor
                     table.PositiveInt(row, "StartLevel"),
                     table.PositiveInt(row, "BaseMaxHp"),
                     table.PositiveFloat(row, "BaseAttackPower"),
-                    table.PositiveFloat(
+                    table.NonNegativeFloat(
                         row,
-                        "AttackGrowthMultiplier"),
+                        "AttackGrowthRate"),
                     table.PositiveFloat(row, "RearAttackMultiplier"),
                     baseMoveSpeed,
                     approachMultiplier,

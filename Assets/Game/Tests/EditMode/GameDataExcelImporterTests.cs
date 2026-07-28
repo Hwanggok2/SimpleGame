@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using TMPro;
 using NUnit.Framework;
 using SimpleGameEditor;
@@ -22,7 +23,38 @@ namespace SimpleGame.Tests
             GameDataExcelModel model = GameDataExcelParser.Parse(path);
 
             Assert.That(model.EnemyDefinitions, Has.Count.EqualTo(4));
-            Assert.That(model.SpawnEntries, Has.Count.EqualTo(2578));
+            Assert.That(model.SpawnEntries, Has.Count.EqualTo(3283));
+            Assert.That(
+                model.SpawnEntries.Max(entry => entry.EnemyLevel),
+                Is.EqualTo(52));
+            Assert.That(
+                model.SpawnEntries.Max(entry => entry.WaveNumber),
+                Is.EqualTo(60));
+            Assert.That(
+                model.SpawnEntries
+                    .Where(entry => entry.WaveNumber == 5)
+                    .All(entry =>
+                        ProgressionCurve
+                            .CalculateWaveHealthMultiplier(
+                                entry.WaveNumber) == 1.2f),
+                Is.True);
+            Assert.That(
+                model.SpawnEntries
+                    .Where(entry => entry.WaveNumber == 8)
+                    .All(entry =>
+                        ProgressionCurve
+                            .CalculateWaveHealthMultiplier(
+                                entry.WaveNumber) == 1.5f),
+                Is.True);
+            Assert.That(
+                model.SpawnEntries
+                    .Count(entry => entry.SpawnTimeSec < 60f),
+                Is.EqualTo(43));
+            Assert.That(
+                model.SpawnEntries.Count(entry =>
+                    entry.SpawnTimeSec >= 540f &&
+                    entry.SpawnTimeSec < 600f),
+                Is.EqualTo(699));
             Assert.That(model.PlayerLevels, Has.Count.EqualTo(50));
             Assert.That(model.AccountLevels, Has.Count.EqualTo(4));
             Assert.That(model.PlayerDefinitions, Has.Count.EqualTo(1));

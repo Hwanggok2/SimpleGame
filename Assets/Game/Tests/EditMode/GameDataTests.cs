@@ -59,6 +59,25 @@ namespace SimpleGame.Tests
             Object.DestroyImmediate(schedule);
         }
 
+        [TestCase("WAVE_01", 1)]
+        [TestCase("WAVE_08", 8)]
+        [TestCase("WAVE_60", 60)]
+        public void StageSpawnEntry_ParsesWaveNumber(
+            string waveId,
+            int expected)
+        {
+            var entry = new StageSpawnEntry(
+                "Stage01",
+                waveId,
+                1f,
+                1,
+                "TOP_01",
+                "GoblinMelee",
+                1);
+
+            Assert.That(entry.WaveNumber, Is.EqualTo(expected));
+        }
+
         [Test]
         public void LevelTable_ReturnsConfiguredRequirement()
         {
@@ -213,7 +232,7 @@ namespace SimpleGame.Tests
                 1,
                 10,
                 1f,
-                1.7f,
+                0.65f,
                 3f,
                 10f,
                 1.1f,
@@ -360,6 +379,43 @@ namespace SimpleGame.Tests
                 Is.EqualTo(0.4f).Within(0.0001f));
         }
 
+        [TestCase(0.39f, 0.4f, false)]
+        [TestCase(0.4f, 0.4f, true)]
+        public void Piercing_WindowRefreshesOnlyAfterExpiration(
+            float currentTime,
+            float windowEndsAt,
+            bool expected)
+        {
+            Assert.That(
+                PlayerCombatAbilities.ShouldRefreshPiercingWindow(
+                    currentTime,
+                    windowEndsAt),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(1, 0, 0.2f, 0.4f, false, true)]
+        [TestCase(1, 1, 0.2f, 0.4f, false, false)]
+        [TestCase(1, 0, 0.4f, 0.4f, false, false)]
+        [TestCase(1, 1, 0.4f, 0.4f, true, true)]
+        [TestCase(0, 0, 0.4f, 0.4f, true, false)]
+        public void Piercing_CommandCannotReopenExpiredWindowByItself(
+            int level,
+            int consumed,
+            float currentTime,
+            float windowEndsAt,
+            bool canOpenWindow,
+            bool expected)
+        {
+            Assert.That(
+                PlayerCombatAbilities.CanConsumePiercingTarget(
+                    level,
+                    consumed,
+                    currentTime,
+                    windowEndsAt,
+                    canOpenWindow),
+                Is.EqualTo(expected));
+        }
+
         [TestCase(0.29f, 0.3f, false)]
         [TestCase(0.3f, 0.3f, true)]
         public void Sever_CooldownDiscardsEarlyTrigger(
@@ -434,23 +490,59 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expected));
         }
 
-        [TestCase(true, false, true)]
-        [TestCase(false, true, true)]
-        [TestCase(false, false, false)]
-        public void PlayerCommand_ContinuesOnlyAfterKillOrPiercing(
+        [TestCase(true, false, false, true)]
+        [TestCase(false, true, true, true)]
+        [TestCase(false, true, false, false)]
+        [TestCase(false, false, true, false)]
+        [TestCase(false, false, false, false)]
+        public void PlayerCommand_ContinuesOnlyAfterKillOrExecutedPiercingAttack(
             bool targetDefeated,
-            bool hasPiercing,
+            bool piercingReserved,
+            bool attackExecuted,
             bool expected)
         {
             Assert.That(
                 PlayerController.ShouldContinueAfterPathAttack(
                     targetDefeated,
-                    hasPiercing),
+                    piercingReserved,
+                    attackExecuted),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(1f, 0f, 2.49f, 0f, false)]
+        [TestCase(1f, 0f, 2.5f, 0f, false)]
+        [TestCase(1f, 0f, 2.51f, 0f, true)]
+        [TestCase(0f, 1f, 0f, 2.99f, false)]
+        [TestCase(0f, 1f, 0f, 3f, false)]
+        [TestCase(0f, 1f, 0f, 3.01f, true)]
+        [TestCase(1f, 0f, -1f, 0f, false)]
+        [TestCase(1f, 0f, 1.75f, 1f, false)]
+        [TestCase(1f, 0f, 1.75f, 1.8f, true)]
+        public void PlayerCommand_PiercesOnlyBeyondEnemyArea(
+            float targetX,
+            float targetY,
+            float destinationX,
+            float destinationY,
+            bool expected)
+        {
+            Assert.That(
+                PlayerController.EnemyPiercingHorizontalRadius,
+                Is.EqualTo(1.5f));
+            Assert.That(
+                PlayerController.EnemyPiercingVerticalRadius,
+                Is.EqualTo(2f));
+            Assert.That(
+                PlayerController.IsPiercingTouchRequested(
+                    Vector2.zero,
+                    new Vector2(targetX, targetY),
+                    new Vector2(
+                        destinationX,
+                        destinationY)),
                 Is.EqualTo(expected));
         }
 
         [Test]
-        public void PlayerCommand_DirectTouchTakesPriorityOverPathEnemy()
+        public void PlayerCommand_PathEnemyTakesPriorityOverDirectTouch()
         {
             var directObject = new GameObject("DirectEnemy");
             var pathObject = new GameObject("PathEnemy");
@@ -465,12 +557,12 @@ namespace SimpleGame.Tests
                     PlayerController.SelectCommandEnemy(
                         directEnemy,
                         pathEnemy),
-                    Is.SameAs(directEnemy));
+                    Is.SameAs(pathEnemy));
                 Assert.That(
                     PlayerController.SelectCommandEnemy(
-                        null,
-                        pathEnemy),
-                    Is.SameAs(pathEnemy));
+                        directEnemy,
+                        null),
+                    Is.SameAs(directEnemy));
             }
             finally
             {

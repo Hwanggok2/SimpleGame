@@ -118,10 +118,10 @@ namespace SimpleGameEditor
 
         public static GameDataManifest BuildAssets()
         {
-            EnsureFolder(DataPath);
-            EnsureFolder(CatalogPath);
-            EnsureFolder(GeneratedPath);
-            EnsureFolder(ProfilePath);
+            EditorAssetUtility.EnsureFolder(DataPath);
+            EditorAssetUtility.EnsureFolder(CatalogPath);
+            EditorAssetUtility.EnsureFolder(GeneratedPath);
+            EditorAssetUtility.EnsureFolder(ProfilePath);
 
             EnemyBalanceTable enemyBalance =
                 CreateOrLoad<EnemyBalanceTable>(
@@ -150,9 +150,14 @@ namespace SimpleGameEditor
             if (playerLevelsCreated || playerLevels.Rows.Count == 0)
             {
                 playerLevels.Configure(
-                    Enumerable.Range(1, 20)
+                    Enumerable.Range(
+                        1,
+                        ProgressionCurve.MaximumPlayerLevel)
                         .Select(level =>
-                            new LevelExperienceRow(level, 6 + level * 2)));
+                            new LevelExperienceRow(
+                                level,
+                                ProgressionCurve
+                                    .CalculateRequiredExperience(level))));
             }
 
             LevelExperienceTable accountLevels =
@@ -234,6 +239,8 @@ namespace SimpleGameEditor
                 feedback.Configure(
                     0.07f,
                     0.1f,
+                    0.13f,
+                    0.14f,
                     0.13f,
                     0.14f,
                     0.22f,
@@ -318,11 +325,17 @@ namespace SimpleGameEditor
             registry.Configure(spawnPoints);
 
             StageSpawnController stageSpawner =
-                factory.GetComponent<StageSpawnController>();
+                UnityEngine.Object.FindAnyObjectByType<StageSpawnController>(
+                    FindObjectsInactive.Include);
             if (stageSpawner == null)
             {
-                stageSpawner =
-                    Undo.AddComponent<StageSpawnController>(factory.gameObject);
+                GameObject spawningSystems =
+                    PrototypeSceneBuilder.GetOrCreateSystemGroup(
+                        session.transform,
+                        "Spawning",
+                        true);
+                stageSpawner = Undo.AddComponent<StageSpawnController>(
+                    spawningSystems);
             }
 
             factory.ConfigureAssets(
@@ -407,7 +420,7 @@ namespace SimpleGameEditor
                 1,
                 10,
                 1f,
-                1.7f,
+                0.65f,
                 3f,
                 10f,
                 1.1f,
@@ -644,19 +657,5 @@ namespace SimpleGameEditor
             }
         }
 
-        private static void EnsureFolder(string path)
-        {
-            string current = "Assets";
-            foreach (string part in path.Split('/').Skip(1))
-            {
-                string next = $"{current}/{part}";
-                if (!AssetDatabase.IsValidFolder(next))
-                {
-                    AssetDatabase.CreateFolder(current, part);
-                }
-
-                current = next;
-            }
-        }
     }
 }

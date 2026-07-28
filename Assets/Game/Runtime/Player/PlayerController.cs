@@ -7,13 +7,18 @@ namespace SimpleGame
     public sealed class PlayerController : MonoBehaviour
     {
         public const float DefaultAttackRange = 0.72f;
-        private const float EnemySelectionRadius = 1.5f;
+        public const float EnemyPiercingHorizontalRadius = 1.5f;
+        public const float EnemyPiercingVerticalRadius = 2f;
+        private const float EnemySelectionRadius =
+            EnemyPiercingVerticalRadius;
 
         private PlayerRoot root;
         private PrototypeGameSession session;
+        private EnemyWorldService enemyWorld;
         private Camera worldCamera;
         private EnemyBase pendingEnemy;
         private EnemyBase ignoredPathEnemy;
+        private Vector2 commandOrigin;
         private Vector2 destination;
         private bool hasDestination;
         private bool shieldApproachOnly;
@@ -24,11 +29,13 @@ namespace SimpleGame
         public void Configure(
             PlayerRoot playerRoot,
             PrototypeGameSession gameSession,
+            EnemyWorldService configuredEnemyWorld,
             Camera camera,
             float configuredAttackRange)
         {
             root = playerRoot;
             session = gameSession;
+            enemyWorld = configuredEnemyWorld;
             worldCamera = camera;
             SetAttackRange(configuredAttackRange);
         }
@@ -40,7 +47,11 @@ namespace SimpleGame
 
         private void Update()
         {
-            if (root == null || session == null || !session.IsPlaying || !root.IsAlive)
+            if (root == null ||
+                session == null ||
+                enemyWorld == null ||
+                !session.IsPlaying ||
+                !root.IsAlive)
             {
                 return;
             }
@@ -82,9 +93,10 @@ namespace SimpleGame
             Vector3 world = worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, -worldCamera.transform.position.z));
             destination = world;
-            Vector2 commandOrigin = transform.position;
+            commandOrigin = transform.position;
             ignoredPathEnemy = null;
-            EnemyBase directEnemy = session.FindEnemyNear(
+            root.CombatAbilities.BeginPiercingCommand();
+            EnemyBase directEnemy = enemyWorld.FindEnemyNear(
                 destination,
                 EnemySelectionRadius);
             if (directEnemy != null &&
@@ -96,11 +108,15 @@ namespace SimpleGame
                 directEnemy = null;
             }
 
-            EnemyBase pathEnemy = session.FindFirstEnemyOnPath(
+            Vector2 movementTarget = directEnemy != null
+                ? directEnemy.transform.position
+                : destination;
+            EnemyBase pathEnemy = enemyWorld.FindFirstEnemyOnPath(
                 commandOrigin,
-                destination);
+                movementTarget,
+                EnemyWorldService.GetColliderRadius(root));
             bool interceptedOnPath =
-                directEnemy == null && pathEnemy != null;
+                pathEnemy != null && pathEnemy != directEnemy;
             EnemyBase selectedEnemy =
                 SelectCommandEnemy(directEnemy, pathEnemy);
             if (selectedEnemy != null &&
@@ -138,9 +154,10 @@ namespace SimpleGame
 
             if (pendingEnemy == null || !pendingEnemy.IsAlive)
             {
-                pendingEnemy = session.FindFirstEnemyOnPath(
+                pendingEnemy = enemyWorld.FindFirstEnemyOnPath(
                     transform.position,
                     destination,
+                    EnemyWorldService.GetColliderRadius(root),
                     ignoredPathEnemy);
                 if (pendingEnemy == null)
                 {
@@ -182,14 +199,38 @@ namespace SimpleGame
             }
 
             EnemyBase targetEnemy = pendingEnemy;
+            bool piercingRequested = IsPiercingTouchRequested(
+                commandOrigin,
+                targetEnemy.transform.position,
+                destination);
+            bool piercingReserved = false;
+            bool attackExecuted = false;
             while (pendingAttackCount > 0 && targetEnemy.IsAlive)
             {
                 pendingAttackCount--;
+                if (!attackExecuted)
+                {
+                    piercingReserved =
+                        piercingRequested &&
+                        root.CombatAbilities.TryConsumePiercingTarget();
+                }
+
+                attackExecuted = true;
                 bool critical = root.Critical.Roll();
 
                 root.PlayAttack(targetEnemy.transform.position);
                 PlayerAttackExecution execution =
-                    root.AttackEnemy(targetEnemy, critical);
+                    root.AttackEnemy(
+                        targetEnemy,
+                        critical,
+                        piercingReserved);
+                if (piercingReserved &&
+                    !execution.PiercingAllowed)
+                {
+                    root.CombatAbilities.RefundPiercingTarget();
+                    piercingReserved = false;
+                }
+
                 bool shieldRecoil =
                     execution.PrimaryResult.PlayerReaction ==
                         PlayerAttackReaction.Recoil &&
@@ -216,6 +257,7 @@ namespace SimpleGame
 
                 session.PlayCombatFeedback(
                     execution.AnyDamageApplied,
+                    !targetEnemy.IsAlive,
                     critical,
                     effectiveReaction);
 
@@ -228,11 +270,10 @@ namespace SimpleGame
             }
 
             bool defeated = !targetEnemy.IsAlive;
-            bool hasPiercing =
-                root.CombatAbilities.PiercingLevel > 0;
             if (!ShouldContinueAfterPathAttack(
                 defeated,
-                hasPiercing))
+                piercingReserved,
+                attackExecuted))
             {
                 CancelCommand();
                 return;
@@ -308,18 +349,48 @@ namespace SimpleGame
 
         public static bool ShouldContinueAfterPathAttack(
             bool targetDefeated,
-            bool hasPiercing)
+            bool piercingReserved,
+            bool attackExecuted)
         {
-            return targetDefeated || hasPiercing;
+            return targetDefeated ||
+                (piercingReserved && attackExecuted);
+        }
+
+        public static bool IsPiercingTouchRequested(
+            Vector2 commandOrigin,
+            Vector2 targetPosition,
+            Vector2 destination)
+        {
+            Vector2 attackDirection =
+                targetPosition - commandOrigin;
+            if (attackDirection.sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+
+            bool destinationIsPastTarget = Vector2.Dot(
+                destination - targetPosition,
+                attackDirection) > 0f;
+            Vector2 areaOffset =
+                destination - targetPosition;
+            float normalizedHorizontal =
+                areaOffset.x / EnemyPiercingHorizontalRadius;
+            float normalizedVertical =
+                areaOffset.y / EnemyPiercingVerticalRadius;
+            bool destinationIsOutsideArea =
+                normalizedHorizontal * normalizedHorizontal +
+                normalizedVertical * normalizedVertical > 1f;
+            return destinationIsPastTarget &&
+                destinationIsOutsideArea;
         }
 
         public static EnemyBase SelectCommandEnemy(
             EnemyBase directEnemy,
             EnemyBase pathEnemy)
         {
-            return directEnemy != null
-                ? directEnemy
-                : pathEnemy;
+            return pathEnemy != null
+                ? pathEnemy
+                : directEnemy;
         }
     }
 }

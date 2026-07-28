@@ -13,7 +13,7 @@ namespace SimpleGame
         private readonly HashSet<EnemyBase> hitEnemies = new();
         private readonly List<HitCandidate> candidates = new();
         private PlayerRoot owner;
-        private PrototypeGameSession session;
+        private EnemyWorldService enemyWorld;
         private Vector2 direction;
         private Vector2 origin;
         private float sizeMultiplier;
@@ -24,7 +24,7 @@ namespace SimpleGame
 
         public static void Spawn(
             PlayerRoot owner,
-            PrototypeGameSession session,
+            EnemyWorldService enemyWorld,
             Vector2 direction,
             int maximumHits,
             float sizeMultiplier,
@@ -35,7 +35,7 @@ namespace SimpleGame
                 projectileObject.AddComponent<MovingSlashProjectile>();
             projectile.Configure(
                 owner,
-                session,
+                enemyWorld,
                 direction,
                 maximumHits,
                 sizeMultiplier,
@@ -44,14 +44,14 @@ namespace SimpleGame
 
         private void Configure(
             PlayerRoot configuredOwner,
-            PrototypeGameSession configuredSession,
+            EnemyWorldService configuredEnemyWorld,
             Vector2 configuredDirection,
             int maximumHits,
             float configuredSizeMultiplier,
             float configuredDamageMultiplier)
         {
             owner = configuredOwner;
-            session = configuredSession;
+            enemyWorld = configuredEnemyWorld;
             direction = configuredDirection.sqrMagnitude > 0.0001f
                 ? configuredDirection.normalized
                 : Vector2.right;
@@ -83,7 +83,9 @@ namespace SimpleGame
 
         private void Update()
         {
-            if (owner == null || session == null || !owner.IsAlive)
+            if (owner == null ||
+                enemyWorld == null ||
+                !owner.IsAlive)
             {
                 Destroy(gameObject);
                 return;
@@ -106,7 +108,7 @@ namespace SimpleGame
         private void HitEnemiesAlong(Vector2 start, Vector2 end)
         {
             candidates.Clear();
-            foreach (EnemyBase enemy in session.Enemies)
+            foreach (EnemyBase enemy in enemyWorld.Enemies)
             {
                 if (enemy == null ||
                     !enemy.IsAlive ||
@@ -117,7 +119,7 @@ namespace SimpleGame
 
                 float allowedDistance =
                     BaseHitRadius * sizeMultiplier +
-                    PrototypeGameSession.GetColliderRadius(enemy);
+                    EnemyWorldService.GetColliderRadius(enemy);
                 Vector2 enemyPosition = enemy.transform.position;
                 float distance = CombatGeometry.DistancePointToSegment(
                     enemyPosition,

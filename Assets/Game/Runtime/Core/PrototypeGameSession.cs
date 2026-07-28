@@ -8,14 +8,12 @@ namespace SimpleGame
 {
     public sealed class PrototypeGameSession : MonoBehaviour
     {
-        private const float EnemySeparationPadding = 0.08f;
-        private const int SeparationPassCount = 2;
-        private const int SpawnPositionAttemptCount = 32;
         public const float CardChoiceInputDelay = 0.7f;
 
         [Header("Scene References")]
         [SerializeField] private PlayerRoot player;
         [SerializeField] private PrototypeEnemyFactory enemyFactory;
+        [SerializeField] private EnemyWorldService enemyWorld;
         [SerializeField] private Transform enemyRoot;
         [SerializeField] private Camera worldCamera;
         [SerializeField] private CombatFeedbackController combatFeedback;
@@ -28,7 +26,6 @@ namespace SimpleGame
         [Header("Prototype Account")]
         [SerializeField, Min(1)] private int accountLevel = 1;
 
-        private readonly List<EnemyBase> enemies = new();
         private readonly Dictionary<string, int> cardStacks = new(
             StringComparer.Ordinal);
         private readonly List<LevelUpCardDefinition> currentCardChoices =
@@ -51,7 +48,6 @@ namespace SimpleGame
         public event Action<bool> GameOverVisibilityChanged;
 
         public PlayerRoot Player => player;
-        public IReadOnlyList<EnemyBase> Enemies => enemies;
         public int Score { get; private set; }
         public int AccountExperience =>
             gameData != null && gameData.GlobalBalance != null
@@ -75,10 +71,12 @@ namespace SimpleGame
             Camera configuredCamera,
             CombatFeedbackController configuredCombatFeedback,
             EnemyWorldRecycler configuredEnemyRecycler,
-            PrototypeHUDPresenter configuredPresenter)
+            PrototypeHUDPresenter configuredPresenter,
+            EnemyWorldService configuredEnemyWorld)
         {
             player = configuredPlayer;
             enemyFactory = configuredFactory;
+            enemyWorld = configuredEnemyWorld;
             enemyRoot = configuredEnemyRoot;
             worldCamera = configuredCamera;
             combatFeedback = configuredCombatFeedback;
@@ -106,11 +104,13 @@ namespace SimpleGame
             if (gameData == null ||
                 !gameData.IsConfigured ||
                 stageSpawner == null ||
-                enemyRecycler == null)
+                enemyRecycler == null ||
+                enemyWorld == null)
             {
                 Debug.LogError(
                     "PrototypeGameSession requires GameDataManifest " +
-                    "StageSpawnController, and EnemyWorldRecycler.",
+                    "StageSpawnController, EnemyWorldRecycler, and " +
+                    "EnemyWorldService.",
                     this);
                 enabled = false;
                 return;
@@ -119,6 +119,7 @@ namespace SimpleGame
             EnsureCombatFeedback();
             player.Configure(
                 this,
+                enemyWorld,
                 worldCamera,
                 gameData.PlayerLevelExperience,
                 gameData.GlobalBalance,
@@ -126,8 +127,11 @@ namespace SimpleGame
             enemyFactory.ConfigureAssets(
                 gameData.EnemyAssets,
                 gameData.EnemyBalance);
-            enemyFactory.Configure(this, enemyRoot);
-            enemyRecycler.Configure(this, player.GetComponent<PlayerWorldArea>());
+            enemyFactory.Configure(this, enemyWorld, enemyRoot);
+            enemyRecycler.Configure(
+                this,
+                enemyWorld,
+                player.GetComponent<PlayerWorldArea>());
             hudPresenter.Initialize(this);
 
             player.Health.Depleted += OnPlayerDepleted;
@@ -182,305 +186,9 @@ namespace SimpleGame
             }
         }
 
-        public void RegisterEnemy(EnemyBase enemy)
-        {
-            if (!enemies.Contains(enemy))
-            {
-                enemies.Add(enemy);
-            }
-        }
-
-        public EnemyBase FindEnemyNear(Vector2 position, float radius)
-        {
-            EnemyBase nearest = null;
-            float nearestDistance = radius;
-            foreach (EnemyBase enemy in enemies)
-            {
-                if (enemy == null || !enemy.IsAlive)
-                {
-                    continue;
-                }
-
-                float distance = Vector2.Distance(position, enemy.transform.position);
-                if (distance <= nearestDistance)
-                {
-                    nearestDistance = distance;
-                    nearest = enemy;
-                }
-            }
-
-            return nearest;
-        }
-
-        public EnemyBase FindFirstEnemyOnPath(
-            Vector2 start,
-            Vector2 destination,
-            EnemyBase ignoredEnemy = null)
-        {
-            Vector2 path = destination - start;
-            float pathLengthSquared = path.sqrMagnitude;
-            if (pathLengthSquared <= 0.0001f)
-            {
-                return null;
-            }
-
-            float playerRadius = GetColliderRadius(player);
-            EnemyBase first = null;
-            float firstProgress = float.MaxValue;
-            foreach (EnemyBase enemy in enemies)
-            {
-                if (enemy == null ||
-                    enemy == ignoredEnemy ||
-                    !enemy.IsAlive)
-                {
-                    continue;
-                }
-
-                Vector2 enemyPosition = enemy.transform.position;
-                if (!CombatGeometry.IsAheadAlongPath(
-                    enemyPosition,
-                    start,
-                    destination))
-                {
-                    continue;
-                }
-
-                float progress = Mathf.Clamp01(
-                    Vector2.Dot(enemyPosition - start, path) /
-                    pathLengthSquared);
-                Vector2 closestPoint = start + path * progress;
-                float combinedRadius =
-                    playerRadius + GetColliderRadius(enemy);
-                if (Vector2.SqrMagnitude(enemyPosition - closestPoint) >
-                    combinedRadius * combinedRadius)
-                {
-                    continue;
-                }
-
-                if (progress < firstProgress)
-                {
-                    firstProgress = progress;
-                    first = enemy;
-                }
-            }
-
-            return first;
-        }
-
-        public List<EnemyBase> CollectPiercingTargets(
-            Vector2 start,
-            EnemyBase primary,
-            int additionalTargetCount,
-            float reachAfterPrimary,
-            float halfWidth)
-        {
-            var result = new List<EnemyBase>();
-            if (primary == null || !primary.IsAlive)
-            {
-                return result;
-            }
-
-            result.Add(primary);
-            if (additionalTargetCount <= 0)
-            {
-                return result;
-            }
-
-            Vector2 direction =
-                (Vector2)primary.transform.position - start;
-            float primaryDistance = direction.magnitude;
-            if (primaryDistance <= 0.0001f)
-            {
-                return result;
-            }
-
-            direction /= primaryDistance;
-            var candidates = new List<ProjectedEnemy>();
-            foreach (EnemyBase enemy in enemies)
-            {
-                if (enemy == null ||
-                    enemy == primary ||
-                    !enemy.IsAlive)
-                {
-                    continue;
-                }
-
-                Vector2 offset =
-                    (Vector2)enemy.transform.position - start;
-                float progress = Vector2.Dot(offset, direction);
-                if (progress <= primaryDistance + 0.01f ||
-                    progress > primaryDistance + reachAfterPrimary)
-                {
-                    continue;
-                }
-
-                Vector2 closest = start + direction * progress;
-                float allowedDistance =
-                    halfWidth + GetColliderRadius(enemy);
-                if (Vector2.Distance(
-                        enemy.transform.position,
-                        closest) <= allowedDistance)
-                {
-                    candidates.Add(new ProjectedEnemy(enemy, progress));
-                }
-            }
-
-            candidates.Sort((left, right) =>
-                left.Progress.CompareTo(right.Progress));
-            int count = Mathf.Min(
-                additionalTargetCount,
-                candidates.Count);
-            for (int index = 0; index < count; index++)
-            {
-                result.Add(candidates[index].Enemy);
-            }
-
-            return result;
-        }
-
-        public List<EnemyBase> CollectNearestEnemies(
-            Vector2 center,
-            float radius,
-            int maximumCount,
-            ISet<EnemyBase> excluded)
-        {
-            var candidates = new List<ProjectedEnemy>();
-            float radiusSquared = radius * radius;
-            foreach (EnemyBase enemy in enemies)
-            {
-                if (enemy == null ||
-                    !enemy.IsAlive ||
-                    (excluded != null && excluded.Contains(enemy)))
-                {
-                    continue;
-                }
-
-                float distanceSquared = Vector2.SqrMagnitude(
-                    (Vector2)enemy.transform.position - center);
-                if (distanceSquared <= radiusSquared)
-                {
-                    candidates.Add(new ProjectedEnemy(
-                        enemy,
-                        distanceSquared));
-                }
-            }
-
-            candidates.Sort((left, right) =>
-                left.Progress.CompareTo(right.Progress));
-            int count = Mathf.Min(
-                Mathf.Max(0, maximumCount),
-                candidates.Count);
-            var result = new List<EnemyBase>(count);
-            for (int index = 0; index < count; index++)
-            {
-                result.Add(candidates[index].Enemy);
-            }
-
-            return result;
-        }
-
-        public List<EnemyBase> CollectEnemiesAlongSegment(
-            Vector2 start,
-            Vector2 end,
-            float halfWidth)
-        {
-            var result = new List<EnemyBase>();
-            foreach (EnemyBase enemy in enemies)
-            {
-                if (enemy == null || !enemy.IsAlive)
-                {
-                    continue;
-                }
-
-                if (CombatGeometry.OverlapsSegment(
-                        enemy.transform.position,
-                        GetColliderRadius(enemy),
-                        start,
-                        end,
-                        halfWidth))
-                {
-                    result.Add(enemy);
-                }
-            }
-
-            return result;
-        }
-
-        public Vector2 FindOpenEnemyPosition(
-            Vector2 requestedPosition,
-            float radius,
-            EnemyBase ignoredEnemy = null)
-        {
-            float safeRadius = Mathf.Max(0.1f, radius);
-            for (int attempt = 0;
-                 attempt < SpawnPositionAttemptCount;
-                 attempt++)
-            {
-                Vector2 candidate = requestedPosition;
-                if (attempt > 0)
-                {
-                    float ring = 1f + (attempt - 1) / 8;
-                    float angle = attempt * 2.39996323f;
-                    candidate += new Vector2(
-                        Mathf.Cos(angle),
-                        Mathf.Sin(angle)) *
-                        safeRadius * 2.15f * ring;
-                }
-
-                if (IsEnemyPositionOpen(
-                        candidate,
-                        safeRadius,
-                        ignoredEnemy))
-                {
-                    return candidate;
-                }
-            }
-
-            return requestedPosition;
-        }
-
-        public void SeparateEnemy(EnemyBase mover)
-        {
-            if (mover == null || !mover.IsAlive)
-            {
-                return;
-            }
-
-            Vector2 resolved = mover.transform.position;
-            float moverRadius = GetColliderRadius(mover);
-            for (int pass = 0; pass < SeparationPassCount; pass++)
-            {
-                foreach (EnemyBase other in enemies)
-                {
-                    if (other == null ||
-                        other == mover ||
-                        !other.IsAlive)
-                    {
-                        continue;
-                    }
-
-                    float minimumDistance =
-                        moverRadius +
-                        GetColliderRadius(other) +
-                        EnemySeparationPadding;
-                    resolved = CombatGeometry.PushOutside(
-                        resolved,
-                        mover.GetInstanceID(),
-                        other.transform.position,
-                        other.GetInstanceID(),
-                        minimumDistance);
-                }
-            }
-
-            mover.transform.position = new Vector3(
-                resolved.x,
-                resolved.y,
-                mover.transform.position.z);
-        }
-
         public void OnEnemyDefeated(EnemyBase enemy)
         {
-            enemies.Remove(enemy);
+            enemyWorld.Unregister(enemy);
             Score += enemy.Definition.Score;
             player.Progression.AddExperience(enemy.Definition.KillExperience);
         }
@@ -492,11 +200,13 @@ namespace SimpleGame
 
         public void PlayCombatFeedback(
             bool damageApplied,
+            bool targetDefeated,
             bool critical,
             PlayerAttackReaction playerReaction)
         {
             combatFeedback.PlayResolvedAttack(
                 damageApplied,
+                targetDefeated,
                 critical,
                 playerReaction);
         }
@@ -634,7 +344,7 @@ namespace SimpleGame
             }
 
             player.Health.RestoreFull();
-            foreach (EnemyBase enemy in enemies)
+            foreach (EnemyBase enemy in enemyWorld.Enemies)
             {
                 if (enemy != null && enemy.IsAlive)
                 {
@@ -819,7 +529,9 @@ namespace SimpleGame
 
             if (combatFeedback == null)
             {
-                combatFeedback = GetComponent<CombatFeedbackController>();
+                combatFeedback =
+                    GetComponentInChildren<CombatFeedbackController>(
+                        true);
             }
 
             if (combatFeedback == null)
@@ -833,61 +545,5 @@ namespace SimpleGame
             combatFeedback.Configure(cameraShake, gameData.CombatFeedback);
         }
 
-        public static float GetColliderRadius(Component owner)
-        {
-            CircleCollider2D circle = owner != null
-                ? owner.GetComponent<CircleCollider2D>()
-                : null;
-            if (circle == null)
-            {
-                return 0f;
-            }
-
-            Vector3 scale = circle.transform.lossyScale;
-            return circle.radius *
-                Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
-        }
-
-        private bool IsEnemyPositionOpen(
-            Vector2 position,
-            float radius,
-            EnemyBase ignoredEnemy)
-        {
-            foreach (EnemyBase enemy in enemies)
-            {
-                if (enemy == null ||
-                    enemy == ignoredEnemy ||
-                    !enemy.IsAlive)
-                {
-                    continue;
-                }
-
-                float minimumDistance =
-                    radius +
-                    GetColliderRadius(enemy) +
-                    EnemySeparationPadding;
-                if (Vector2.SqrMagnitude(
-                        position -
-                        (Vector2)enemy.transform.position) <
-                    minimumDistance * minimumDistance)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private readonly struct ProjectedEnemy
-        {
-            public ProjectedEnemy(EnemyBase enemy, float progress)
-            {
-                Enemy = enemy;
-                Progress = progress;
-            }
-
-            public EnemyBase Enemy { get; }
-            public float Progress { get; }
-        }
     }
 }

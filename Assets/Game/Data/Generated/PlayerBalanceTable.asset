@@ -17,7 +17,7 @@ MonoBehaviour:
     startLevel: 1
     baseMaxHp: 10
     baseAttackPower: 1
-    attackGrowthMultiplier: 1.7
+    attackGrowthRate: 0.65
     rearAttackMultiplier: 3
     baseMoveSpeed: 10
     pathEnemyApproachSpeedMultiplier: 1.1

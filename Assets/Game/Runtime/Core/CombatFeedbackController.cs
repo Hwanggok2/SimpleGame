@@ -20,11 +20,13 @@ namespace SimpleGame
 
         public void PlayResolvedAttack(
             bool damageApplied,
+            bool targetDefeated,
             bool critical,
             PlayerAttackReaction playerReaction)
         {
             CombatFeedbackLevel feedback = CombatFeedbackResolver.Resolve(
                 damageApplied,
+                targetDefeated,
                 critical,
                 playerReaction);
             if (cameraShake == null || profile == null)
@@ -41,6 +43,11 @@ namespace SimpleGame
                     cameraShake.Play(
                         profile.NormalHitStrength,
                         profile.NormalHitDuration);
+                    break;
+                case CombatFeedbackLevel.DefeatingHit:
+                    cameraShake.Play(
+                        profile.DefeatingHitStrength,
+                        profile.DefeatingHitDuration);
                     break;
                 case CombatFeedbackLevel.FrontRecoil:
                     cameraShake.Play(

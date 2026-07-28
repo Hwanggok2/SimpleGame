@@ -25,20 +25,20 @@ namespace SimpleGame.Tests
             2,
             AttackSide.Front,
             1f,
-            5.1f)]
+            4.003f)]
         [TestCase(
             EnemyArchetype.Melee,
             1,
             2,
             AttackSide.Rear,
             3f,
-            5.1f)]
+            4.003f)]
         [TestCase(
             EnemyArchetype.Ranged,
             1,
             1,
             AttackSide.Front,
-            3f,
+            1f,
             3f)]
         [TestCase(
             EnemyArchetype.Ranged,
@@ -53,7 +53,7 @@ namespace SimpleGame.Tests
             3,
             AttackSide.Rear,
             3f,
-            5.1f)]
+            4.003f)]
         public void Resolve_UsesAttackPowerAndScaledHealth(
             EnemyArchetype archetype,
             int playerLevel,
@@ -66,8 +66,7 @@ namespace SimpleGame.Tests
                 PrototypeEnemyDefinitions.Create(archetype);
             CombatResult result = CombatResolver.Resolve(
                 definition,
-                playerLevel,
-                enemyLevel,
+                definition.CalculateMaxHealth(enemyLevel),
                 PlayerAttack(playerLevel),
                 3f,
                 side,
@@ -89,16 +88,14 @@ namespace SimpleGame.Tests
 
             CombatResult front = CombatResolver.Resolve(
                 definition,
-                1,
-                2,
+                definition.CalculateMaxHealth(2),
                 1f,
                 3f,
                 AttackSide.Front,
                 true);
             CombatResult rear = CombatResolver.Resolve(
                 definition,
-                1,
-                2,
+                definition.CalculateMaxHealth(2),
                 1f,
                 3f,
                 AttackSide.Rear,
@@ -108,11 +105,10 @@ namespace SimpleGame.Tests
             Assert.That(rear.Damage, Is.EqualTo(9f));
         }
 
-        [TestCase(3, 1, false)]
-        [TestCase(2, 1, true)]
+        [TestCase(10, 1, false)]
         [TestCase(1, 1, true)]
         [TestCase(1, 2, true)]
-        public void Resolve_ShieldFrontRecoilUsesOneHitException(
+        public void Resolve_ShieldFrontRecoilUsesActualDamage(
             int playerLevel,
             int enemyLevel,
             bool expectedRecoil)
@@ -121,8 +117,7 @@ namespace SimpleGame.Tests
                 PrototypeEnemyDefinitions.Create(EnemyArchetype.Shield);
             CombatResult result = CombatResolver.Resolve(
                 definition,
-                playerLevel,
-                enemyLevel,
+                definition.CalculateMaxHealth(enemyLevel),
                 PlayerAttack(playerLevel),
                 3f,
                 AttackSide.Front,
@@ -140,8 +135,7 @@ namespace SimpleGame.Tests
                 PrototypeEnemyDefinitions.Create(EnemyArchetype.Shield);
             CombatResult result = CombatResolver.Resolve(
                 definition,
-                1,
-                2,
+                definition.CalculateMaxHealth(2),
                 1f,
                 3f,
                 AttackSide.Front,
@@ -163,8 +157,7 @@ namespace SimpleGame.Tests
                 PrototypeEnemyDefinitions.Create(archetype);
             CombatResult result = CombatResolver.Resolve(
                 definition,
-                1,
-                20,
+                definition.CalculateMaxHealth(20),
                 1f,
                 3f,
                 AttackSide.Front,
@@ -175,12 +168,14 @@ namespace SimpleGame.Tests
                 Is.EqualTo(PlayerAttackReaction.None));
         }
 
-        [TestCase(true, true, PlayerAttackReaction.Recoil, CombatFeedbackLevel.CriticalHit)]
-        [TestCase(false, false, PlayerAttackReaction.Recoil, CombatFeedbackLevel.FrontRecoil)]
-        [TestCase(true, false, PlayerAttackReaction.None, CombatFeedbackLevel.NormalHit)]
-        [TestCase(false, false, PlayerAttackReaction.None, CombatFeedbackLevel.None)]
+        [TestCase(true, false, true, PlayerAttackReaction.Recoil, CombatFeedbackLevel.CriticalHit)]
+        [TestCase(true, true, false, PlayerAttackReaction.None, CombatFeedbackLevel.DefeatingHit)]
+        [TestCase(false, false, false, PlayerAttackReaction.Recoil, CombatFeedbackLevel.FrontRecoil)]
+        [TestCase(true, false, false, PlayerAttackReaction.None, CombatFeedbackLevel.NormalHit)]
+        [TestCase(false, false, false, PlayerAttackReaction.None, CombatFeedbackLevel.None)]
         public void FeedbackResolver_SelectsOnlyTheLargestFeedback(
             bool damageApplied,
+            bool targetDefeated,
             bool critical,
             PlayerAttackReaction reaction,
             CombatFeedbackLevel expected)
@@ -188,8 +183,27 @@ namespace SimpleGame.Tests
             Assert.That(
                 CombatFeedbackResolver.Resolve(
                     damageApplied,
+                    targetDefeated,
                     critical,
                     reaction),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(EnemyArchetype.Shield, AttackSide.Front, false, false)]
+        [TestCase(EnemyArchetype.Shield, AttackSide.Front, true, true)]
+        [TestCase(EnemyArchetype.Shield, AttackSide.Rear, false, true)]
+        [TestCase(EnemyArchetype.Melee, AttackSide.Front, false, true)]
+        public void PiercingPastTarget_StopsAtLivingFrontShield(
+            EnemyArchetype archetype,
+            AttackSide side,
+            bool targetDefeated,
+            bool expected)
+        {
+            Assert.That(
+                CombatResolver.CanPiercePastTarget(
+                    archetype,
+                    side,
+                    targetDefeated),
                 Is.EqualTo(expected));
         }
 
@@ -204,9 +218,10 @@ namespace SimpleGame.Tests
         }
 
         [TestCase(1, 2)]
-        [TestCase(10, 3)]
-        [TestCase(14, 4)]
-        public void EnemyAttackDamage_ScalesGraduallyWithLevel(
+        [TestCase(10, 4)]
+        [TestCase(50, 6)]
+        [TestCase(200, 8)]
+        public void EnemyAttackDamage_UsesCurveAndCapsAtEight(
             int level,
             int expectedDamage)
         {
@@ -236,12 +251,7 @@ namespace SimpleGame.Tests
 
         [TestCase(
             EnemyArchetype.Melee,
-            2,
-            1,
-            EnemyThreatLevel.OneHit)]
-        [TestCase(
-            EnemyArchetype.Ranged,
-            1,
+            10,
             1,
             EnemyThreatLevel.OneHit)]
         [TestCase(
@@ -275,16 +285,93 @@ namespace SimpleGame.Tests
             Assert.That(
                 CombatResolver.GetThreatLevel(
                     definition,
-                    playerLevel,
-                    enemyLevel,
+                    definition.CalculateMaxHealth(enemyLevel),
                     PlayerAttack(playerLevel),
-                    3f),
+                3f),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(1, 1f)]
+        [TestCase(4, 1f)]
+        [TestCase(5, 1.2f)]
+        [TestCase(7, 1.2f)]
+        [TestCase(8, 1.5f)]
+        [TestCase(12, 1.9f)]
+        [TestCase(16, 2.4f)]
+        [TestCase(20, 3f)]
+        [TestCase(24, 3.8f)]
+        [TestCase(32, 4.8f)]
+        [TestCase(40, 6f)]
+        [TestCase(48, 7.5f)]
+        [TestCase(56, 9.5f)]
+        [TestCase(60, 9.5f)]
+        public void WaveHealthMultiplier_UsesDesignedGates(
+            int waveNumber,
+            float expectedMultiplier)
+        {
+            Assert.That(
+                ProgressionCurve.CalculateWaveHealthMultiplier(
+                    waveNumber),
+                Is.EqualTo(expectedMultiplier));
+        }
+
+        [Test]
+        public void EnemyHealth_JumpsAtFiveAndEightThenGrowsByLevel()
+        {
+            EnemyDefinition definition =
+                PrototypeEnemyDefinitions.Create(
+                    EnemyArchetype.Melee);
+
+            float waveFour = definition.CalculateMaxHealth(4, 4);
+            float waveFive = definition.CalculateMaxHealth(4, 5);
+            float waveSeven = definition.CalculateMaxHealth(5, 7);
+            float waveEight = definition.CalculateMaxHealth(6, 8);
+
+            Assert.That(
+                waveFive / waveFour,
+                Is.EqualTo(1.2f).Within(0.001f));
+            Assert.That(waveSeven, Is.GreaterThan(waveFive));
+            Assert.That(
+                waveSeven / waveFive,
+                Is.LessThan(1.15f));
+            Assert.That(
+                waveEight / waveSeven,
+                Is.GreaterThan(1.25f));
+        }
+
+        [TestCase(1, 1f)]
+        [TestCase(4, 2.4768f)]
+        [TestCase(50, 11.283f)]
+        public void AdditiveProgressionCurve_GrowsWithoutExponentials(
+            int level,
+            float expected)
+        {
+            Assert.That(
+                ProgressionCurve.CalculateAdditiveStat(
+                    1f,
+                    0.65f,
+                    level),
+                Is.EqualTo(expected).Within(0.001f));
+        }
+
+        [TestCase(1, 8)]
+        [TestCase(8, 23)]
+        [TestCase(50, 0)]
+        public void RequiredExperience_PreservesEarlyPaceAndCapsAtFifty(
+            int level,
+            int expected)
+        {
+            Assert.That(
+                ProgressionCurve.CalculateRequiredExperience(level),
                 Is.EqualTo(expected));
         }
 
         private static float PlayerAttack(int level)
         {
-            return Mathf.Pow(1.7f, level - 1);
+            return ProgressionCurve.CalculateAdditiveStat(
+                1f,
+                0.65f,
+                level);
         }
     }
 }

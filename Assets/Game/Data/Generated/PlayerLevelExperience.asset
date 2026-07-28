@@ -28,88 +28,88 @@ MonoBehaviour:
   - level: 7
     requiredExperienceToNext: 20
   - level: 8
-    requiredExperienceToNext: 22
+    requiredExperienceToNext: 23
   - level: 9
-    requiredExperienceToNext: 24
+    requiredExperienceToNext: 25
   - level: 10
-    requiredExperienceToNext: 26
-  - level: 11
     requiredExperienceToNext: 28
-  - level: 12
+  - level: 11
     requiredExperienceToNext: 30
+  - level: 12
+    requiredExperienceToNext: 33
   - level: 13
-    requiredExperienceToNext: 32
+    requiredExperienceToNext: 35
   - level: 14
-    requiredExperienceToNext: 34
-  - level: 15
-    requiredExperienceToNext: 36
-  - level: 16
     requiredExperienceToNext: 38
-  - level: 17
+  - level: 15
     requiredExperienceToNext: 40
-  - level: 18
-    requiredExperienceToNext: 42
-  - level: 19
-    requiredExperienceToNext: 44
-  - level: 20
+  - level: 16
+    requiredExperienceToNext: 43
+  - level: 17
     requiredExperienceToNext: 46
-  - level: 21
-    requiredExperienceToNext: 48
-  - level: 22
-    requiredExperienceToNext: 50
-  - level: 23
+  - level: 18
+    requiredExperienceToNext: 49
+  - level: 19
     requiredExperienceToNext: 52
-  - level: 24
-    requiredExperienceToNext: 54
-  - level: 25
-    requiredExperienceToNext: 56
-  - level: 26
+  - level: 20
+    requiredExperienceToNext: 55
+  - level: 21
     requiredExperienceToNext: 58
-  - level: 27
-    requiredExperienceToNext: 60
-  - level: 28
-    requiredExperienceToNext: 62
-  - level: 29
+  - level: 22
+    requiredExperienceToNext: 61
+  - level: 23
     requiredExperienceToNext: 64
-  - level: 30
-    requiredExperienceToNext: 66
-  - level: 31
-    requiredExperienceToNext: 68
-  - level: 32
+  - level: 24
+    requiredExperienceToNext: 67
+  - level: 25
     requiredExperienceToNext: 70
-  - level: 33
-    requiredExperienceToNext: 72
-  - level: 34
-    requiredExperienceToNext: 74
-  - level: 35
+  - level: 26
+    requiredExperienceToNext: 73
+  - level: 27
     requiredExperienceToNext: 76
-  - level: 36
-    requiredExperienceToNext: 78
-  - level: 37
+  - level: 28
     requiredExperienceToNext: 80
-  - level: 38
-    requiredExperienceToNext: 82
-  - level: 39
-    requiredExperienceToNext: 84
-  - level: 40
-    requiredExperienceToNext: 86
-  - level: 41
-    requiredExperienceToNext: 88
-  - level: 42
+  - level: 29
+    requiredExperienceToNext: 83
+  - level: 30
+    requiredExperienceToNext: 87
+  - level: 31
     requiredExperienceToNext: 90
-  - level: 43
-    requiredExperienceToNext: 92
-  - level: 44
+  - level: 32
     requiredExperienceToNext: 94
-  - level: 45
-    requiredExperienceToNext: 96
-  - level: 46
-    requiredExperienceToNext: 98
-  - level: 47
-    requiredExperienceToNext: 100
-  - level: 48
-    requiredExperienceToNext: 102
-  - level: 49
+  - level: 33
+    requiredExperienceToNext: 97
+  - level: 34
+    requiredExperienceToNext: 101
+  - level: 35
     requiredExperienceToNext: 104
+  - level: 36
+    requiredExperienceToNext: 108
+  - level: 37
+    requiredExperienceToNext: 112
+  - level: 38
+    requiredExperienceToNext: 116
+  - level: 39
+    requiredExperienceToNext: 120
+  - level: 40
+    requiredExperienceToNext: 124
+  - level: 41
+    requiredExperienceToNext: 128
+  - level: 42
+    requiredExperienceToNext: 132
+  - level: 43
+    requiredExperienceToNext: 136
+  - level: 44
+    requiredExperienceToNext: 140
+  - level: 45
+    requiredExperienceToNext: 144
+  - level: 46
+    requiredExperienceToNext: 148
+  - level: 47
+    requiredExperienceToNext: 152
+  - level: 48
+    requiredExperienceToNext: 157
+  - level: 49
+    requiredExperienceToNext: 161
   - level: 50
     requiredExperienceToNext: 0

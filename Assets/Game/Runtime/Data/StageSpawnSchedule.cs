@@ -40,8 +40,28 @@ namespace SimpleGame
         public string SpawnPointId => spawnPointId;
         public string EnemyId => enemyId;
         public int EnemyLevel => enemyLevel;
+        public int WaveNumber =>
+            TryParseWaveNumber(waveId, out int result)
+                ? result
+                : 1;
         public string RuntimeId =>
             $"{stageId}_{waveId}_{spawnIndex:000}";
+
+        public static bool TryParseWaveNumber(
+            string value,
+            out int waveNumber)
+        {
+            const string prefix = "WAVE_";
+            waveNumber = 0;
+            return !string.IsNullOrWhiteSpace(value) &&
+                value.StartsWith(
+                    prefix,
+                    StringComparison.Ordinal) &&
+                int.TryParse(
+                    value.Substring(prefix.Length),
+                    out waveNumber) &&
+                waveNumber > 0;
+        }
     }
 
     [CreateAssetMenu(

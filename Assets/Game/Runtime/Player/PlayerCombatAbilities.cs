@@ -29,9 +29,10 @@ namespace SimpleGame
 
         private readonly HashSet<EnemyBase> directTargets = new();
         private PlayerRoot owner;
-        private PrototypeGameSession session;
+        private EnemyWorldService enemyWorld;
         private float piercingWindowEndsAt;
         private int piercingTargetsConsumed;
+        private bool canOpenPiercingWindowForCommand;
         private float nextSeverAvailableTime;
 
         public int PiercingLevel => piercingLevel;
@@ -46,10 +47,10 @@ namespace SimpleGame
 
         public void Configure(
             PlayerRoot configuredOwner,
-            PrototypeGameSession configuredSession)
+            EnemyWorldService configuredEnemyWorld)
         {
             owner = configuredOwner;
-            session = configuredSession;
+            enemyWorld = configuredEnemyWorld;
             piercingLevel = 0;
             severLevel = 0;
             hitHealLevel = 0;
@@ -63,6 +64,7 @@ namespace SimpleGame
             shieldBypassChancePerLevel = 0.1f;
             piercingWindowEndsAt = 0f;
             piercingTargetsConsumed = 0;
+            canOpenPiercingWindowForCommand = false;
             nextSeverAvailableTime = 0f;
         }
 
@@ -129,19 +131,34 @@ namespace SimpleGame
 
         public PlayerAttackExecution ExecuteNormalAttack(
             EnemyBase primary,
-            bool critical)
+            bool critical,
+            bool allowPiercing)
         {
             if (primary == null ||
                 !primary.IsAlive ||
                 owner == null ||
-                session == null)
+                enemyWorld == null)
             {
                 return default;
             }
 
-            int availablePiercingTargets =
-                GetAvailablePiercingTargetCount();
-            List<EnemyBase> targets = session.CollectPiercingTargets(
+            AttackSide primarySide = ResolveSide(primary);
+            CombatResult primaryPreview = BuildNormalAttackResult(
+                primary,
+                primarySide,
+                critical,
+                true);
+            bool piercingAllowed = allowPiercing &&
+                CombatResolver.CanPiercePastTarget(
+                    primary.Archetype,
+                    primarySide,
+                    primaryPreview.Damage >=
+                        primary.CurrentHealth);
+            int availablePiercingTargets = piercingAllowed
+                ? GetRemainingPiercingTargetCount()
+                : 0;
+            List<EnemyBase> targets =
+                enemyWorld.CollectPiercingTargets(
                 owner.transform.position,
                 primary,
                 availablePiercingTargets,
@@ -153,7 +170,6 @@ namespace SimpleGame
                 directTargets.Add(target);
             }
 
-            AttackSide primarySide = ResolveSide(primary);
             CombatResult primaryResult = default;
             bool primaryDamaged = false;
             bool anyDamage = false;
@@ -164,28 +180,12 @@ namespace SimpleGame
                 AttackSide side = isPrimary
                     ? primarySide
                     : ResolveSide(target);
-                CombatResult baseResult = CombatResolver.Resolve(
-                    target.Definition,
-                    owner.Progression.Level,
-                    target.Level,
-                    owner.AttackPower,
-                    owner.RearAttackMultiplier,
-                    side,
-                    critical);
-                float skillBaseDamage = CalculateSkillBaseDamage(side);
-                float bonusDamage = 0f;
-                if (isPrimary && staticChargeLevel > 0)
-                {
-                    bonusDamage +=
-                        skillBaseDamage * staticDamageMultiplier;
-                }
-
-                var combinedResult = new CombatResult(
-                    baseResult.Damage + bonusDamage,
-                    baseResult.TargetMaxHealth,
-                    isPrimary
-                        ? baseResult.PlayerReaction
-                        : PlayerAttackReaction.None);
+                CombatResult combinedResult =
+                    BuildNormalAttackResult(
+                        target,
+                        side,
+                        critical,
+                        isPrimary);
                 bool damaged = target.ReceivePlayerAttack(
                     combinedResult,
                     owner,
@@ -223,7 +223,7 @@ namespace SimpleGame
                     CalculateStaticAdjacentTargetCount(
                         staticChargeLevel);
                 List<EnemyBase> adjacent =
-                    session.CollectNearestEnemies(
+                    enemyWorld.CollectNearestEnemies(
                         primary.transform.position,
                         StaticSearchRadius,
                         adjacentCount,
@@ -249,7 +249,9 @@ namespace SimpleGame
                 primaryResult,
                 primaryDamaged,
                 anyDamage,
-                critical);
+                critical,
+                primarySide,
+                piercingAllowed && primaryDamaged);
         }
 
         public bool ApplySkillHit(
@@ -267,7 +269,7 @@ namespace SimpleGame
                 Mathf.Max(0f, damageMultiplier);
             var result = new CombatResult(
                 damage,
-                enemy.Definition.CalculateMaxHealth(enemy.Level),
+                enemy.MaxHealth,
                 PlayerAttackReaction.None);
             bool damaged = enemy.ReceivePlayerAttack(
                 result,
@@ -294,7 +296,7 @@ namespace SimpleGame
 
             MovingSlashProjectile.Spawn(
                 owner,
-                session,
+                enemyWorld,
                 movementDirection,
                 CalculateMovingSlashMaximumHits(movingSlashLevel),
                 CalculateMovingSlashSize(movingSlashLevel),
@@ -352,6 +354,37 @@ namespace SimpleGame
                 Mathf.Max(0, consumed));
         }
 
+        public static bool ShouldRefreshPiercingWindow(
+            float currentTime,
+            float windowEndsAt)
+        {
+            return currentTime >= windowEndsAt;
+        }
+
+        public static bool CanConsumePiercingTarget(
+            int level,
+            int consumed,
+            float currentTime,
+            float windowEndsAt,
+            bool canOpenWindow)
+        {
+            if (level <= 0)
+            {
+                return false;
+            }
+
+            if (ShouldRefreshPiercingWindow(
+                    currentTime,
+                    windowEndsAt))
+            {
+                return canOpenWindow;
+            }
+
+            return CalculateRemainingPiercingTargets(
+                level,
+                consumed) > 0;
+        }
+
         public static bool IsSeverCooldownReady(
             float currentTime,
             float nextAvailableTime)
@@ -363,6 +396,47 @@ namespace SimpleGame
         {
             return shieldBypassLevel > 0 &&
                 Random.value < ShieldBypassChance;
+        }
+
+        public void BeginPiercingCommand()
+        {
+            canOpenPiercingWindowForCommand =
+                piercingLevel > 0 &&
+                ShouldRefreshPiercingWindow(
+                    Time.time,
+                    piercingWindowEndsAt);
+        }
+
+        public bool TryConsumePiercingTarget()
+        {
+            if (!CanConsumePiercingTarget(
+                    piercingLevel,
+                    piercingTargetsConsumed,
+                    Time.time,
+                    piercingWindowEndsAt,
+                    canOpenPiercingWindowForCommand))
+            {
+                return false;
+            }
+
+            if (ShouldRefreshPiercingWindow(
+                    Time.time,
+                    piercingWindowEndsAt))
+            {
+                piercingWindowEndsAt =
+                    Time.time + PiercingWindowDuration;
+                piercingTargetsConsumed = 0;
+                canOpenPiercingWindowForCommand = false;
+            }
+
+            ConsumePiercingTargets(1);
+            return true;
+        }
+
+        public void RefundPiercingTarget()
+        {
+            piercingTargetsConsumed =
+                Mathf.Max(0, piercingTargetsConsumed - 1);
         }
 
         private static int AddLevel(
@@ -390,6 +464,39 @@ namespace SimpleGame
             return owner.AttackPower * sideMultiplier;
         }
 
+        private CombatResult BuildNormalAttackResult(
+            EnemyBase target,
+            AttackSide side,
+            bool critical,
+            bool isPrimary)
+        {
+            CombatResult baseResult = CombatResolver.Resolve(
+                target.Definition,
+                target.MaxHealth,
+                owner.AttackPower,
+                owner.RearAttackMultiplier,
+                side,
+                critical);
+            float bonusDamage = isPrimary && staticChargeLevel > 0
+                ? CalculateSkillBaseDamage(side) *
+                    staticDamageMultiplier
+                : 0f;
+            float damage = baseResult.Damage + bonusDamage;
+            PlayerAttackReaction reaction =
+                isPrimary &&
+                target.Archetype == EnemyArchetype.Shield &&
+                side == AttackSide.Front &&
+                damage >= target.CurrentHealth
+                    ? PlayerAttackReaction.None
+                    : baseResult.PlayerReaction;
+            return new CombatResult(
+                damage,
+                baseResult.TargetMaxHealth,
+                isPrimary
+                    ? reaction
+                    : PlayerAttackReaction.None);
+        }
+
         private void HandleSuccessfulHit()
         {
             if (hitHealLevel > 0 &&
@@ -401,20 +508,8 @@ namespace SimpleGame
             }
         }
 
-        private int GetAvailablePiercingTargetCount()
+        private int GetRemainingPiercingTargetCount()
         {
-            if (piercingLevel <= 0)
-            {
-                return 0;
-            }
-
-            if (Time.time >= piercingWindowEndsAt)
-            {
-                piercingWindowEndsAt =
-                    Time.time + PiercingWindowDuration;
-                piercingTargetsConsumed = 0;
-            }
-
             return CalculateRemainingPiercingTargets(
                 piercingLevel,
                 piercingTargetsConsumed);
@@ -447,7 +542,7 @@ namespace SimpleGame
         {
             yield return new WaitForSeconds(SeverDelay);
             if (owner == null ||
-                session == null ||
+                enemyWorld == null ||
                 !owner.IsAlive)
             {
                 yield break;
@@ -462,7 +557,7 @@ namespace SimpleGame
                 0.32f);
 
             List<EnemyBase> severTargets =
-                session.CollectEnemiesAlongSegment(
+                enemyWorld.CollectEnemiesAlongSegment(
                     piercedPosition,
                     currentPlayerPosition,
                     SeverHalfWidth);

@@ -11,7 +11,7 @@ namespace SimpleGame
         [SerializeField] private int startLevel;
         [SerializeField] private int baseMaxHp;
         [SerializeField] private float baseAttackPower;
-        [SerializeField] private float attackGrowthMultiplier;
+        [SerializeField] private float attackGrowthRate;
         [SerializeField] private float rearAttackMultiplier;
         [SerializeField] private float baseMoveSpeed;
         [SerializeField] private float pathEnemyApproachSpeedMultiplier;
@@ -26,7 +26,7 @@ namespace SimpleGame
             int startLevel,
             int baseMaxHp,
             float baseAttackPower,
-            float attackGrowthMultiplier,
+            float attackGrowthRate,
             float rearAttackMultiplier,
             float baseMoveSpeed,
             float pathEnemyApproachSpeedMultiplier,
@@ -40,7 +40,7 @@ namespace SimpleGame
             this.startLevel = startLevel;
             this.baseMaxHp = baseMaxHp;
             this.baseAttackPower = baseAttackPower;
-            this.attackGrowthMultiplier = attackGrowthMultiplier;
+            this.attackGrowthRate = attackGrowthRate;
             this.rearAttackMultiplier = rearAttackMultiplier;
             this.baseMoveSpeed = baseMoveSpeed;
             this.pathEnemyApproachSpeedMultiplier =
@@ -69,9 +69,10 @@ namespace SimpleGame
 
         public float CalculateAttackPower(int level)
         {
-            return baseAttackPower * Mathf.Pow(
-                Mathf.Max(1f, attackGrowthMultiplier),
-                Mathf.Max(0, level - 1));
+            return ProgressionCurve.CalculateAdditiveStat(
+                baseAttackPower,
+                attackGrowthRate,
+                level);
         }
     }
 

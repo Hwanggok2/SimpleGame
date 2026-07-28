@@ -146,6 +146,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CharacterSpriteAnimator
   animator: {fileID: -2720901235676475020}
   spriteRenderer: {fileID: 5518444195299359477}
+  baseTint: {r: 1, g: 1, b: 1, a: 1}
+  pulseTint: {r: 0.25, g: 0.7, b: 1, a: 1}
+  tintPulseSpeed: 2.4
 --- !u!114 &4990094072679397143
 MonoBehaviour:
   m_ObjectHideFlags: 0

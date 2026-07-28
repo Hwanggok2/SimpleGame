@@ -6,6 +6,7 @@ namespace SimpleGame
     {
         [SerializeField] private Transform enemyRoot;
         [SerializeField] private PrototypeGameSession session;
+        [SerializeField] private EnemyWorldService enemyWorld;
         [SerializeField] private EnemyAssetCatalog assetCatalog;
         [SerializeField] private EnemyBalanceTable balanceTable;
 
@@ -17,14 +18,34 @@ namespace SimpleGame
             balanceTable = configuredBalanceTable;
         }
 
-        public void Configure(PrototypeGameSession gameSession, Transform root)
+        public void Configure(
+            PrototypeGameSession gameSession,
+            EnemyWorldService configuredEnemyWorld,
+            Transform root)
         {
             session = gameSession;
+            enemyWorld = configuredEnemyWorld;
             enemyRoot = root;
         }
 
-        public EnemyBase Spawn(string enemyId, int level, Vector2 position)
+        public EnemyBase Spawn(
+            string enemyId,
+            int level,
+            int waveNumber,
+            Vector2 position)
         {
+            if (session == null ||
+                enemyWorld == null ||
+                enemyRoot == null)
+            {
+                Debug.LogError(
+                    "PrototypeEnemyFactory must be configured with " +
+                    "a session, EnemyWorldService, and enemy root " +
+                    "before spawning.",
+                    this);
+                return null;
+            }
+
             if (balanceTable == null ||
                 !balanceTable.TryGet(enemyId, out EnemyDefinition definition))
             {
@@ -49,19 +70,24 @@ namespace SimpleGame
             }
 
             float radius =
-                PrototypeGameSession.GetColliderRadius(prefab);
-            Vector2 spawnPosition = session != null
-                ? session.FindOpenEnemyPosition(position, radius)
-                : position;
+                EnemyWorldService.GetColliderRadius(prefab);
+            Vector2 spawnPosition =
+                enemyWorld.FindOpenEnemyPosition(position, radius);
             EnemyBase enemy = Instantiate(
                 prefab,
                 spawnPosition,
                 Quaternion.identity,
                 enemyRoot);
-            enemy.name = $"{enemyId}_Lv{level}";
+            enemy.name =
+                $"{enemyId}_W{waveNumber:00}_Lv{level}";
 
-            enemy.Configure(session, level, definition);
-            session.RegisterEnemy(enemy);
+            enemy.Configure(
+                session,
+                enemyWorld,
+                level,
+                waveNumber,
+                definition);
+            enemyWorld.Register(enemy);
             return enemy;
         }
     }

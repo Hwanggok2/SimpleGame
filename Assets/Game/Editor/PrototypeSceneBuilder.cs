@@ -46,20 +46,33 @@ namespace SimpleGameEditor
             CreateMainLight();
 
             var systems = new GameObject("PrototypeSystems");
-            PrototypeEnemyFactory factory = systems.AddComponent<PrototypeEnemyFactory>();
+            PrototypeGameSession session =
+                systems.AddComponent<PrototypeGameSession>();
+
+            GameObject enemySystems =
+                GetOrCreateSystemGroup(systems.transform, "EnemyWorld");
+            EnemyWorldService enemyWorld =
+                enemySystems.AddComponent<EnemyWorldService>();
+            PrototypeEnemyFactory factory =
+                enemySystems.AddComponent<PrototypeEnemyFactory>();
             factory.ConfigureAssets(
                 gameData.EnemyAssets,
                 gameData.EnemyBalance);
+            EnemyWorldRecycler enemyRecycler =
+                enemySystems.AddComponent<EnemyWorldRecycler>();
+
+            GameObject combatSystems =
+                GetOrCreateSystemGroup(systems.transform, "Combat");
             CombatFeedbackController combatFeedback =
-                systems.AddComponent<CombatFeedbackController>();
+                combatSystems.AddComponent<CombatFeedbackController>();
             combatFeedback.Configure(
                 camera.GetComponent<CameraShakeController>(),
                 gameData.CombatFeedback);
-            PrototypeGameSession session = systems.AddComponent<PrototypeGameSession>();
-            EnemyWorldRecycler enemyRecycler =
-                systems.AddComponent<EnemyWorldRecycler>();
+
+            GameObject spawningSystems =
+                GetOrCreateSystemGroup(systems.transform, "Spawning");
             StageSpawnController stageSpawner =
-                systems.AddComponent<StageSpawnController>();
+                spawningSystems.AddComponent<StageSpawnController>();
 
             var entities = new GameObject("Entities");
             Transform enemyRoot = new GameObject("Enemies").transform;
@@ -84,13 +97,37 @@ namespace SimpleGameEditor
                 camera,
                 combatFeedback,
                 enemyRecycler,
-                presenter);
+                presenter,
+                enemyWorld);
             session.ConfigureData(gameData, stageSpawner);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
             Selection.activeGameObject = systems;
             Debug.Log($"Prototype scene created: {ScenePath}");
+        }
+
+        internal static GameObject GetOrCreateSystemGroup(
+            Transform parent,
+            string name,
+            bool registerUndo = false)
+        {
+            Transform existing = parent.Find(name);
+            if (existing != null)
+            {
+                return existing.gameObject;
+            }
+
+            var group = new GameObject(name);
+            group.transform.SetParent(parent, false);
+            if (registerUndo)
+            {
+                Undo.RegisterCreatedObjectUndo(
+                    group,
+                    $"Create {name} system group");
+            }
+
+            return group;
         }
 
         [MenuItem("SimpleGame/Build Level Up Card Prefab")]
@@ -360,8 +397,8 @@ namespace SimpleGameEditor
 
         private static Tile[] CreateWorldTiles()
         {
-            EnsureAssetFolder("Assets/Game/World");
-            EnsureAssetFolder(WorldTilePath);
+            EditorAssetUtility.EnsureFolder("Assets/Game/World");
+            EditorAssetUtility.EnsureFolder(WorldTilePath);
             var result = new Tile[4];
             for (int index = 0; index < result.Length; index++)
             {
@@ -389,21 +426,6 @@ namespace SimpleGameEditor
             return result;
         }
 
-        private static void EnsureAssetFolder(string path)
-        {
-            if (AssetDatabase.IsValidFolder(path))
-            {
-                return;
-            }
-
-            int separator = path.LastIndexOf('/');
-            string parent = path[..separator];
-            EnsureAssetFolder(parent);
-            AssetDatabase.CreateFolder(
-                parent,
-                path[(separator + 1)..]);
-        }
-
         private static PrototypeHUDPresenter CreateHud()
         {
             EnsureUiPrefabAssets();
@@ -419,7 +441,8 @@ namespace SimpleGameEditor
 
         private static void EnsureUiPrefabAssets()
         {
-            EnsureAssetFolder("Assets/Game/UI/Prefabs");
+            EditorAssetUtility.EnsureFolder(
+                "Assets/Game/UI/Prefabs");
             ConfigureLevelUpCardPrefabAsset();
 
             GameObject cardSelectionPrefab =

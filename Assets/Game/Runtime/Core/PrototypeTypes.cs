@@ -36,6 +36,7 @@ namespace SimpleGame
     {
         None,
         NormalHit,
+        DefeatingHit,
         FrontRecoil,
         CriticalHit
     }
@@ -95,18 +96,102 @@ namespace SimpleGame
             CombatResult primaryResult,
             bool primaryDamageApplied,
             bool anyDamageApplied,
-            bool critical)
+            bool critical,
+            AttackSide primarySide,
+            bool piercingAllowed)
         {
             PrimaryResult = primaryResult;
             PrimaryDamageApplied = primaryDamageApplied;
             AnyDamageApplied = anyDamageApplied;
             Critical = critical;
+            PrimarySide = primarySide;
+            PiercingAllowed = piercingAllowed;
         }
 
         public CombatResult PrimaryResult { get; }
         public bool PrimaryDamageApplied { get; }
         public bool AnyDamageApplied { get; }
         public bool Critical { get; }
+        public AttackSide PrimarySide { get; }
+        public bool PiercingAllowed { get; }
+    }
+
+    public static class ProgressionCurve
+    {
+        public const float LinearLevelWeight = 0.18f;
+        public const float EnemyAttackGrowthRate = 0.45f;
+        public const int MaximumEnemyAttackDamage = 8;
+        public const int MaximumPlayerLevel = 50;
+        public const float ExperienceQuadraticWeight = 0.025f;
+
+        public static float CalculateAdditiveStat(
+            float baseValue,
+            float growthRate,
+            int level)
+        {
+            float levelOffset = Mathf.Max(0, level - 1);
+            float curve =
+                Mathf.Sqrt(levelOffset) +
+                LinearLevelWeight * levelOffset;
+            return Mathf.Max(0f, baseValue) +
+                Mathf.Max(0f, growthRate) * curve;
+        }
+
+        public static int CalculateEnemyAttackDamage(
+            int baseDamage,
+            int level)
+        {
+            if (baseDamage <= 0)
+            {
+                return 0;
+            }
+
+            float levelOffset = Mathf.Max(0, level - 1);
+            int scaledDamage = Mathf.CeilToInt(
+                baseDamage +
+                EnemyAttackGrowthRate * Mathf.Sqrt(levelOffset));
+            return Mathf.Clamp(
+                scaledDamage,
+                0,
+                MaximumEnemyAttackDamage);
+        }
+
+        public static float CalculateWaveHealthMultiplier(
+            int waveNumber)
+        {
+            int safeWaveNumber = Mathf.Max(1, waveNumber);
+            return safeWaveNumber switch
+            {
+                >= 56 => 9.5f,
+                >= 48 => 7.5f,
+                >= 40 => 6f,
+                >= 32 => 4.8f,
+                >= 24 => 3.8f,
+                >= 20 => 3f,
+                >= 16 => 2.4f,
+                >= 12 => 1.9f,
+                >= 8 => 1.5f,
+                >= 5 => 1.2f,
+                _ => 1f
+            };
+        }
+
+        public static int CalculateRequiredExperience(int level)
+        {
+            if (level >= MaximumPlayerLevel)
+            {
+                return 0;
+            }
+
+            int safeLevel = Mathf.Max(1, level);
+            int levelOffset = safeLevel - 1;
+            return 6 +
+                2 * safeLevel +
+                Mathf.FloorToInt(
+                    ExperienceQuadraticWeight *
+                    levelOffset *
+                    levelOffset);
+        }
     }
 
     [Serializable]
@@ -127,9 +212,8 @@ namespace SimpleGame
         [SerializeField] private int killExperience;
         [SerializeField] private int score;
         [SerializeField] private float baseMaxHp;
-        [SerializeField] private float hpGrowthMultiplier;
+        [SerializeField] private float hpGrowthRate;
         [SerializeField] private int levelDifficultyOffset;
-        [SerializeField] private int oneHitPlayerLevelAdvantage;
         [SerializeField] private string combatProfileId;
         [SerializeField] private bool showHpBar;
 
@@ -149,9 +233,8 @@ namespace SimpleGame
             int killExperience,
             int score,
             float baseMaxHp,
-            float hpGrowthMultiplier,
+            float hpGrowthRate,
             int levelDifficultyOffset,
-            int oneHitPlayerLevelAdvantage,
             string combatProfileId,
             bool showHpBar)
         {
@@ -170,10 +253,8 @@ namespace SimpleGame
             this.killExperience = killExperience;
             this.score = score;
             this.baseMaxHp = baseMaxHp;
-            this.hpGrowthMultiplier = hpGrowthMultiplier;
+            this.hpGrowthRate = hpGrowthRate;
             this.levelDifficultyOffset = levelDifficultyOffset;
-            this.oneHitPlayerLevelAdvantage =
-                oneHitPlayerLevelAdvantage;
             this.combatProfileId = combatProfileId;
             this.showHpBar = showHpBar;
         }
@@ -193,38 +274,35 @@ namespace SimpleGame
         public int KillExperience => killExperience;
         public int Score => score;
         public float BaseMaxHp => baseMaxHp;
-        public float HpGrowthMultiplier => hpGrowthMultiplier;
+        public float HpGrowthRate => hpGrowthRate;
         public int LevelDifficultyOffset => levelDifficultyOffset;
-        public int OneHitPlayerLevelAdvantage =>
-            oneHitPlayerLevelAdvantage;
         public string CombatProfileId => combatProfileId;
         public bool ShowHpBar => showHpBar;
 
-        public float CalculateMaxHealth(int enemyLevel)
+        public float CalculateMaxHealth(
+            int enemyLevel,
+            int waveNumber = 1)
         {
             int effectiveLevel = Mathf.Max(
                 1,
                 enemyLevel - levelDifficultyOffset);
+            float levelHealth =
+                ProgressionCurve.CalculateAdditiveStat(
+                    baseMaxHp,
+                    hpGrowthRate,
+                    effectiveLevel);
             return Mathf.Max(
                 1f,
-                baseMaxHp * Mathf.Pow(
-                    Mathf.Max(1f, hpGrowthMultiplier),
-                    effectiveLevel - 1));
+                levelHealth *
+                ProgressionCurve.CalculateWaveHealthMultiplier(
+                    waveNumber));
         }
 
         public int CalculateAttackDamage(int enemyLevel)
         {
-            return Mathf.Max(
-                0,
-                Mathf.CeilToInt(
-                    attackDamage *
-                    (1f + 0.05f * Mathf.Max(0, enemyLevel - 1))));
-        }
-
-        public bool IsOneHitTarget(int playerLevel, int enemyLevel)
-        {
-            return oneHitPlayerLevelAdvantage >= 0 &&
-                playerLevel - enemyLevel >= oneHitPlayerLevelAdvantage;
+            return ProgressionCurve.CalculateEnemyAttackDamage(
+                attackDamage,
+                enemyLevel);
         }
     }
 
@@ -242,6 +320,18 @@ namespace SimpleGame
                     nameof(archetype),
                     archetype,
                     null)
+            };
+        }
+
+        public static string GetDisplayName(EnemyArchetype archetype)
+        {
+            return archetype switch
+            {
+                EnemyArchetype.Melee => "근접 고블린",
+                EnemyArchetype.Ranged => "원거리 고블린",
+                EnemyArchetype.Shield => "방패병",
+                EnemyArchetype.Boss => "고블린 우두머리",
+                _ => "적"
             };
         }
 
@@ -265,9 +355,8 @@ namespace SimpleGame
                     2,
                     5,
                     3f,
-                    1.7f,
+                    0.85f,
                     0,
-                    1,
                     "StandardMelee",
                     true),
                 EnemyArchetype.Ranged => new EnemyDefinition(
@@ -286,9 +375,8 @@ namespace SimpleGame
                     2,
                     5,
                     3f,
-                    1.7f,
+                    0.85f,
                     1,
-                    0,
                     "StandardRanged",
                     true),
                 EnemyArchetype.Shield => new EnemyDefinition(
@@ -307,9 +395,8 @@ namespace SimpleGame
                     0,
                     0,
                     3f,
-                    1.7f,
+                    0.85f,
                     0,
-                    2,
                     "Shield",
                     true),
                 EnemyArchetype.Boss => new EnemyDefinition(
@@ -328,9 +415,8 @@ namespace SimpleGame
                     5,
                     25,
                     15f,
-                    1.7f,
+                    3.4f,
                     0,
-                    -1,
                     "Boss",
                     true),
                 _ => throw new ArgumentOutOfRangeException(nameof(archetype), archetype, null)

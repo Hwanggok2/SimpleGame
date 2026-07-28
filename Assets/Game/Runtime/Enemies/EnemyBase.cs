@@ -25,14 +25,20 @@ namespace SimpleGame
 
         private Collider2D hitCollider;
         private Coroutine deathRoutine;
+        private EnemyWorldService enemyWorld;
 
         public abstract EnemyArchetype Archetype { get; }
         public int Level => level;
+        public int WaveNumber { get; private set; } = 1;
         public EnemyDefinition Definition { get; private set; }
         public EnemyFacing Facing => facing;
         public EnemyMovement Movement => movement;
         public EnemyAttackModule Attack => attack;
         public BossAttackModule BossAttack => bossAttack;
+        public float CurrentHealth =>
+            health != null ? health.CurrentHealth : 0f;
+        public float MaxHealth =>
+            health != null ? health.MaxHealth : 0f;
         public bool IsAlive => health != null && health.IsAlive;
         public PrototypeGameSession Session { get; private set; }
 
@@ -55,11 +61,15 @@ namespace SimpleGame
 
         public void Configure(
             PrototypeGameSession session,
+            EnemyWorldService configuredEnemyWorld,
             int enemyLevel,
+            int waveNumber,
             EnemyDefinition definition)
         {
             Session = session;
+            enemyWorld = configuredEnemyWorld;
             level = Mathf.Max(1, enemyLevel);
+            WaveNumber = Mathf.Max(1, waveNumber);
             Definition = definition;
 
             health = GetComponent<EnemyHealth>();
@@ -84,7 +94,10 @@ namespace SimpleGame
                 deathRoutine = null;
             }
 
-            health.Configure(Definition.CalculateMaxHealth(level));
+            health.Configure(
+                Definition.CalculateMaxHealth(
+                    level,
+                    WaveNumber));
             healthBar?.Bind(health, Definition.ShowHpBar);
             characterAnimation.Revive();
             facing.Configure(Definition.FacingTurnDelay);
@@ -105,7 +118,7 @@ namespace SimpleGame
         {
             facing.Face(position);
             movement.StepTowards(position, facing.Direction);
-            Session?.SeparateEnemy(this);
+            enemyWorld?.SeparateEnemy(this);
         }
 
         public void FaceTowards(Vector2 position)
@@ -166,8 +179,7 @@ namespace SimpleGame
 
             levelLabel.color = CombatResolver.GetThreatLevel(
                 Definition,
-                Session.Player.Progression.Level,
-                level,
+                MaxHealth,
                 Session.Player.AttackPower,
                 Session.Player.RearAttackMultiplier) switch
             {
@@ -193,7 +205,8 @@ namespace SimpleGame
                 (Vector2)attacker.transform.position -
                 (Vector2)transform.position;
 
-            string enemyName = GetDisplayName();
+            string enemyName =
+                PrototypeEnemyDefinitions.GetDisplayName(Archetype);
             string sideText = side == AttackSide.Front
                 ? "정면"
                 : "후면";
@@ -236,10 +249,10 @@ namespace SimpleGame
             attack?.Cancel();
             bossAttack?.Cancel();
             movement.StopImmediately();
-            transform.position = Session != null
-                ? Session.FindOpenEnemyPosition(
+            transform.position = enemyWorld != null
+                ? enemyWorld.FindOpenEnemyPosition(
                     position,
-                    PrototypeGameSession.GetColliderRadius(this),
+                    EnemyWorldService.GetColliderRadius(this),
                     this)
                 : position;
             facing.FaceImmediate(targetPosition);
@@ -248,7 +261,7 @@ namespace SimpleGame
 
         private void BuildVisual()
         {
-            float size = Archetype == EnemyArchetype.Boss ? 1.35f : 0.82f;
+            float size = Archetype == EnemyArchetype.Boss ? 1.75f : 0.82f;
             if (Archetype == EnemyArchetype.Shield)
             {
                 if (approachRangeRenderer == null)
@@ -282,20 +295,10 @@ namespace SimpleGame
             facingMarker.transform.localPosition = new Vector3(0f, -size * 0.55f, 0f);
             levelLabel.transform.localPosition =
                 new Vector3(0f, size * 0.82f, 0f);
-            levelLabel.text = $"{GetDisplayName()} 레벨 {level}";
+            levelLabel.text =
+                $"{PrototypeEnemyDefinitions.GetDisplayName(Archetype)} " +
+                $"레벨 {level}";
             RefreshLevelLabel();
-        }
-
-        private string GetDisplayName()
-        {
-            return Archetype switch
-            {
-                EnemyArchetype.Melee => "근접 고블린",
-                EnemyArchetype.Ranged => "원거리 고블린",
-                EnemyArchetype.Shield => "방패병",
-                EnemyArchetype.Boss => "고블린 우두머리",
-                _ => "적"
-            };
         }
 
         private void SetGameplayVisualsVisible(bool visible)

@@ -67,6 +67,7 @@ namespace SimpleGame
             enemyFactory.Spawn(
                 entry.EnemyId,
                 entry.EnemyLevel,
+                entry.WaveNumber,
                 point.position);
         }
     }

@@ -673,9 +673,15 @@ namespace SimpleGameEditor
                 root.transform,
                 controller,
                 idleSprite,
-                archetype == EnemyArchetype.Boss ? 1.8f : 1.25f,
+                archetype == EnemyArchetype.Boss ? 2.3f : 1.25f,
                 20,
                 animation);
+            if (archetype == EnemyArchetype.Shield)
+            {
+                animation.ConfigureTintPulse(
+                    new Color(0.25f, 0.7f, 1f, 1f),
+                    2.4f);
+            }
 
             SpriteRenderer approachRange = archetype == EnemyArchetype.Shield
                 ? CreateSpriteVisual(
@@ -694,7 +700,8 @@ namespace SimpleGameEditor
             facingMarker.enabled = false;
             TMP_Text levelLabel = CreateWorldLabel(
                 root.transform,
-                $"{GetEnemyDisplayName(archetype)} 레벨 1",
+                $"{PrototypeEnemyDefinitions.GetDisplayName(archetype)} " +
+                "레벨 1",
                 new Vector3(0f, archetype == EnemyArchetype.Boss ? 1.1f : 0.67f, 0f),
                 2.3f,
                 26);
@@ -736,19 +743,6 @@ namespace SimpleGameEditor
 
             PrefabUtility.SaveAsPrefabAsset(root, path);
             UnityEngine.Object.DestroyImmediate(root);
-        }
-
-        private static string GetEnemyDisplayName(
-            EnemyArchetype archetype)
-        {
-            return archetype switch
-            {
-                EnemyArchetype.Melee => "근접 고블린",
-                EnemyArchetype.Ranged => "원거리 고블린",
-                EnemyArchetype.Shield => "방패병",
-                EnemyArchetype.Boss => "고블린 우두머리",
-                _ => "적"
-            };
         }
 
         private static void ConfigureVisual(
@@ -1026,14 +1020,16 @@ namespace SimpleGameEditor
 
         private static void EnsureFolders()
         {
-            EnsureFolder(AnimationPath + "/Common");
-            EnsureFolder(PlayerAnimationPath);
-            EnsureFolder(AnimationPath + "/Goblin");
-            EnsureFolder(AnimationPath + "/Skeleton");
-            EnsureFolder(AnimatorPath);
-            EnsureFolder(RootPath + "/Shared");
-            EnsureFolder(RootPath + "/Prefabs/Player");
-            EnsureFolder(RootPath + "/Prefabs/Enemies");
+            EditorAssetUtility.EnsureFolder(AnimationPath + "/Common");
+            EditorAssetUtility.EnsureFolder(PlayerAnimationPath);
+            EditorAssetUtility.EnsureFolder(AnimationPath + "/Goblin");
+            EditorAssetUtility.EnsureFolder(AnimationPath + "/Skeleton");
+            EditorAssetUtility.EnsureFolder(AnimatorPath);
+            EditorAssetUtility.EnsureFolder(RootPath + "/Shared");
+            EditorAssetUtility.EnsureFolder(
+                RootPath + "/Prefabs/Player");
+            EditorAssetUtility.EnsureFolder(
+                RootPath + "/Prefabs/Enemies");
         }
 
         private static void MigratePlayerAssets()
@@ -1095,19 +1091,5 @@ namespace SimpleGameEditor
             }
         }
 
-        private static void EnsureFolder(string path)
-        {
-            string current = "Assets";
-            foreach (string part in path.Split('/').Skip(1))
-            {
-                string next = $"{current}/{part}";
-                if (!AssetDatabase.IsValidFolder(next))
-                {
-                    AssetDatabase.CreateFolder(current, part);
-                }
-
-                current = next;
-            }
-        }
     }
 }

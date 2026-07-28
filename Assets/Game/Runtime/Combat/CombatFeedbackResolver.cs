@@ -4,12 +4,18 @@ namespace SimpleGame
     {
         public static CombatFeedbackLevel Resolve(
             bool damageApplied,
+            bool targetDefeated,
             bool critical,
             PlayerAttackReaction playerReaction)
         {
             if (damageApplied && critical)
             {
                 return CombatFeedbackLevel.CriticalHit;
+            }
+
+            if (damageApplied && targetDefeated)
+            {
+                return CombatFeedbackLevel.DefeatingHit;
             }
 
             if (playerReaction == PlayerAttackReaction.Recoil)

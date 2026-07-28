@@ -22,6 +22,7 @@ namespace SimpleGame
                 end,
                 width,
                 duration,
+                1f,
                 new Color(0.45f, 0.95f, 1f, 0.85f));
         }
 
@@ -36,6 +37,7 @@ namespace SimpleGame
                 end,
                 0.035f,
                 0.16f,
+                0.3f,
                 new Color(0.45f, 0.9f, 1f, 0.95f));
         }
 
@@ -44,6 +46,7 @@ namespace SimpleGame
             Vector2 end,
             float width,
             float duration,
+            float endWidthMultiplier,
             Color color)
         {
             effectColor = color;
@@ -53,7 +56,8 @@ namespace SimpleGame
             line.SetPosition(0, start);
             line.SetPosition(1, end);
             line.startWidth = width;
-            line.endWidth = width * 0.3f;
+            line.endWidth = width *
+                Mathf.Max(0f, endWidthMultiplier);
             line.numCapVertices = 2;
             line.sortingOrder = 25;
 

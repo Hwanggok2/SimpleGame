@@ -63,6 +63,7 @@ namespace SimpleGame
 
         public void Configure(
             PrototypeGameSession session,
+            EnemyWorldService enemyWorld,
             Camera worldCamera,
             LevelExperienceTable experienceTable,
             GlobalBalance globalBalance,
@@ -108,7 +109,7 @@ namespace SimpleGame
                 globalBalance.CriticalChancePerCard,
                 globalBalance.MaximumCriticalChance);
             critical.Add(definition.BaseCriticalChance);
-            combatAbilities.Configure(this, session);
+            combatAbilities.Configure(this, enemyWorld);
             moveSpeedCardLevel = 0;
             movement.SetMaximumSpeedActive(false);
             BuildVisual();
@@ -118,6 +119,7 @@ namespace SimpleGame
             controller.Configure(
                 this,
                 session,
+                enemyWorld,
                 worldCamera,
                 stats.AttackRange);
         }
@@ -169,11 +171,13 @@ namespace SimpleGame
 
         public PlayerAttackExecution AttackEnemy(
             EnemyBase enemy,
-            bool criticalHit)
+            bool criticalHit,
+            bool allowPiercing)
         {
             return combatAbilities.ExecuteNormalAttack(
                 enemy,
-                criticalHit);
+                criticalHit,
+                allowPiercing);
         }
 
         public bool ApplySkillHit(

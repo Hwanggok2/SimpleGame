@@ -21,6 +21,9 @@ namespace SimpleGame
 
         [SerializeField] private Animator animator;
         [SerializeField] private SpriteRenderer spriteRenderer;
+        [SerializeField] private Color baseTint = Color.white;
+        [SerializeField] private Color pulseTint = Color.white;
+        [SerializeField, Min(0f)] private float tintPulseSpeed;
         private float deathDuration = MinimumDeathDuration;
 
         public bool IsConfigured =>
@@ -35,6 +38,13 @@ namespace SimpleGame
             animator = targetAnimator;
             spriteRenderer = targetRenderer;
             CacheDeathDuration();
+        }
+
+        public void ConfigureTintPulse(Color color, float speed)
+        {
+            pulseTint = color;
+            tintPulseSpeed = Mathf.Max(0f, speed);
+            ApplyTint(0f);
         }
 
         public void SetMoving(Vector2 direction)
@@ -88,6 +98,34 @@ namespace SimpleGame
             }
 
             return deathDuration;
+        }
+
+        private void LateUpdate()
+        {
+            if (tintPulseSpeed <= 0f)
+            {
+                return;
+            }
+
+            float blend = 0.5f +
+                0.5f * Mathf.Sin(Time.time * tintPulseSpeed);
+            ApplyTint(blend);
+        }
+
+        private void OnDisable()
+        {
+            ApplyTint(0f);
+        }
+
+        private void ApplyTint(float blend)
+        {
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.color = Color.Lerp(
+                    baseTint,
+                    pulseTint,
+                    Mathf.Clamp01(blend));
+            }
         }
 
         public void Revive()

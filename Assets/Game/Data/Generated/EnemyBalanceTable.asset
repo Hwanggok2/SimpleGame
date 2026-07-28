@@ -28,9 +28,8 @@ MonoBehaviour:
     killExperience: 1
     score: 5
     baseMaxHp: 3
-    hpGrowthMultiplier: 1.7
+    hpGrowthRate: 0.85
     levelDifficultyOffset: 0
-    oneHitPlayerLevelAdvantage: 1
     combatProfileId: StandardMelee
     showHpBar: 1
   - enemyId: GoblinRanged
@@ -48,9 +47,8 @@ MonoBehaviour:
     killExperience: 1
     score: 7
     baseMaxHp: 3
-    hpGrowthMultiplier: 1.7
+    hpGrowthRate: 0.85
     levelDifficultyOffset: 1
-    oneHitPlayerLevelAdvantage: 0
     combatProfileId: StandardRanged
     showHpBar: 1
   - enemyId: ShieldSkeleton
@@ -68,9 +66,8 @@ MonoBehaviour:
     killExperience: 2
     score: 8
     baseMaxHp: 3
-    hpGrowthMultiplier: 1.7
+    hpGrowthRate: 0.85
     levelDifficultyOffset: 0
-    oneHitPlayerLevelAdvantage: 2
     combatProfileId: Shield
     showHpBar: 1
   - enemyId: GoblinBoss
@@ -88,8 +85,7 @@ MonoBehaviour:
     killExperience: 8
     score: 50
     baseMaxHp: 15
-    hpGrowthMultiplier: 1.7
+    hpGrowthRate: 3.4
     levelDifficultyOffset: 0
-    oneHitPlayerLevelAdvantage: -1
     combatProfileId: Boss
     showHpBar: 1
