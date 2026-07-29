@@ -11,6 +11,10 @@ namespace SimpleGame
         CardChoice0,
         CardChoice1,
         CardChoice2,
+        CardReroll0,
+        CardReroll1,
+        CardReroll2,
+        Settings,
         ContinueAd,
         Count
     }
@@ -31,6 +35,7 @@ namespace SimpleGame
         [SerializeField] private TMP_Text hintLabel;
         [SerializeField] private Slider experienceSlider;
         [SerializeField] private TMP_Text experienceLabel;
+        [SerializeField] private Button settingsButton;
         [Header("Transient UI")]
         [SerializeField] private Transform modalRoot;
         [SerializeField] private GameObject cardSelectionPanelPrefab;
@@ -40,6 +45,7 @@ namespace SimpleGame
         private readonly Action[] buttonCallbacks =
             new Action[(int)HudButtonId.Count];
         private readonly Button[] cardChoiceButtons = new Button[3];
+        private readonly Button[] cardRerollButtons = new Button[3];
         private readonly LevelUpCardView[] cardChoiceViews =
             new LevelUpCardView[3];
         private GameObject cardSelectionPanel;
@@ -49,6 +55,8 @@ namespace SimpleGame
         private TMP_Text gameOverTitle;
         private Button continueButton;
         private bool cardChoicesInteractable;
+        private bool hasCardRerollAlternative;
+        private int remainingCardRerolls;
         private string pauseDetails = string.Empty;
         private string gameOverDetails = string.Empty;
 
@@ -58,6 +66,7 @@ namespace SimpleGame
             pauseDetailsPanelPrefab;
         public GameObject GameOverPanelPrefab =>
             gameOverPanelPrefab;
+        public Button SettingsButton => settingsButton;
 
         public void Configure(
             TMP_Text configuredTimeLabel,
@@ -65,6 +74,7 @@ namespace SimpleGame
             TMP_Text configuredHintLabel,
             Slider configuredExperienceSlider,
             TMP_Text configuredExperienceLabel,
+            Button configuredSettingsButton,
             Transform configuredModalRoot,
             GameObject configuredCardSelectionPanelPrefab,
             GameObject configuredPauseDetailsPanelPrefab,
@@ -75,6 +85,7 @@ namespace SimpleGame
             hintLabel = configuredHintLabel;
             experienceSlider = configuredExperienceSlider;
             experienceLabel = configuredExperienceLabel;
+            settingsButton = configuredSettingsButton;
             modalRoot = configuredModalRoot;
             cardSelectionPanelPrefab =
                 configuredCardSelectionPanelPrefab;
@@ -87,6 +98,10 @@ namespace SimpleGame
         {
             ValidateConfiguration();
             cardChoicesInteractable = false;
+            if (settingsButton != null)
+            {
+                settingsButton.transform.SetAsLastSibling();
+            }
         }
 
         public void Bind(HudButtonId id, Action callback)
@@ -141,6 +156,17 @@ namespace SimpleGame
                     button.interactable = interactable;
                 }
             }
+
+            ApplyCardRerollState();
+        }
+
+        public void SetCardRerollState(
+            int remainingRerolls,
+            bool hasAlternative)
+        {
+            remainingCardRerolls = Mathf.Max(0, remainingRerolls);
+            hasCardRerollAlternative = hasAlternative;
+            ApplyCardRerollState();
         }
 
         public void SetCardChoices(
@@ -166,6 +192,8 @@ namespace SimpleGame
                     cardChoiceViews[index].SetContent(choices[index]);
                 }
             }
+
+            ApplyCardRerollState();
         }
 
         public void ShowGameOver(bool visible)
@@ -271,10 +299,30 @@ namespace SimpleGame
                     choice.GetComponent<Button>();
                 cardChoiceViews[index] =
                     choice.GetComponent<LevelUpCardView>();
+                cardRerollButtons[index] =
+                    cardChoiceViews[index] != null
+                        ? cardChoiceViews[index].RerollButton
+                        : null;
+                if (cardChoiceButtons[index] == null ||
+                    cardChoiceViews[index] == null ||
+                    cardRerollButtons[index] == null)
+                {
+                    Debug.LogError(
+                        $"{objectName} requires a root Button, " +
+                        "LevelUpCardView, and RerollButton.",
+                        choice);
+                }
+
                 BindButton(
                     cardChoiceButtons[index],
                     buttonCallbacks[index]);
+                BindButton(
+                    cardRerollButtons[index],
+                    buttonCallbacks[
+                        (int)HudButtonId.CardReroll0 + index]);
             }
+
+            ApplyCardRerollState();
         }
 
         private void EnsurePauseDetailsPanel()
@@ -354,9 +402,49 @@ namespace SimpleGame
                 return;
             }
 
+            if (index >= (int)HudButtonId.CardReroll0 &&
+                index <= (int)HudButtonId.CardReroll2)
+            {
+                int rerollIndex =
+                    index - (int)HudButtonId.CardReroll0;
+                BindButton(
+                    cardRerollButtons[rerollIndex],
+                    buttonCallbacks[index]);
+                return;
+            }
+
+            if (id == HudButtonId.Settings)
+            {
+                BindButton(settingsButton, buttonCallbacks[index]);
+                return;
+            }
+
             if (id == HudButtonId.ContinueAd)
             {
                 BindButton(continueButton, buttonCallbacks[index]);
+            }
+        }
+
+        private void ApplyCardRerollState()
+        {
+            for (int index = 0;
+                 index < cardChoiceViews.Length;
+                 index++)
+            {
+                LevelUpCardView view = cardChoiceViews[index];
+                if (view == null)
+                {
+                    continue;
+                }
+
+                bool cardVisible =
+                    cardChoiceButtons[index] != null &&
+                    cardChoiceButtons[index].gameObject.activeSelf;
+                view.SetRerollState(
+                    remainingCardRerolls,
+                    cardVisible &&
+                    cardChoicesInteractable &&
+                    hasCardRerollAlternative);
             }
         }
 
@@ -383,6 +471,7 @@ namespace SimpleGame
                 hintLabel == null ||
                 experienceSlider == null ||
                 experienceLabel == null ||
+                settingsButton == null ||
                 modalRoot == null ||
                 cardSelectionPanelPrefab == null ||
                 pauseDetailsPanelPrefab == null ||

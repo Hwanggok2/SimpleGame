@@ -355,7 +355,7 @@ Enemy 생성 시점과 수, 종류, 위치와 레벨은 외부 데이터로 관�
 - 프로토타입 근거리·원거리·Boss Enemy 외형은 우선 `Resources/Monsters Creatures Fantasy/Sprites/Goblin`을 사용한다.
 - 방패병은 `Resources/Monsters Creatures Fantasy/Sprites/Skeleton`을 사용한다.
 - Player와 Enemy의 게임용 AnimationClip, AnimatorController, Character Prefab은 모두 `Assets/Game/Characters` 아래에 저장한다.
-- Player 게임용 Prefab은 `Assets/Game/Characters/Prefabs/Player/Player.prefab`, AnimatorController는 `Assets/Game/Characters/Animators/Player.controller`, AnimationClip은 `Assets/Game/Characters/Animations/Player`를 사용한다.
+- Player 게임용 Prefab은 `Assets/Prefab/Player.prefab`, AnimatorController는 `Assets/Game/Characters/Animators/Player.controller`, AnimationClip은 `Assets/Game/Characters/Animations/Player`를 사용한다.
 - LightBandit, Goblin과 Skeleton의 원본 Sprite Sheet는 `Assets/Resources` 아래에 소스 리소스로 유지한다.
 - Player와 각 Enemy는 씬에서 런타임 조립하지 않고 저장된 Prefab을 사용한다. Animator는 `Motion`, `FaceLeft`, `Attack`, `Hurt`, `Death` 파라미터로 상태를 전환한다.
 - Player·Enemy의 Rigidbody2D, Collider2D, 공격 범위, 공격 예고, 레벨 라벨과 카메라·월드 청크의 고정 컴포넌트는 Prefab 또는 Scene Inspector에 미리 저장한다. 런타임에는 고정 컴포넌트를 추가하지 않는다.

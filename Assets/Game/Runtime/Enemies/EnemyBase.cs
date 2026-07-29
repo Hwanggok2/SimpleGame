@@ -26,6 +26,7 @@ namespace SimpleGame
         private Collider2D hitCollider;
         private Coroutine deathRoutine;
         private EnemyWorldService enemyWorld;
+        private PrototypeEnemyFactory spawnFactory;
 
         public abstract EnemyArchetype Archetype { get; }
         public int Level => level;
@@ -41,6 +42,7 @@ namespace SimpleGame
             health != null ? health.MaxHealth : 0f;
         public bool IsAlive => health != null && health.IsAlive;
         public PrototypeGameSession Session { get; private set; }
+        public uint SpawnGeneration { get; private set; }
 
         public void ConfigureVisuals(
             SpriteRenderer configuredApproachRange,
@@ -60,17 +62,23 @@ namespace SimpleGame
         }
 
         public void Configure(
+            PrototypeEnemyFactory configuredFactory,
             PrototypeGameSession session,
             EnemyWorldService configuredEnemyWorld,
             int enemyLevel,
             int waveNumber,
             EnemyDefinition definition)
         {
+            spawnFactory = configuredFactory;
             Session = session;
             enemyWorld = configuredEnemyWorld;
             level = Mathf.Max(1, enemyLevel);
             WaveNumber = Mathf.Max(1, waveNumber);
             Definition = definition;
+            SpawnGeneration =
+                SpawnGeneration == uint.MaxValue
+                    ? 1u
+                    : SpawnGeneration + 1u;
 
             health = GetComponent<EnemyHealth>();
             facing = GetComponent<EnemyFacing>();
@@ -99,8 +107,8 @@ namespace SimpleGame
                     level,
                     WaveNumber));
             healthBar?.Bind(health, Definition.ShowHpBar);
-            characterAnimation.Revive();
             facing.Configure(Definition.FacingTurnDelay);
+            characterAnimation.Revive();
             if (hitCollider != null)
             {
                 hitCollider.enabled = true;
@@ -112,6 +120,34 @@ namespace SimpleGame
             attack?.Configure(this);
             bossAttack?.Configure(this);
             stateMachine.Configure(this);
+        }
+
+        internal void PrepareForPool()
+        {
+            if (deathRoutine != null)
+            {
+                StopCoroutine(deathRoutine);
+                deathRoutine = null;
+            }
+
+            movement?.StopImmediately();
+            attack?.Cancel();
+            bossAttack?.Cancel();
+            stateMachine?.ResetAfterReposition();
+            if (hitCollider != null)
+            {
+                hitCollider.enabled = false;
+            }
+
+            if (Definition != null)
+            {
+                SetGameplayVisualsVisible(false);
+            }
+
+            spawnFactory = null;
+            Session = null;
+            enemyWorld = null;
+            Definition = null;
         }
 
         public void MoveTowards(Vector2 position)
@@ -325,7 +361,15 @@ namespace SimpleGame
         {
             yield return new WaitForSeconds(delay);
             deathRoutine = null;
-            gameObject.SetActive(false);
+            PrototypeEnemyFactory factory = spawnFactory;
+            if (factory != null)
+            {
+                factory.Recycle(this);
+            }
+            else
+            {
+                gameObject.SetActive(false);
+            }
         }
     }
 

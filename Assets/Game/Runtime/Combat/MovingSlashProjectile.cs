@@ -5,24 +5,35 @@ namespace SimpleGame
 {
     public sealed class MovingSlashProjectile : MonoBehaviour
     {
-        private const float TravelSpeed = 14f;
-        private const float TravelDistance = 7f;
-        private const float BaseHalfLength = 0.8f;
+        public const string AnimationResourcePath =
+            "Effects/MovingSlash_Crescent_6f";
+        public const int AnimationFrameCount = 6;
+        public const float PlayerSpeedMultiplier = 3f;
+        public const float TravelDistance = 7f;
+        public const float FadeOutDuration = 0.1f;
+
+        private const float BaseVisualScale = 1.6f;
         private const float BaseHitRadius = 0.38f;
 
-        private readonly HashSet<EnemyBase> hitEnemies = new();
+        private readonly Dictionary<EnemyBase, uint> hitEnemyGenerations =
+            new();
         private readonly List<HitCandidate> candidates = new();
+        [SerializeField] private SpriteRenderer spriteRenderer;
+        [SerializeField] private Sprite[] animationFrames;
         private PlayerRoot owner;
         private EnemyWorldService enemyWorld;
         private Vector2 direction;
         private Vector2 origin;
+        private float travelSpeed;
         private float sizeMultiplier;
         private float damageMultiplier;
         private int remainingHits;
-        private LineRenderer line;
-        private Material material;
+        private bool isFading;
+        private float fadeElapsed;
+        private int fadeStartFrame;
 
         public static void Spawn(
+            MovingSlashProjectile prefab,
             PlayerRoot owner,
             EnemyWorldService enemyWorld,
             Vector2 direction,
@@ -30,9 +41,16 @@ namespace SimpleGame
             float sizeMultiplier,
             float damageMultiplier)
         {
-            var projectileObject = new GameObject("MovingSlash");
-            var projectile =
-                projectileObject.AddComponent<MovingSlashProjectile>();
+            if (prefab == null)
+            {
+                Debug.LogError(
+                    "Moving slash prefab is not assigned.",
+                    owner);
+                return;
+            }
+
+            MovingSlashProjectile projectile = Instantiate(prefab);
+            projectile.name = "MovingSlash";
             projectile.Configure(
                 owner,
                 enemyWorld,
@@ -40,6 +58,15 @@ namespace SimpleGame
                 maximumHits,
                 sizeMultiplier,
                 damageMultiplier);
+        }
+
+        public void ConfigureVisuals(
+            SpriteRenderer configuredRenderer,
+            Sprite[] configuredFrames)
+        {
+            spriteRenderer = configuredRenderer;
+            animationFrames =
+                configuredFrames ?? new Sprite[0];
         }
 
         private void Configure(
@@ -52,33 +79,42 @@ namespace SimpleGame
         {
             owner = configuredOwner;
             enemyWorld = configuredEnemyWorld;
+            float commandDistance = configuredDirection.magnitude;
             direction = configuredDirection.sqrMagnitude > 0.0001f
                 ? configuredDirection.normalized
                 : Vector2.right;
+            travelSpeed = CalculateTravelSpeed(
+                owner.MoveSpeed,
+                commandDistance,
+                owner.Movement.IsMaximumSpeedActive);
             remainingHits = Mathf.Max(1, maximumHits);
             sizeMultiplier = Mathf.Max(0.1f, configuredSizeMultiplier);
             damageMultiplier = Mathf.Max(0f, configuredDamageMultiplier);
+            hitEnemyGenerations.Clear();
             origin = (Vector2)owner.transform.position + direction * 0.45f;
             transform.position = origin;
 
-            line = gameObject.AddComponent<LineRenderer>();
-            line.positionCount = 2;
-            line.useWorldSpace = true;
-            line.startWidth = 0.22f * sizeMultiplier;
-            line.endWidth = line.startWidth;
-            line.numCapVertices = 2;
-            line.sortingOrder = 24;
-            line.startColor = new Color(0.65f, 0.9f, 1f, 0.95f);
-            line.endColor = line.startColor;
-
-            Shader shader = Shader.Find("Sprites/Default");
-            if (shader != null)
+            if (spriteRenderer == null ||
+                animationFrames == null ||
+                animationFrames.Length != AnimationFrameCount)
             {
-                material = new Material(shader);
-                line.material = material;
+                Debug.LogError(
+                    "Moving slash prefab requires a SpriteRenderer and " +
+                    $"{AnimationFrameCount} animation frames.",
+                    this);
+                Destroy(gameObject);
+                return;
             }
 
-            RefreshVisual();
+            spriteRenderer.sortingOrder = 24;
+            transform.rotation = Quaternion.Euler(
+                0f,
+                0f,
+                Mathf.Atan2(direction.y, direction.x) *
+                    Mathf.Rad2Deg);
+            transform.localScale =
+                Vector3.one * BaseVisualScale * sizeMultiplier;
+            RefreshVisual(0f);
         }
 
         private void Update()
@@ -92,16 +128,34 @@ namespace SimpleGame
             }
 
             Vector2 previous = transform.position;
-            Vector2 next =
-                previous + direction * TravelSpeed * Time.deltaTime;
+            Vector2 destination =
+                origin + direction * TravelDistance;
+            Vector2 next = Vector2.MoveTowards(
+                previous,
+                destination,
+                travelSpeed * Time.deltaTime);
             transform.position = next;
-            RefreshVisual();
-            HitEnemiesAlong(previous, next);
+            float distanceTravelled =
+                Vector2.Distance(origin, next);
 
-            if (remainingHits <= 0 ||
-                Vector2.Distance(origin, next) >= TravelDistance)
+            if (isFading)
             {
-                Destroy(gameObject);
+                fadeElapsed += Time.deltaTime;
+                RefreshFadeVisual();
+                if (fadeElapsed >= FadeOutDuration)
+                {
+                    Destroy(gameObject);
+                }
+
+                return;
+            }
+
+            RefreshVisual(distanceTravelled);
+            HitEnemiesAlong(previous, next);
+            if (remainingHits <= 0 ||
+                distanceTravelled >= TravelDistance)
+            {
+                BeginFade(distanceTravelled);
             }
         }
 
@@ -112,7 +166,7 @@ namespace SimpleGame
             {
                 if (enemy == null ||
                     !enemy.IsAlive ||
-                    hitEnemies.Contains(enemy))
+                    HasHitCurrentSpawn(enemy))
                 {
                     continue;
                 }
@@ -144,7 +198,8 @@ namespace SimpleGame
                     return;
                 }
 
-                hitEnemies.Add(candidate.Enemy);
+                hitEnemyGenerations[candidate.Enemy] =
+                    candidate.Enemy.SpawnGeneration;
                 remainingHits--;
                 owner.ApplySkillHit(
                     candidate.Enemy,
@@ -152,21 +207,114 @@ namespace SimpleGame
             }
         }
 
-        private void RefreshVisual()
+        public static float CalculateTravelSpeed(
+            float playerMoveSpeed,
+            float commandDistance,
+            bool maximumSpeedActive)
         {
-            Vector2 perpendicular = new(-direction.y, direction.x);
-            float halfLength = BaseHalfLength * sizeMultiplier;
-            Vector2 center = transform.position;
-            line.SetPosition(0, center - perpendicular * halfLength);
-            line.SetPosition(1, center + perpendicular * halfLength);
+            float maximumSpeed =
+                PlayerMovement.CalculateMaximumTravelSpeed(
+                    commandDistance);
+            float currentPlayerSpeed = maximumSpeedActive
+                ? maximumSpeed
+                : Mathf.Max(0f, playerMoveSpeed);
+            return Mathf.Min(
+                currentPlayerSpeed * PlayerSpeedMultiplier,
+                maximumSpeed);
         }
 
-        private void OnDestroy()
+        public static int CalculateAnimationFrameIndex(
+            float distanceTravelled,
+            float travelDistance = TravelDistance,
+            int frameCount = AnimationFrameCount)
         {
-            if (material != null)
+            if (frameCount <= 1 || travelDistance <= 0f)
             {
-                Destroy(material);
+                return 0;
             }
+
+            float progress = Mathf.Clamp01(
+                Mathf.Max(0f, distanceTravelled) /
+                travelDistance);
+            return Mathf.Min(
+                frameCount - 1,
+                Mathf.FloorToInt(progress * frameCount));
+        }
+
+        public static float CalculateFadeAlpha(
+            float elapsed,
+            float duration = FadeOutDuration)
+        {
+            if (duration <= 0f)
+            {
+                return 0f;
+            }
+
+            return 1f - Mathf.Clamp01(
+                Mathf.Max(0f, elapsed) / duration);
+        }
+
+        private void RefreshVisual(float distanceTravelled)
+        {
+            if (spriteRenderer == null ||
+                animationFrames == null ||
+                animationFrames.Length == 0)
+            {
+                return;
+            }
+
+            int frameIndex = CalculateAnimationFrameIndex(
+                distanceTravelled,
+                TravelDistance,
+                animationFrames.Length);
+            SetVisualFrame(frameIndex);
+        }
+
+        private void BeginFade(float distanceTravelled)
+        {
+            isFading = true;
+            fadeElapsed = 0f;
+            fadeStartFrame = CalculateAnimationFrameIndex(
+                distanceTravelled,
+                TravelDistance,
+                animationFrames.Length);
+        }
+
+        private void RefreshFadeVisual()
+        {
+            float progress = Mathf.Clamp01(
+                fadeElapsed / FadeOutDuration);
+            int remainingFrameCount =
+                animationFrames.Length - fadeStartFrame;
+            int frameOffset = Mathf.Min(
+                remainingFrameCount - 1,
+                Mathf.FloorToInt(
+                    progress * remainingFrameCount));
+            SetVisualFrame(fadeStartFrame + frameOffset);
+
+            Color color = spriteRenderer.color;
+            color.a = CalculateFadeAlpha(
+                fadeElapsed,
+                FadeOutDuration);
+            spriteRenderer.color = color;
+        }
+
+        private void SetVisualFrame(int frameIndex)
+        {
+            spriteRenderer.sprite =
+                animationFrames[
+                    Mathf.Clamp(
+                        frameIndex,
+                        0,
+                        animationFrames.Length - 1)];
+        }
+
+        private bool HasHitCurrentSpawn(EnemyBase enemy)
+        {
+            return hitEnemyGenerations.TryGetValue(
+                    enemy,
+                    out uint generation) &&
+                generation == enemy.SpawnGeneration;
         }
 
         private readonly struct HitCandidate

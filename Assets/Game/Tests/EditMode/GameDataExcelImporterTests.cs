@@ -82,6 +82,23 @@ namespace SimpleGame.Tests
                 Is.EqualTo(PlayerStatId.MoveSpeed));
             Assert.That(speedCard.Value, Is.EqualTo(1f));
             Assert.That(speedCard.MaxStack, Is.EqualTo(5));
+            StringAssert.Contains(
+                "약 0.15초",
+                speedCard.Description);
+
+            LevelUpCardDefinition movingSlashCard =
+                model.LevelUpCards.Find(
+                    card => card.CardId == "MOVING_SLASH");
+            Assert.That(movingSlashCard, Is.Not.Null);
+            StringAssert.Contains(
+                "초승달 검기",
+                movingSlashCard.Description);
+            StringAssert.Contains(
+                "현재 이동 속도의 3배",
+                movingSlashCard.Description);
+            StringAssert.Contains(
+                "0.15초",
+                movingSlashCard.Description);
 
             LevelUpCardDefinition severCard = model.LevelUpCards.Find(
                 card => card.CardId == "SEVER_TRAIL");
@@ -91,7 +108,7 @@ namespace SimpleGame.Tests
                 Is.EqualTo("PIERCING_UP"));
             Assert.That(severCard.Value, Is.EqualTo(2f));
             StringAssert.Contains(
-                "실제 관통 0.15초 뒤",
+                "실제 관통 0.3초 뒤",
                 severCard.Description);
             StringAssert.Contains(
                 "재사용 대기시간은 0.1초",
@@ -172,11 +189,31 @@ namespace SimpleGame.Tests
                 hitCard.RequiredCardId,
                 Is.EqualTo("FLYING_SWORD_COUNT"));
 
+            LevelUpCardDefinition speedCard =
+                table.Definitions.Single(
+                    card => card.CardId == "MOVE_SPEED_UP");
+            StringAssert.Contains(
+                "약 0.15초",
+                speedCard.Description);
+
+            LevelUpCardDefinition movingSlashCard =
+                table.Definitions.Single(
+                    card => card.CardId == "MOVING_SLASH");
+            StringAssert.Contains(
+                "초승달 검기",
+                movingSlashCard.Description);
+            StringAssert.Contains(
+                "현재 이동 속도의 3배",
+                movingSlashCard.Description);
+            StringAssert.Contains(
+                "0.15초",
+                movingSlashCard.Description);
+
             LevelUpCardDefinition severCard =
                 table.Definitions.Single(
                     card => card.CardId == "SEVER_TRAIL");
             StringAssert.Contains(
-                "실제 관통 0.15초 뒤",
+                "실제 관통 0.3초 뒤",
                 severCard.Description);
             StringAssert.Contains(
                 "재사용 대기시간은 0.1초",
@@ -188,6 +225,74 @@ namespace SimpleGame.Tests
             StringAssert.Contains(
                 "적을 처치할 때마다",
                 hitHealCard.Description);
+        }
+
+        [Test]
+        public void MovingSlashCrescentSheet_HasSixPixelArtFrames()
+        {
+            string assetPath =
+                $"Assets/Resources/" +
+                $"{MovingSlashProjectile.AnimationResourcePath}.png";
+            TextureImporter importer =
+                AssetImporter.GetAtPath(assetPath) as TextureImporter;
+            Texture2D texture =
+                AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+            Sprite[] frames =
+                AssetDatabase.LoadAllAssetsAtPath(assetPath)
+                    .OfType<Sprite>()
+                    .OrderBy(frame => frame.name)
+                    .ToArray();
+
+            Assert.That(importer, Is.Not.Null);
+            Assert.That(texture, Is.Not.Null);
+            Assert.That(texture.width, Is.EqualTo(384));
+            Assert.That(texture.height, Is.EqualTo(64));
+            Assert.That(
+                importer.textureType,
+                Is.EqualTo(TextureImporterType.Sprite));
+            Assert.That(
+                importer.spriteImportMode,
+                Is.EqualTo(SpriteImportMode.Multiple));
+            Assert.That(importer.mipmapEnabled, Is.False);
+            Assert.That(importer.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(
+                importer.textureCompression,
+                Is.EqualTo(TextureImporterCompression.Uncompressed));
+            Assert.That(
+                importer.spritePixelsPerUnit,
+                Is.EqualTo(64f).Within(0.0001f));
+            Assert.That(
+                frames,
+                Has.Length.EqualTo(
+                    MovingSlashProjectile.AnimationFrameCount));
+
+            for (int index = 0; index < frames.Length; index++)
+            {
+                Assert.That(
+                    frames[index].name,
+                    Is.EqualTo($"MovingSlash_Crescent_{index}"));
+                Assert.That(frames[index].rect.width, Is.EqualTo(64f));
+                Assert.That(frames[index].rect.height, Is.EqualTo(64f));
+            }
+        }
+
+        [Test]
+        public void AllPrefabAssets_AreCentralizedUnderPrefabRoot()
+        {
+            string[] prefabPaths = AssetDatabase.FindAssets(
+                    "t:Prefab",
+                    new[] { "Assets" })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Where(path => path.EndsWith(
+                    ".prefab",
+                    StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            Assert.That(prefabPaths, Has.Length.GreaterThanOrEqualTo(40));
+            Assert.That(
+                prefabPaths,
+                Is.All.StartsWith(
+                    CharacterAssetBuilder.PrefabRootPath + "/"));
         }
 
         [Test]
@@ -262,6 +367,37 @@ namespace SimpleGame.Tests
             Assert.That(cutting.color.r, Is.LessThan(0.1f));
             Assert.That(cutting.color.g, Is.LessThan(0.1f));
             Assert.That(cutting.color.b, Is.LessThan(0.1f));
+
+            MovingSlashProjectile movingSlashPrefab =
+                serializedAbilities
+                    .FindProperty("movingSlashPrefab")
+                    .objectReferenceValue as MovingSlashProjectile;
+            Assert.That(movingSlashPrefab, Is.Not.Null);
+            Assert.That(
+                AssetDatabase.GetAssetPath(movingSlashPrefab),
+                Is.EqualTo(CharacterAssetBuilder.MovingSlashPrefabPath));
+
+            var serializedMovingSlash =
+                new SerializedObject(movingSlashPrefab);
+            SpriteRenderer movingSlashRenderer =
+                serializedMovingSlash
+                    .FindProperty("spriteRenderer")
+                    .objectReferenceValue as SpriteRenderer;
+            SerializedProperty movingSlashFrames =
+                serializedMovingSlash.FindProperty("animationFrames");
+            Assert.That(movingSlashRenderer, Is.Not.Null);
+            Assert.That(
+                movingSlashRenderer.flipX,
+                Is.True,
+                "The crescent's solid edge must face its local +X travel " +
+                "direction.");
+            Assert.That(
+                movingSlashFrames.arraySize,
+                Is.EqualTo(
+                    MovingSlashProjectile.AnimationFrameCount));
+            Assert.That(
+                movingSlashPrefab.GetComponent<LineRenderer>(),
+                Is.Null);
         }
 
         [Test]
@@ -273,9 +409,17 @@ namespace SimpleGame.Tests
             Assert.That(prefab, Is.Not.Null);
             Assert.That(prefab.name, Is.EqualTo("LevelUpCard"));
             Assert.That(prefab.GetComponent<Button>(), Is.Not.Null);
+            LevelUpCardView cardView =
+                prefab.GetComponent<LevelUpCardView>();
+            Assert.That(cardView, Is.Not.Null);
+            Assert.That(cardView.RerollButton, Is.Not.Null);
+            Assert.That(cardView.RerollLabel, Is.Not.Null);
             Assert.That(
-                prefab.GetComponent<LevelUpCardView>(),
-                Is.Not.Null);
+                cardView.RerollButton.transform.parent,
+                Is.EqualTo(prefab.transform));
+            Assert.That(
+                cardView.RerollButton.name,
+                Is.EqualTo("RerollButton"));
             RectTransform rect = prefab.GetComponent<RectTransform>();
             Assert.That(rect.sizeDelta.x, Is.EqualTo(300f));
             Assert.That(
@@ -321,6 +465,13 @@ namespace SimpleGame.Tests
             Assert.That(hud.transform.Find("TopPanel"), Is.Not.Null);
             Assert.That(hud.transform.Find("HintPanel"), Is.Not.Null);
             Assert.That(hud.transform.Find("ModalRoot"), Is.Not.Null);
+            Transform settings = hud.transform.Find(
+                HudButtonId.Settings.ToString());
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.GetComponent<Button>(), Is.Not.Null);
+            Assert.That(
+                settings.GetSiblingIndex(),
+                Is.EqualTo(hud.transform.childCount - 1));
             Assert.That(hud.transform.Find("DebugButtons"), Is.Null);
             Assert.That(
                 hud.transform.Find("CardSelectionPanel"),
@@ -331,6 +482,9 @@ namespace SimpleGame.Tests
             PrototypeHUDView view =
                 hud.GetComponent<PrototypeHUDView>();
             Assert.That(view, Is.Not.Null);
+            Assert.That(
+                view.SettingsButton,
+                Is.EqualTo(settings.GetComponent<Button>()));
             Assert.That(
                 AssetDatabase.GetAssetPath(
                     view.CardSelectionPanelPrefab),
@@ -352,6 +506,13 @@ namespace SimpleGame.Tests
                 cardSelection.GetComponentsInChildren<
                     LevelUpCardView>(true).Length,
                 Is.EqualTo(3));
+            foreach (LevelUpCardView cardView in
+                     cardSelection.GetComponentsInChildren<
+                         LevelUpCardView>(true))
+            {
+                Assert.That(cardView.RerollButton, Is.Not.Null);
+                Assert.That(cardView.RerollLabel, Is.Not.Null);
+            }
             Assert.That(
                 pause.transform.Find("PauseDetails"),
                 Is.Not.Null);
@@ -362,6 +523,69 @@ namespace SimpleGame.Tests
                 gameOver.transform.Find("ContinueAd")
                     .GetComponent<Button>(),
                 Is.Not.Null);
+        }
+
+        [Test]
+        public void PrototypeHud_UpdatesAndBindsSharedCardRerolls()
+        {
+            GameObject hudPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    PrototypeSceneBuilder.PrototypeHudPrefabPath);
+            GameObject hud = UnityEngine.Object.Instantiate(hudPrefab);
+            try
+            {
+                PrototypeHUDView view =
+                    hud.GetComponent<PrototypeHUDView>();
+                int settingsClicks = 0;
+                int rerollClicks = 0;
+                view.Initialize();
+                view.Bind(
+                    HudButtonId.Settings,
+                    () => settingsClicks++);
+                view.Bind(
+                    HudButtonId.CardReroll0,
+                    () => rerollClicks++);
+                view.ShowCardSelection(true);
+                view.SetCardRerollState(2, true);
+                view.SetCardChoicesInteractable(true);
+
+                Transform panel = hud.transform.Find(
+                    "ModalRoot/CardSelectionPanel");
+                Assert.That(panel, Is.Not.Null);
+                LevelUpCardView[] cards =
+                    panel.GetComponentsInChildren<
+                        LevelUpCardView>(true);
+                Assert.That(cards, Has.Length.EqualTo(3));
+                foreach (LevelUpCardView card in cards)
+                {
+                    Assert.That(
+                        card.RerollLabel.text,
+                        Is.EqualTo("교체 2"));
+                    Assert.That(
+                        card.RerollButton.interactable,
+                        Is.True);
+                }
+
+                cards[0].RerollButton.onClick.Invoke();
+                view.SettingsButton.onClick.Invoke();
+                Assert.That(rerollClicks, Is.EqualTo(1));
+                Assert.That(settingsClicks, Is.EqualTo(1));
+
+                view.SetCardRerollState(0, true);
+                foreach (LevelUpCardView card in cards)
+                {
+                    Assert.That(
+                        card.RerollLabel.text,
+                        Is.EqualTo("교체 0"));
+                    Assert.That(
+                        card.RerollButton.interactable,
+                        Is.False);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(hud);
+            }
         }
 
         [Test]

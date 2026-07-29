@@ -14,6 +14,8 @@ namespace SimpleGame
         [SerializeField] private TMP_Text skillText;
         [SerializeField] private Outline rarityOutline;
         [SerializeField] private Shadow rarityGlow;
+        [SerializeField] private Button rerollButton;
+        [SerializeField] private TMP_Text rerollLabel;
 
         private Color glowColor;
         private float glowStrength;
@@ -22,6 +24,8 @@ namespace SimpleGame
         public Image InnerBackground => innerBackground;
         public TMP_Text TitleText => titleText;
         public TMP_Text SkillText => skillText;
+        public Button RerollButton => rerollButton;
+        public TMP_Text RerollLabel => rerollLabel;
 
         public void ConfigureReferences(
             Image configuredRarityFrame,
@@ -29,7 +33,9 @@ namespace SimpleGame
             TMP_Text configuredTitleText,
             TMP_Text configuredSkillText,
             Outline configuredRarityOutline,
-            Shadow configuredRarityGlow)
+            Shadow configuredRarityGlow,
+            Button configuredRerollButton,
+            TMP_Text configuredRerollLabel)
         {
             rarityFrame = configuredRarityFrame;
             innerBackground = configuredInnerBackground;
@@ -37,6 +43,8 @@ namespace SimpleGame
             skillText = configuredSkillText;
             rarityOutline = configuredRarityOutline;
             rarityGlow = configuredRarityGlow;
+            rerollButton = configuredRerollButton;
+            rerollLabel = configuredRerollLabel;
         }
 
         public void SetContent(LevelUpCardChoiceData choice)
@@ -52,6 +60,23 @@ namespace SimpleGame
             }
 
             ApplyRarity(choice.Rarity);
+        }
+
+        public void SetRerollState(
+            int remainingRerolls,
+            bool interactable)
+        {
+            int remaining = Mathf.Max(0, remainingRerolls);
+            if (rerollLabel != null)
+            {
+                rerollLabel.text = $"교체 {remaining}";
+            }
+
+            if (rerollButton != null)
+            {
+                rerollButton.interactable =
+                    interactable && remaining > 0;
+            }
         }
 
         public static Color ResolveRarityColor(string rarity)

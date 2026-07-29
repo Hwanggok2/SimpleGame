@@ -21,6 +21,10 @@ namespace SimpleGame
             view.Bind(HudButtonId.CardChoice0, () => session.SelectCard(0));
             view.Bind(HudButtonId.CardChoice1, () => session.SelectCard(1));
             view.Bind(HudButtonId.CardChoice2, () => session.SelectCard(2));
+            view.Bind(HudButtonId.CardReroll0, () => session.RerollCard(0));
+            view.Bind(HudButtonId.CardReroll1, () => session.RerollCard(1));
+            view.Bind(HudButtonId.CardReroll2, () => session.RerollCard(2));
+            view.Bind(HudButtonId.Settings, session.TogglePause);
             view.Bind(HudButtonId.ContinueAd, session.SimulateRewardedContinue);
 
             session.HintChanged += OnHintChanged;
@@ -28,9 +32,13 @@ namespace SimpleGame
             session.CardChoicesChanged += view.SetCardChoices;
             session.CardChoiceInteractivityChanged +=
                 view.SetCardChoicesInteractable;
+            session.CardRerollStateChanged += view.SetCardRerollState;
             session.PauseVisibilityChanged += view.ShowPauseDetails;
             session.PauseDetailsChanged += view.SetPauseDetails;
             session.GameOverVisibilityChanged += view.ShowGameOver;
+            view.SetCardRerollState(
+                session.RemainingCardRerolls,
+                false);
             Refresh();
         }
 
@@ -55,6 +63,7 @@ namespace SimpleGame
             session.CardChoicesChanged -= view.SetCardChoices;
             session.CardChoiceInteractivityChanged -=
                 view.SetCardChoicesInteractable;
+            session.CardRerollStateChanged -= view.SetCardRerollState;
             session.PauseVisibilityChanged -= view.ShowPauseDetails;
             session.PauseDetailsChanged -= view.SetPauseDetails;
             session.GameOverVisibilityChanged -= view.ShowGameOver;

@@ -18,7 +18,7 @@
 
 ## 3. 레벨업 카드 프리팹
 
-- 에셋 경로: `Assets/Game/UI/Prefabs/LevelUpCard.prefab`
+- 에셋 경로: `Assets/Prefab/LevelUpCard.prefab`
 - 루트 오브젝트: `LevelUpCard`
 - 필수 컴포넌트: `RectTransform`, `CanvasRenderer`, `Image`, `Button`
 - 필수 자식: `Label`

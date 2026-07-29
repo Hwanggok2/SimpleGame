@@ -17,6 +17,7 @@ namespace SimpleGame
         public void Configure(EnemyBase enemy)
         {
             owner = enemy;
+            Cancel();
             if (indicator == null)
             {
                 Debug.LogError(

@@ -1,11 +1,12 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace SimpleGame
 {
     public sealed class SlashTrailEffect : MonoBehaviour
     {
-        private static SlashTrailEffect reusableSever;
+        private static readonly List<SlashTrailEffect> severPool = new();
 
         private LineRenderer line;
         private SpriteRenderer spriteRenderer;
@@ -24,24 +25,58 @@ namespace SimpleGame
                 return;
             }
 
-            if (reusableSever == null)
-            {
-                SpriteRenderer clonedRenderer =
-                    Instantiate(template);
-                clonedRenderer.gameObject.name = "SeverTrail";
-                clonedRenderer.transform.SetParent(null, true);
-                reusableSever =
-                    clonedRenderer.gameObject
-                        .AddComponent<SlashTrailEffect>();
-                reusableSever.spriteRenderer = clonedRenderer;
-            }
-
-            reusableSever.gameObject.SetActive(true);
-            reusableSever.ConfigureSprite(
+            SlashTrailEffect effect = AcquireSever(template);
+            effect.gameObject.SetActive(true);
+            effect.ConfigureSprite(
                 start,
                 end,
                 duration,
                 template);
+        }
+
+        [RuntimeInitializeOnLoadMethod(
+            RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetSeverPool()
+        {
+            severPool.Clear();
+        }
+
+        private static SlashTrailEffect AcquireSever(
+            SpriteRenderer template)
+        {
+            for (int index = severPool.Count - 1;
+                 index >= 0;
+                 index--)
+            {
+                SlashTrailEffect candidate = severPool[index];
+                if (candidate == null)
+                {
+                    severPool.RemoveAt(index);
+                    continue;
+                }
+
+                if (!candidate.gameObject.activeSelf)
+                {
+                    return candidate;
+                }
+            }
+
+            SpriteRenderer clonedRenderer = Instantiate(template);
+            clonedRenderer.gameObject.name = "SeverTrail";
+            clonedRenderer.transform.SetParent(null, true);
+            SlashTrailEffect effect =
+                clonedRenderer.gameObject
+                    .GetComponent<SlashTrailEffect>();
+            if (effect == null)
+            {
+                effect =
+                    clonedRenderer.gameObject
+                        .AddComponent<SlashTrailEffect>();
+            }
+
+            effect.spriteRenderer = clonedRenderer;
+            severPool.Add(effect);
+            return effect;
         }
 
         public static void ShowStaticArc(
@@ -69,10 +104,11 @@ namespace SimpleGame
             if (fadeCoroutine != null)
             {
                 StopCoroutine(fadeCoroutine);
+                fadeCoroutine = null;
             }
 
+            ApplySpriteTemplate(template);
             effectColor = template.color;
-            spriteRenderer.color = effectColor;
             PositionSprite(
                 start,
                 end,
@@ -81,6 +117,25 @@ namespace SimpleGame
             fadeCoroutine = StartCoroutine(FadeRoutine(
                 Mathf.Max(0.05f, duration),
                 false));
+        }
+
+        private void ApplySpriteTemplate(SpriteRenderer template)
+        {
+            spriteRenderer.sprite = template.sprite;
+            spriteRenderer.sharedMaterial = template.sharedMaterial;
+            spriteRenderer.color = template.color;
+            spriteRenderer.sortingLayerID = template.sortingLayerID;
+            spriteRenderer.sortingOrder = template.sortingOrder;
+            spriteRenderer.flipX = template.flipX;
+            spriteRenderer.flipY = template.flipY;
+            spriteRenderer.maskInteraction = template.maskInteraction;
+            spriteRenderer.spriteSortPoint = template.spriteSortPoint;
+            spriteRenderer.drawMode = template.drawMode;
+            spriteRenderer.size = template.size;
+            spriteRenderer.tileMode = template.tileMode;
+            spriteRenderer.adaptiveModeThreshold =
+                template.adaptiveModeThreshold;
+            spriteRenderer.enabled = template.enabled;
         }
 
         private void PositionSprite(
@@ -211,10 +266,7 @@ namespace SimpleGame
 
         private void OnDestroy()
         {
-            if (reusableSever == this)
-            {
-                reusableSever = null;
-            }
+            severPool.Remove(this);
 
             if (material != null)
             {

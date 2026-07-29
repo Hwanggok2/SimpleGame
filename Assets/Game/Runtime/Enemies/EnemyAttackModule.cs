@@ -24,6 +24,11 @@ namespace SimpleGame
         public void Configure(EnemyBase enemy)
         {
             owner = enemy;
+            hitAt = 0f;
+            nextReadyAt = 0f;
+            facingLockedUntil = 0f;
+            windingUp = false;
+            currentTarget = null;
             if (indicator == null)
             {
                 Debug.LogError(

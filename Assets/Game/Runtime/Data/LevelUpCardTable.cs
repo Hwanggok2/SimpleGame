@@ -126,18 +126,17 @@ namespace SimpleGame
         public List<LevelUpCardDefinition> Draw(
             int unlockLevel,
             Func<string, int> getStackCount,
-            int count)
+            int count,
+            ISet<string> excludedCardIds = null)
         {
             var candidates = new List<LevelUpCardDefinition>();
             foreach (LevelUpCardDefinition definition in definitions)
             {
-                if (definition != null &&
-                    definition.Enabled &&
-                    definition.MinPlayerLevel <= unlockLevel &&
-                    (string.IsNullOrWhiteSpace(
-                         definition.RequiredCardId) ||
-                     getStackCount(definition.RequiredCardId) > 0) &&
-                    getStackCount(definition.CardId) < definition.MaxStack)
+                if (IsEligible(
+                        definition,
+                        unlockLevel,
+                        getStackCount,
+                        excludedCardIds))
                 {
                     candidates.Add(definition);
                 }
@@ -165,9 +164,47 @@ namespace SimpleGame
             return result;
         }
 
+        public bool HasEligibleCard(
+            int unlockLevel,
+            Func<string, int> getStackCount,
+            ISet<string> excludedCardIds = null)
+        {
+            foreach (LevelUpCardDefinition definition in definitions)
+            {
+                if (IsEligible(
+                        definition,
+                        unlockLevel,
+                        getStackCount,
+                        excludedCardIds))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public void Configure(IEnumerable<LevelUpCardDefinition> values)
         {
             definitions = new List<LevelUpCardDefinition>(values);
+        }
+
+        private static bool IsEligible(
+            LevelUpCardDefinition definition,
+            int unlockLevel,
+            Func<string, int> getStackCount,
+            ISet<string> excludedCardIds)
+        {
+            return definition != null &&
+                definition.Enabled &&
+                definition.MinPlayerLevel <= unlockLevel &&
+                (string.IsNullOrWhiteSpace(
+                     definition.RequiredCardId) ||
+                 getStackCount(definition.RequiredCardId) > 0) &&
+                getStackCount(definition.CardId) <
+                    definition.MaxStack &&
+                (excludedCardIds == null ||
+                 !excludedCardIds.Contains(definition.CardId));
         }
 
         private static int FindWeightedIndex(

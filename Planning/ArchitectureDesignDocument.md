@@ -495,7 +495,7 @@ Enemy가 회색 공격 사거리 안
 
 방패병도 별도 애니메이터 클래스를 만들지 않고 같은 Adapter를 사용한다. `EnemyStateMachine`은 하늘색 범위 밖에서 Motion=Move(Walk), 범위 안에서 Motion=Guard(Shield)를 요청한다. Attack/Hurt 상태는 AnimatorController의 Exit Time 이후 현재 Motion 값에 맞는 Idle·Move·Guard 상태로 복귀한다.
 
-Player와 Enemy의 게임용 자산은 모두 `Assets/Game/Characters` 아래에서 관리한다. 원본 Sprite Sheet만 `Assets/Resources`에 유지한다.
+Player와 Enemy의 Animation·Animator 자산은 `Assets/Game/Characters` 아래에서 관리한다. 프로젝트의 모든 Prefab은 `Assets/Prefab`에 모으고 원본 Sprite Sheet만 `Assets/Resources`에 유지한다.
 
 ```text
 Assets/Game/Characters/
@@ -505,17 +505,16 @@ Assets/Game/Characters/
 │  ├─ Goblin/
 │  └─ Skeleton/
 ├─ Animators/       # Player, Goblin, Skeleton Controller
-├─ Shared/          # 직렬화 가능한 PrototypeSquare Sprite
-└─ Prefabs/
-   ├─ Player/       # Player.prefab
-   └─ Enemies/      # Melee, Ranged, Shield, Boss
+└─ Shared/          # 직렬화 가능한 PrototypeSquare Sprite
+
+Assets/Prefab/      # Player, Enemy, UI, Map, Effect 등 모든 Prefab
 
 Assets/Resources/
 ├─ Bandits - Pixel Art/Sprites/LightBandit.png
 └─ Monsters Creatures Fantasy/Sprites/      # Goblin, Skeleton 원본
 ```
 
-`PrototypeEnemyFactory`는 런타임에 GameObject와 컴포넌트를 조립하지 않고 직렬화된 Enemy Prefab을 Instantiate한다. 각 Prefab은 고정된 컴포넌트, SpriteRenderer, AnimatorController 참조를 Inspector에서 확인할 수 있어야 한다.
+`PrototypeEnemyFactory`는 런타임에 GameObject와 컴포넌트를 조립하지 않고 직렬화된 Enemy Prefab별 지연 생성 Pool을 사용한다. 같은 Source Prefab의 비활성 인스턴스를 우선 재사용하고 Pool이 비었을 때만 Instantiate하며, 사망 애니메이션 뒤 상태를 초기화해 반환한다. 각 Prefab은 고정된 컴포넌트, SpriteRenderer, AnimatorController 참조를 Inspector에서 확인할 수 있어야 한다.
 
 Player와 Enemy Prefab의 `Rigidbody2D`, `Collider2D`, Animator, 공격 범위, 공격 예고, 방향 마커와 레벨 라벨은 모두 Prefab에 직렬화한다. 모든 Enemy Prefab에는 `EnemyHealthBar`, World Space Canvas, Slider와 현재/최대 HP 라벨도 직렬화한다. `CameraFollowController`, `CameraShakeController`, `PlayerWorldArea`, `EnemyWorldRecycler`, `WorldChunkGrid`와 9개 Tilemap 청크도 Scene에 미리 저장한다. 런타임 코드는 `AddComponent`나 고정 자식 GameObject 생성을 수행하지 않고 저장된 참조의 값과 활성 상태만 변경한다.
 
@@ -950,12 +949,13 @@ Assets/Game/
 ├─ Characters/
 │  ├─ Animations/
 │  ├─ Animators/
-│  ├─ Prefabs/
 │  └─ Shared/
 └─ Tests/
    ├─ EditMode/
    └─ PlayMode/
 ```
+
+모든 `.prefab` 에셋은 종류와 관계없이 `Assets/Prefab` 바로 아래에서 관리한다.
 
 ### 17.1 Assembly Definition
 

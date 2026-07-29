@@ -11,7 +11,7 @@ namespace SimpleGame
         public const float PiercingReach = 4.5f;
         public const float PiercingHalfWidth = 0.42f;
         public const float PiercingWindowDuration = 0.4f;
-        public const float SeverDelay = 0.15f;
+        public const float SeverDelay = 0.3f;
         public const float SeverReuseCooldown = 0.1f;
         public const float SeverTrailFadeDuration = 0.1f;
         public const float SeverHalfWidth = 0.17f;
@@ -30,6 +30,7 @@ namespace SimpleGame
         [SerializeField] private float movingSlashDamageMultiplier = 1.5f;
         [SerializeField] private float shieldBypassChancePerLevel = 0.1f;
         [SerializeField] private SpriteRenderer severTrailVisual;
+        [SerializeField] private MovingSlashProjectile movingSlashPrefab;
 
         private readonly HashSet<EnemyBase> directTargets = new();
         private PlayerRoot owner;
@@ -60,6 +61,12 @@ namespace SimpleGame
             {
                 severTrailVisual.gameObject.SetActive(false);
             }
+        }
+
+        public void ConfigureMovingSlashPrefab(
+            MovingSlashProjectile configuredPrefab)
+        {
+            movingSlashPrefab = configuredPrefab;
         }
 
         public void Configure(
@@ -363,6 +370,7 @@ namespace SimpleGame
             }
 
             MovingSlashProjectile.Spawn(
+                movingSlashPrefab,
                 owner,
                 enemyWorld,
                 movementDirection,

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -168,6 +170,14 @@ namespace SimpleGame.Tests
         }
 
         [Test]
+        public void CardRerollBudget_IsThreePerRun()
+        {
+            Assert.That(
+                PrototypeGameSession.MaximumCardRerollsPerRun,
+                Is.EqualTo(3));
+        }
+
+        [Test]
         public void LevelUpCardTable_DrawsThreeDistinctEligibleCards()
         {
             LevelUpCardTable table =
@@ -190,6 +200,151 @@ namespace SimpleGame.Tests
                         choice => choice.CardId)),
                 Has.Count.EqualTo(3));
             Object.DestroyImmediate(table);
+        }
+
+        [Test]
+        public void LevelUpCardTable_RerollExcludesEveryVisibleCard()
+        {
+            LevelUpCardTable table =
+                ScriptableObject.CreateInstance<LevelUpCardTable>();
+            table.Configure(new[]
+            {
+                CreateCard("A", 1),
+                CreateCard("B", 1),
+                CreateCard("C", 1),
+                CreateCard("D", 1)
+            });
+            var visibleCardIds = new HashSet<string>
+            {
+                "A",
+                "B",
+                "C"
+            };
+
+            var replacement = table.Draw(
+                1,
+                _ => 0,
+                1,
+                visibleCardIds);
+
+            Assert.That(replacement, Has.Count.EqualTo(1));
+            Assert.That(replacement[0].CardId, Is.EqualTo("D"));
+            Assert.That(
+                table.HasEligibleCard(
+                    1,
+                    _ => 0,
+                    visibleCardIds),
+                Is.True);
+
+            visibleCardIds.Add("D");
+            Assert.That(
+                table.Draw(1, _ => 0, 1, visibleCardIds),
+                Is.Empty);
+            Assert.That(
+                table.HasEligibleCard(
+                    1,
+                    _ => 0,
+                    visibleCardIds),
+                Is.False);
+            Object.DestroyImmediate(table);
+        }
+
+        [Test]
+        public void GameSession_RerollsOneSlotAndConsumesSharedBudget()
+        {
+            LevelUpCardTable table =
+                ScriptableObject.CreateInstance<LevelUpCardTable>();
+            GameDataManifest manifest =
+                ScriptableObject.CreateInstance<GameDataManifest>();
+            var playerObject = new GameObject("RerollPlayer");
+            var sessionObject = new GameObject("RerollSession");
+            playerObject.SetActive(false);
+            sessionObject.SetActive(false);
+            try
+            {
+                LevelUpCardDefinition cardA = CreateCard("A", 1);
+                LevelUpCardDefinition cardB = CreateCard("B", 1);
+                LevelUpCardDefinition cardC = CreateCard("C", 1);
+                LevelUpCardDefinition cardD = CreateCard("D", 1);
+                table.Configure(new[] { cardA, cardB, cardC });
+                manifest.Configure(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    table,
+                    null,
+                    null);
+
+                PlayerRoot player =
+                    playerObject.AddComponent<PlayerRoot>();
+                SetPrivateField(
+                    player,
+                    "progression",
+                    playerObject.GetComponent<PlayerProgression>());
+                PrototypeGameSession session =
+                    sessionObject.AddComponent<PrototypeGameSession>();
+                session.ConfigureScene(
+                    player,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null);
+                session.ConfigureData(manifest, null);
+                SetPrivateField(
+                    session,
+                    "state",
+                    GameRunState.CardSelection);
+                SetPrivateField(
+                    session,
+                    "pendingCardSelections",
+                    1);
+                SetPrivateField(
+                    session,
+                    "cardChoicesInteractable",
+                    true);
+                List<LevelUpCardDefinition> choices =
+                    GetPrivateField<List<LevelUpCardDefinition>>(
+                        session,
+                        "currentCardChoices");
+                choices.Add(cardA);
+                choices.Add(cardB);
+                choices.Add(cardC);
+
+                session.RerollCard(0);
+                Assert.That(choices[0].CardId, Is.EqualTo("A"));
+                Assert.That(session.RemainingCardRerolls, Is.EqualTo(3));
+
+                table.Configure(new[] { cardA, cardB, cardC, cardD });
+                session.RerollCard(0);
+                Assert.That(choices[0].CardId, Is.EqualTo("D"));
+                Assert.That(choices[1].CardId, Is.EqualTo("B"));
+                Assert.That(choices[2].CardId, Is.EqualTo("C"));
+                Assert.That(session.RemainingCardRerolls, Is.EqualTo(2));
+
+                session.RerollCard(0);
+                session.RerollCard(0);
+                Assert.That(session.RemainingCardRerolls, Is.Zero);
+                string cardAfterBudgetSpent = choices[0].CardId;
+
+                session.RerollCard(0);
+                Assert.That(
+                    choices[0].CardId,
+                    Is.EqualTo(cardAfterBudgetSpent));
+                Assert.That(session.RemainingCardRerolls, Is.Zero);
+            }
+            finally
+            {
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(manifest);
+                Object.DestroyImmediate(table);
+            }
         }
 
         [Test]
@@ -283,10 +438,10 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expected));
         }
 
-        [TestCase(1f, 10f)]
-        [TestCase(10f, 100f)]
-        [TestCase(20f, 200f)]
-        public void MaximumMoveSpeed_ReachesDestinationInPointOneSeconds(
+        [TestCase(1f, 6.666667f)]
+        [TestCase(10f, 66.66667f)]
+        [TestCase(20f, 133.3333f)]
+        public void MaximumMoveSpeed_ReachesDestinationInPointOneFiveSeconds(
             float distance,
             float expectedSpeed)
         {
@@ -298,7 +453,7 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expectedSpeed).Within(0.001f));
             Assert.That(
                 distance / speed,
-                Is.EqualTo(0.1f).Within(0.0001f));
+                Is.EqualTo(0.15f).Within(0.0001f));
         }
 
         [TestCase(0, 2)]
@@ -389,6 +544,53 @@ namespace SimpleGame.Tests
             Assert.That(
                 PlayerCombatAbilities.CalculateMovingSlashSize(level),
                 Is.EqualTo(expectedSize).Within(0.0001f));
+        }
+
+        [TestCase(10f, 10f, false, 30f)]
+        [TestCase(14f, 1f, false, 6.666667f)]
+        [TestCase(15f, 10f, false, 45f)]
+        [TestCase(15f, 1f, true, 6.666667f)]
+        [TestCase(15f, 10f, true, 66.66667f)]
+        public void MovingSlash_SpeedIsTriplePlayerSpeedWithMaximumCap(
+            float playerMoveSpeed,
+            float commandDistance,
+            bool maximumSpeedActive,
+            float expectedSpeed)
+        {
+            Assert.That(
+                MovingSlashProjectile.CalculateTravelSpeed(
+                    playerMoveSpeed,
+                    commandDistance,
+                    maximumSpeedActive),
+                Is.EqualTo(expectedSpeed).Within(0.0001f));
+        }
+
+        [TestCase(0f, 0)]
+        [TestCase(1.16f, 0)]
+        [TestCase(1.17f, 1)]
+        [TestCase(5.84f, 5)]
+        [TestCase(7f, 5)]
+        public void MovingSlash_AnimationTracksTravelProgress(
+            float distanceTravelled,
+            int expectedFrame)
+        {
+            Assert.That(
+                MovingSlashProjectile.CalculateAnimationFrameIndex(
+                    distanceTravelled),
+                Is.EqualTo(expectedFrame));
+        }
+
+        [TestCase(0f, 1f)]
+        [TestCase(0.05f, 0.5f)]
+        [TestCase(0.1f, 0f)]
+        [TestCase(1f, 0f)]
+        public void MovingSlash_FadeAlphaDecreasesLinearly(
+            float elapsed,
+            float expectedAlpha)
+        {
+            Assert.That(
+                MovingSlashProjectile.CalculateFadeAlpha(elapsed),
+                Is.EqualTo(expectedAlpha).Within(0.0001f));
         }
 
         [TestCase(0, 0f)]
@@ -524,10 +726,16 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expected));
             Assert.That(
                 PlayerCombatAbilities.SeverDelay,
-                Is.EqualTo(0.15f).Within(0.0001f));
+                Is.EqualTo(0.3f).Within(0.0001f));
             Assert.That(
                 PlayerCombatAbilities.SeverReuseCooldown,
                 Is.EqualTo(0.1f).Within(0.0001f));
+            Assert.That(
+                PlayerCombatAbilities.SeverDelay /
+                    PlayerCombatAbilities.SeverReuseCooldown,
+                Is.EqualTo(3f).Within(0.0001f),
+                "Three independently reserved sever triggers fit before " +
+                "the first delayed activation.");
         }
 
         [TestCase(true, true, true, true)]
@@ -566,6 +774,97 @@ namespace SimpleGame.Tests
                 Is.EqualTo(
                     FlyingSwordController.PostTargetTravelDuration)
                     .Within(0.0001f));
+        }
+
+        [Test]
+        public void SeverVisualPool_SameFrameShowsKeepIndependentSegments()
+        {
+            DestroySeverTrailObjects();
+            var templateObject =
+                new GameObject("SeverVisualPoolTemplate");
+            SpriteRenderer template =
+                templateObject.AddComponent<SpriteRenderer>();
+            template.color = Color.black;
+            templateObject.SetActive(false);
+
+            Vector2[] starts =
+            {
+                Vector2.zero,
+                new(0f, 1f),
+                new(-2f, -2f)
+            };
+            Vector2[] ends =
+            {
+                new(2f, 0f),
+                new(0f, 4f),
+                new(2f, 2f)
+            };
+
+            try
+            {
+                for (int index = 0; index < starts.Length; index++)
+                {
+                    SlashTrailEffect.Show(
+                        template,
+                        starts[index],
+                        ends[index],
+                        10f);
+                }
+
+                var activeEffects = new List<SlashTrailEffect>();
+                var instanceIds = new HashSet<int>();
+                foreach (SlashTrailEffect effect in
+                         Resources.FindObjectsOfTypeAll<
+                             SlashTrailEffect>())
+                {
+                    if (effect == null ||
+                        effect.gameObject.name != "SeverTrail" ||
+                        !effect.gameObject.activeSelf)
+                    {
+                        continue;
+                    }
+
+                    activeEffects.Add(effect);
+                    instanceIds.Add(effect.GetInstanceID());
+                }
+
+                Assert.That(activeEffects, Has.Count.EqualTo(3));
+                Assert.That(instanceIds, Has.Count.EqualTo(3));
+                for (int index = 0; index < starts.Length; index++)
+                {
+                    Vector2 expectedMidpoint =
+                        (starts[index] + ends[index]) * 0.5f;
+                    float expectedLength =
+                        Vector2.Distance(starts[index], ends[index]);
+                    bool found = false;
+                    foreach (SlashTrailEffect effect in activeEffects)
+                    {
+                        if (Vector2.Distance(
+                                effect.transform.position,
+                                expectedMidpoint) > 0.0001f)
+                        {
+                            continue;
+                        }
+
+                        Assert.That(
+                            effect.transform.localScale.y,
+                            Is.EqualTo(expectedLength)
+                                .Within(0.0001f));
+                        found = true;
+                        break;
+                    }
+
+                    Assert.That(
+                        found,
+                        Is.True,
+                        $"Missing sever segment {index}.");
+                }
+            }
+            finally
+            {
+                DestroySeverTrailObjects();
+                Object.DestroyImmediate(templateObject);
+            }
         }
 
         [Test]
@@ -815,6 +1114,42 @@ namespace SimpleGame.Tests
 
             Assert.That(facing.Direction.x, Is.LessThan(0f));
             Object.DestroyImmediate(owner);
+        }
+
+        private static T GetPrivateField<T>(
+            object target,
+            string fieldName)
+        {
+            FieldInfo field = target.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            return (T)field.GetValue(target);
+        }
+
+        private static void SetPrivateField(
+            object target,
+            string fieldName,
+            object value)
+        {
+            FieldInfo field = target.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            field.SetValue(target, value);
+        }
+
+        private static void DestroySeverTrailObjects()
+        {
+            foreach (SlashTrailEffect effect in
+                     Resources.FindObjectsOfTypeAll<SlashTrailEffect>())
+            {
+                if (effect != null &&
+                    effect.gameObject.name == "SeverTrail")
+                {
+                    Object.DestroyImmediate(effect.gameObject);
+                }
+            }
         }
 
         private static LevelUpCardDefinition CreateCard(

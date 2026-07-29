@@ -9,6 +9,7 @@ namespace SimpleGame
     public sealed class PrototypeGameSession : MonoBehaviour
     {
         public const float CardChoiceInputDelay = 0.7f;
+        public const int MaximumCardRerollsPerRun = 3;
 
         [Header("Scene References")]
         [SerializeField] private PlayerRoot player;
@@ -33,6 +34,8 @@ namespace SimpleGame
         private GameRunState state = GameRunState.Playing;
         private int pendingCardSelections;
         private bool selectingStartingCards;
+        private int remainingCardRerolls =
+            MaximumCardRerollsPerRun;
         private int continueCount;
         private GameRunState stateBeforePause = GameRunState.Playing;
         private bool cardChoicesInteractable;
@@ -43,6 +46,7 @@ namespace SimpleGame
         public event Action<IReadOnlyList<LevelUpCardChoiceData>>
             CardChoicesChanged;
         public event Action<bool> CardChoiceInteractivityChanged;
+        public event Action<int, bool> CardRerollStateChanged;
         public event Action<bool> PauseVisibilityChanged;
         public event Action<string> PauseDetailsChanged;
         public event Action<bool> GameOverVisibilityChanged;
@@ -55,6 +59,7 @@ namespace SimpleGame
                 : 0;
         public float ElapsedTime { get; private set; }
         public bool IsPlaying => state == GameRunState.Playing;
+        public int RemainingCardRerolls => remainingCardRerolls;
 
         public static string FormatElapsedTime(float elapsedTime)
         {
@@ -101,6 +106,7 @@ namespace SimpleGame
         private void Start()
         {
             Time.timeScale = 1f;
+            remainingCardRerolls = MaximumCardRerollsPerRun;
             if (gameData == null ||
                 !gameData.IsConfigured ||
                 stageSpawner == null ||
@@ -279,6 +285,38 @@ namespace SimpleGame
                 : $"{selected.DisplayName} 카드를 획득했습니다.");
         }
 
+        public void RerollCard(int choiceIndex)
+        {
+            if (state != GameRunState.CardSelection ||
+                !cardChoicesInteractable ||
+                pendingCardSelections <= 0 ||
+                remainingCardRerolls <= 0 ||
+                choiceIndex < 0 ||
+                choiceIndex >= currentCardChoices.Count)
+            {
+                return;
+            }
+
+            HashSet<string> excludedCardIds =
+                BuildCurrentCardChoiceIds();
+            List<LevelUpCardDefinition> replacements =
+                gameData.LevelUpCards.Draw(
+                    GetCardUnlockLevel(),
+                    GetCardStack,
+                    1,
+                    excludedCardIds);
+            if (replacements.Count == 0)
+            {
+                PublishCardRerollState();
+                return;
+            }
+
+            currentCardChoices[choiceIndex] = replacements[0];
+            remainingCardRerolls--;
+            PublishCardChoices();
+            PublishCardRerollState();
+        }
+
         public void SimulateRewardedContinue()
         {
             if (state != GameRunState.GameOver || continueCount >= 2)
@@ -387,14 +425,16 @@ namespace SimpleGame
         private void RefreshCardChoices()
         {
             currentCardChoices.Clear();
-            int unlockLevel = selectingStartingCards
-                ? Mathf.Max(player.Progression.Level, accountLevel)
-                : player.Progression.Level;
             currentCardChoices.AddRange(gameData.LevelUpCards.Draw(
-                unlockLevel,
+                GetCardUnlockLevel(),
                 GetCardStack,
                 3));
+            PublishCardChoices();
+            PublishCardRerollState();
+        }
 
+        private void PublishCardChoices()
+        {
             var choices = new List<LevelUpCardChoiceData>(
                 currentCardChoices.Count);
             foreach (LevelUpCardDefinition choice in currentCardChoices)
@@ -405,6 +445,40 @@ namespace SimpleGame
             }
 
             CardChoicesChanged?.Invoke(choices);
+        }
+
+        private void PublishCardRerollState()
+        {
+            bool hasAlternative =
+                remainingCardRerolls > 0 &&
+                currentCardChoices.Count > 0 &&
+                gameData.LevelUpCards.HasEligibleCard(
+                    GetCardUnlockLevel(),
+                    GetCardStack,
+                    BuildCurrentCardChoiceIds());
+            CardRerollStateChanged?.Invoke(
+                remainingCardRerolls,
+                hasAlternative);
+        }
+
+        private int GetCardUnlockLevel()
+        {
+            return selectingStartingCards
+                ? Mathf.Max(player.Progression.Level, accountLevel)
+                : player.Progression.Level;
+        }
+
+        private HashSet<string> BuildCurrentCardChoiceIds()
+        {
+            var cardIds = new HashSet<string>(
+                StringComparer.Ordinal);
+            foreach (LevelUpCardDefinition choice
+                     in currentCardChoices)
+            {
+                cardIds.Add(choice.CardId);
+            }
+
+            return cardIds;
         }
 
         private void ArmCardChoiceDelay()

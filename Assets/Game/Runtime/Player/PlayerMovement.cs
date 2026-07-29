@@ -7,7 +7,7 @@ namespace SimpleGame
     {
         public const float DefaultMoveSpeed = 10f;
         public const float DefaultArrivalTolerance = 0.08f;
-        public const float MaximumSpeedTravelDuration = 0.1f;
+        public const float MaximumSpeedTravelDuration = 0.15f;
         private const float MinimumSpeedFactor = 0.15f;
 
         [SerializeField, Min(0.01f)]
@@ -25,6 +25,8 @@ namespace SimpleGame
         private bool maximumSpeedActive;
         private float maximumTravelSpeed;
         private CharacterSpriteAnimator characterAnimation;
+
+        public bool IsMaximumSpeedActive => maximumSpeedActive;
 
         public void Configure(
             float configuredMoveSpeed,

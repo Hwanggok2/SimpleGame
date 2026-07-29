@@ -16,15 +16,20 @@ namespace SimpleGameEditor
     public static class PrototypeSceneBuilder
     {
         public const string LevelUpCardPrefabPath =
-            "Assets/Game/UI/Prefabs/LevelUpCard.prefab";
+            CharacterAssetBuilder.PrefabRootPath +
+            "/LevelUpCard.prefab";
         public const string PrototypeHudPrefabPath =
-            "Assets/Game/UI/Prefabs/PrototypeHUD.prefab";
+            CharacterAssetBuilder.PrefabRootPath +
+            "/PrototypeHUD.prefab";
         public const string CardSelectionPanelPrefabPath =
-            "Assets/Game/UI/Prefabs/CardSelectionPanel.prefab";
+            CharacterAssetBuilder.PrefabRootPath +
+            "/CardSelectionPanel.prefab";
         public const string PauseDetailsPanelPrefabPath =
-            "Assets/Game/UI/Prefabs/PauseDetailsPanel.prefab";
+            CharacterAssetBuilder.PrefabRootPath +
+            "/PauseDetailsPanel.prefab";
         public const string GameOverPanelPrefabPath =
-            "Assets/Game/UI/Prefabs/GameOverPanel.prefab";
+            CharacterAssetBuilder.PrefabRootPath +
+            "/GameOverPanel.prefab";
         private const string ScenePath = "Assets/Scenes/PrototypeScene.unity";
         private const string WorldTilePath = "Assets/Game/World/Tiles";
         private const float LevelUpCardWidth = 300f;
@@ -442,7 +447,7 @@ namespace SimpleGameEditor
         private static void EnsureUiPrefabAssets()
         {
             EditorAssetUtility.EnsureFolder(
-                "Assets/Game/UI/Prefabs");
+                CharacterAssetBuilder.PrefabRootPath);
             ConfigureLevelUpCardPrefabAsset();
 
             GameObject cardSelectionPrefab =
@@ -458,8 +463,15 @@ namespace SimpleGameEditor
                     GameOverPanelPrefabPath,
                     CreateGameOverPanelPrefab);
 
-            if (AssetDatabase.LoadAssetAtPath<GameObject>(
-                    PrototypeHudPrefabPath) == null)
+            GameObject hudPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    PrototypeHudPrefabPath);
+            PrototypeHUDView existingHudView =
+                hudPrefab != null
+                    ? hudPrefab.GetComponent<PrototypeHUDView>()
+                    : null;
+            if (existingHudView == null ||
+                existingHudView.SettingsButton == null)
             {
                 CreatePrototypeHudPrefab(
                     cardSelectionPrefab,
@@ -545,6 +557,21 @@ namespace SimpleGameEditor
             StretchRect(
                 modalRootObject.GetComponent<RectTransform>());
 
+            Button settingsButton = CreateButtonVisual(
+                HudButtonId.Settings.ToString(),
+                "설정");
+            settingsButton.transform.SetParent(
+                canvasObject.transform,
+                false);
+            RectTransform settingsRect =
+                settingsButton.GetComponent<RectTransform>();
+            settingsRect.anchorMin = Vector2.one;
+            settingsRect.anchorMax = Vector2.one;
+            settingsRect.pivot = Vector2.one;
+            settingsRect.anchoredPosition =
+                new Vector2(-18f, -16f);
+            settingsRect.sizeDelta = new Vector2(112f, 64f);
+
             var hudView =
                 canvasObject.AddComponent<PrototypeHUDView>();
             hudView.Configure(
@@ -553,6 +580,7 @@ namespace SimpleGameEditor
                 hintLabel,
                 experienceSlider,
                 experienceLabel,
+                settingsButton,
                 modalRootObject.transform,
                 cardSelectionPrefab,
                 pausePrefab,
@@ -902,6 +930,58 @@ namespace SimpleGameEditor
                         "LevelUpCard visual references are incomplete.");
                 }
 
+                Transform rerollTransform =
+                    contents.transform.Find("RerollButton");
+                Button rerollButton;
+                if (rerollTransform == null)
+                {
+                    rerollButton = CreateButtonVisual(
+                        "RerollButton",
+                        $"교체 {PrototypeGameSession.MaximumCardRerollsPerRun}");
+                    rerollButton.transform.SetParent(
+                        contents.transform,
+                        false);
+                    rerollTransform = rerollButton.transform;
+                }
+                else
+                {
+                    rerollButton =
+                        rerollTransform.GetComponent<Button>();
+                }
+
+                Image rerollImage =
+                    rerollTransform.GetComponent<Image>();
+                Transform rerollLabelTransform =
+                    rerollTransform.Find("Label");
+                TMP_Text rerollLabel =
+                    rerollLabelTransform != null
+                        ? rerollLabelTransform.GetComponent<TMP_Text>()
+                        : null;
+                if (rerollButton == null ||
+                    rerollImage == null ||
+                    rerollLabel == null)
+                {
+                    throw new InvalidOperationException(
+                        "LevelUpCard RerollButton requires " +
+                        "Button/Image and Label text.");
+                }
+
+                RectTransform rerollRect =
+                    rerollTransform.GetComponent<RectTransform>();
+                rerollRect.anchorMin = Vector2.one;
+                rerollRect.anchorMax = Vector2.one;
+                rerollRect.pivot = Vector2.one;
+                rerollRect.anchoredPosition =
+                    new Vector2(-10f, -10f);
+                rerollRect.sizeDelta = new Vector2(96f, 58f);
+                rerollButton.targetGraphic = rerollImage;
+                rerollLabel.text =
+                    $"교체 {PrototypeGameSession.MaximumCardRerollsPerRun}";
+                rerollLabel.enableAutoSizing = true;
+                rerollLabel.fontSizeMin = 14f;
+                rerollLabel.fontSizeMax = 22f;
+                rerollTransform.SetAsLastSibling();
+
                 Button innerButton = inner.GetComponent<Button>();
                 if (innerButton != null)
                 {
@@ -911,7 +991,9 @@ namespace SimpleGameEditor
                 foreach (Graphic graphic in
                          contents.GetComponentsInChildren<Graphic>(true))
                 {
-                    graphic.raycastTarget = graphic == frame;
+                    graphic.raycastTarget =
+                        graphic == frame ||
+                        graphic == rerollImage;
                 }
 
                 Outline outline =
@@ -972,7 +1054,9 @@ namespace SimpleGameEditor
                     titleText,
                     skillText,
                     outline,
-                    glow);
+                    glow,
+                    rerollButton,
+                    rerollLabel);
                 rootButton.targetGraphic = frame;
                 PrefabUtility.SaveAsPrefabAsset(
                     contents,

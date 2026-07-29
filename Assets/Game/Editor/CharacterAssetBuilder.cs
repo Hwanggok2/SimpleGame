@@ -12,16 +12,19 @@ namespace SimpleGameEditor
     public static class CharacterAssetBuilder
     {
         public const string RootPath = "Assets/Game/Characters";
+        public const string PrefabRootPath = "Assets/Prefab";
         public const string PlayerPrefabPath =
-            RootPath + "/Prefabs/Player/Player.prefab";
+            PrefabRootPath + "/Player.prefab";
         public const string MeleePrefabPath =
-            RootPath + "/Prefabs/Enemies/MeleeEnemy.prefab";
+            PrefabRootPath + "/MeleeEnemy.prefab";
         public const string RangedPrefabPath =
-            RootPath + "/Prefabs/Enemies/RangedEnemy.prefab";
+            PrefabRootPath + "/RangedEnemy.prefab";
         public const string ShieldPrefabPath =
-            RootPath + "/Prefabs/Enemies/ShieldEnemy.prefab";
+            PrefabRootPath + "/ShieldEnemy.prefab";
         public const string BossPrefabPath =
-            RootPath + "/Prefabs/Enemies/BossEnemy.prefab";
+            PrefabRootPath + "/BossEnemy.prefab";
+        public const string MovingSlashPrefabPath =
+            PrefabRootPath + "/MovingSlash.prefab";
         public const string PrototypeSquareAssetPath =
             RootPath + "/Shared/PrototypeSquare.asset";
         public const string DefaultFontPath =
@@ -39,6 +42,8 @@ namespace SimpleGameEditor
             SourcePlayerAnimationPath + "/LightBandit_AnimController.controller";
         private const string SourcePlayerPrefabPath =
             "Assets/Resources/Bandits - Pixel Art/Demo/LightBandit.prefab";
+        private const string MovingSlashSpritePath =
+            "Assets/Resources/Effects/MovingSlash_Crescent_6f.png";
         private const string SpriteBindingPath = "Visual/Sprite";
 
         [MenuItem("SimpleGame/Build Character Assets %#g")]
@@ -134,7 +139,12 @@ namespace SimpleGameEditor
                 enemyFaceRight,
                 enemyFaceLeft);
 
-            BuildPlayerPrefab(playerController, playerIdle[0]);
+            MovingSlashProjectile movingSlashPrefab =
+                BuildMovingSlashPrefab();
+            BuildPlayerPrefab(
+                playerController,
+                playerIdle[0],
+                movingSlashPrefab);
             BuildEnemyPrefab(
                 EnemyArchetype.Melee,
                 goblinController,
@@ -587,9 +597,37 @@ namespace SimpleGameEditor
                 CharacterSpriteAnimator.MotionParameter);
         }
 
+        private static MovingSlashProjectile BuildMovingSlashPrefab()
+        {
+            Sprite[] frames = LoadSprites(MovingSlashSpritePath);
+            if (frames.Length !=
+                MovingSlashProjectile.AnimationFrameCount)
+            {
+                throw new InvalidOperationException(
+                    "Moving slash sprite sheet requires exactly " +
+                    $"{MovingSlashProjectile.AnimationFrameCount} frames.");
+            }
+
+            var root = new GameObject("MovingSlash");
+            SpriteRenderer renderer =
+                root.AddComponent<SpriteRenderer>();
+            renderer.sprite = frames[0];
+            renderer.flipX = true;
+            renderer.sortingOrder = 24;
+            MovingSlashProjectile projectile =
+                root.AddComponent<MovingSlashProjectile>();
+            projectile.ConfigureVisuals(renderer, frames);
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(
+                root,
+                MovingSlashPrefabPath);
+            UnityEngine.Object.DestroyImmediate(root);
+            return prefab.GetComponent<MovingSlashProjectile>();
+        }
+
         private static void BuildPlayerPrefab(
             RuntimeAnimatorController controller,
-            Sprite idleSprite)
+            Sprite idleSprite,
+            MovingSlashProjectile movingSlashPrefab)
         {
             var root = new GameObject("Player");
             root.AddComponent<HealthComponent>();
@@ -670,6 +708,8 @@ namespace SimpleGameEditor
                 Quaternion.Euler(-0.89f, -0.53f, 49.59f);
             cutting.gameObject.SetActive(false);
             combatAbilities.ConfigureSeverVisual(cutting);
+            combatAbilities.ConfigureMovingSlashPrefab(
+                movingSlashPrefab);
 
             SpriteRenderer attackRange = CreateSpriteVisual(
                 root.transform,
@@ -1087,10 +1127,7 @@ namespace SimpleGameEditor
             EditorAssetUtility.EnsureFolder(AnimationPath + "/Skeleton");
             EditorAssetUtility.EnsureFolder(AnimatorPath);
             EditorAssetUtility.EnsureFolder(RootPath + "/Shared");
-            EditorAssetUtility.EnsureFolder(
-                RootPath + "/Prefabs/Player");
-            EditorAssetUtility.EnsureFolder(
-                RootPath + "/Prefabs/Enemies");
+            EditorAssetUtility.EnsureFolder(PrefabRootPath);
         }
 
         private static void MigratePlayerAssets()

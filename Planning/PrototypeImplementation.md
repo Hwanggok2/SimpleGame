@@ -75,13 +75,13 @@
 - Enemy name and level labels use the normal, non-critical combat table relative to the current Player level: green for one hit from either side, white for three front hits/one rear hit, and red for every other case. Labels refresh after Player level-up.
 - Player attacks have no automatic click cooldown. Every valid Enemy click creates one attack request; repeated clicks during approach are queued for the same target.
 - Prototype Enemy touch correction uses a `1.5` world-unit radius instead of the previous `1.1` radius.
-- Player Prefab: `Assets/Game/Characters/Prefabs/Player/Player.prefab`.
+- Player Prefab: `Assets/Prefab/Player.prefab`.
 - Player AnimationClips: `Assets/Game/Characters/Animations/Player`.
 - Player AnimatorController: `Assets/Game/Characters/Animators/Player.controller`.
 - Melee, Ranged, and Boss Enemy visual: `Resources/Monsters Creatures Fantasy/Sprites/Goblin`.
 - ShieldEnemy visual: `Resources/Monsters Creatures Fantasy/Sprites/Skeleton`.
-- Player and Enemy gameplay Prefabs, AnimationClips, and AnimatorControllers are stored under `Assets/Game/Characters`. Only source Sprite Sheets remain under `Assets/Resources`.
-- `PrototypeEnemyFactory` instantiates saved Enemy Prefabs instead of creating GameObjects and components at runtime.
+- All gameplay, UI, map, and effect Prefabs are stored directly under `Assets/Prefab`. Character AnimationClips and AnimatorControllers remain under `Assets/Game/Characters`, while only source Sprite Sheets remain under `Assets/Resources`.
+- `PrototypeEnemyFactory` uses a lazy pool keyed by saved Enemy Prefab. It reuses fully reset inactive instances first, instantiates only when that prefab's pool is empty, and caps inactive storage at 64 instances per prefab.
 - Player and Enemy Prefabs serialize one Rigidbody2D, one Collider2D, and all fixed range, warning, marker, and label objects. Camera follow/shake, world area, world recycler, nine Tilemap chunks, and CombatFeedback components are saved in the Scene; runtime code contains no `AddComponent` or fixed-child construction.
 - Shared `CharacterSpriteAnimator` only forwards Motion, FaceLeft, Attack, Hurt, and Death parameters to each Prefab's Animator. It does not load Sprite arrays or advance frames in code.
 - Each character Prefab has exactly one Animator and its Controller on the Prefab root. Every AnimationClip binds to the shared `Visual/Sprite` child path.

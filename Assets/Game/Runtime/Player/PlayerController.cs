@@ -18,6 +18,7 @@ namespace SimpleGame
         private Camera worldCamera;
         private EnemyBase pendingEnemy;
         private EnemyBase ignoredPathEnemy;
+        private uint ignoredPathEnemyGeneration;
         private Vector2 commandOrigin;
         private Vector2 destination;
         private bool hasDestination;
@@ -94,7 +95,7 @@ namespace SimpleGame
                 new Vector3(screenPosition.x, screenPosition.y, -worldCamera.transform.position.z));
             destination = world;
             commandOrigin = transform.position;
-            ignoredPathEnemy = null;
+            SetIgnoredPathEnemy(null);
             root.CombatAbilities.BeginPiercingCommand();
             EnemyBase directEnemy = enemyWorld.FindEnemyNear(
                 destination,
@@ -158,7 +159,7 @@ namespace SimpleGame
                     transform.position,
                     destination,
                     EnemyWorldService.GetColliderRadius(root),
-                    ignoredPathEnemy);
+                    ResolveCurrentIgnoredPathEnemy());
                 if (pendingEnemy == null)
                 {
                     bool reachedDestination = root.Movement.StepTowards(
@@ -167,7 +168,7 @@ namespace SimpleGame
                     hasDestination = !reachedDestination;
                     if (reachedDestination)
                     {
-                        ignoredPathEnemy = null;
+                        SetIgnoredPathEnemy(null);
                         postKillEscapeActive = false;
                     }
 
@@ -280,9 +281,9 @@ namespace SimpleGame
             }
 
             pendingEnemy = null;
-            ignoredPathEnemy = defeated
+            SetIgnoredPathEnemy(defeated
                 ? null
-                : targetEnemy;
+                : targetEnemy);
             shieldApproachOnly = false;
             pendingAttackCount = 0;
             postKillEscapeActive = defeated;
@@ -316,12 +317,32 @@ namespace SimpleGame
         public void CancelCommand()
         {
             pendingEnemy = null;
-            ignoredPathEnemy = null;
+            SetIgnoredPathEnemy(null);
             hasDestination = false;
             shieldApproachOnly = false;
             postKillEscapeActive = false;
             pendingAttackCount = 0;
             root?.Movement.CancelMove();
+        }
+
+        private EnemyBase ResolveCurrentIgnoredPathEnemy()
+        {
+            if (ignoredPathEnemy == null ||
+                !ignoredPathEnemy.IsAlive ||
+                ignoredPathEnemy.SpawnGeneration !=
+                    ignoredPathEnemyGeneration)
+            {
+                SetIgnoredPathEnemy(null);
+            }
+
+            return ignoredPathEnemy;
+        }
+
+        private void SetIgnoredPathEnemy(EnemyBase enemy)
+        {
+            ignoredPathEnemy = enemy;
+            ignoredPathEnemyGeneration =
+                enemy != null ? enemy.SpawnGeneration : 0u;
         }
 
         public static bool IsTargetInCommandDirection(

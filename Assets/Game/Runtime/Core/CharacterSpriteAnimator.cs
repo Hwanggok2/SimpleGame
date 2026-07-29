@@ -139,6 +139,7 @@ namespace SimpleGame
             animator.ResetTrigger(HurtId);
             animator.ResetTrigger(DeathId);
             animator.SetInteger(MotionId, 0);
+            animator.SetBool(FaceLeftId, false);
             animator.Play("Base Layer.Idle", 0, 0f);
             animator.Update(0f);
         }

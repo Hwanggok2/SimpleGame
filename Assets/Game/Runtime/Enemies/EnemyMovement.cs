@@ -12,8 +12,10 @@ namespace SimpleGame
             float moveSpeed,
             CharacterSpriteAnimator animation)
         {
+            StopAllCoroutines();
             speed = Mathf.Max(0f, moveSpeed);
             characterAnimation = animation;
+            characterAnimation?.SetIdle();
         }
 
         public void StepTowards(Vector2 target, Vector2 facingDirection)

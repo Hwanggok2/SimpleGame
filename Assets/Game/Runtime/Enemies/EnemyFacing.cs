@@ -10,14 +10,19 @@ namespace SimpleGame
         private int horizontalSign;
         private int pendingHorizontalSign;
         private float turnRequestedAt;
+        private Vector2 initialDirection;
+        private bool initialDirectionCached;
 
         public Vector2 Direction => direction;
 
         public void Configure(float configuredTurnDelay)
         {
+            CacheInitialDirection();
+            direction = initialDirection;
             turnDelay = Mathf.Max(0f, configuredTurnDelay);
             horizontalSign = Direction2D.GetHorizontalSign(direction);
             pendingHorizontalSign = 0;
+            turnRequestedAt = 0f;
         }
 
         public void Face(Vector2 targetPosition)
@@ -81,6 +86,24 @@ namespace SimpleGame
             }
 
             pendingHorizontalSign = 0;
+        }
+
+        private void Awake()
+        {
+            CacheInitialDirection();
+        }
+
+        private void CacheInitialDirection()
+        {
+            if (initialDirectionCached)
+            {
+                return;
+            }
+
+            initialDirection = direction.sqrMagnitude > 0.0001f
+                ? direction.normalized
+                : Vector2.down;
+            initialDirectionCached = true;
         }
     }
 }
