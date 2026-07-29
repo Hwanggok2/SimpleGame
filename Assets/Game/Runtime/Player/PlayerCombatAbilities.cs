@@ -11,8 +11,9 @@ namespace SimpleGame
         public const float PiercingReach = 4.5f;
         public const float PiercingHalfWidth = 0.42f;
         public const float PiercingWindowDuration = 0.4f;
-        public const float SeverDelay = 0.5f;
-        public const float SeverReuseCooldown = 0.3f;
+        public const float SeverDelay = 0.15f;
+        public const float SeverReuseCooldown = 0.1f;
+        public const float SeverTrailFadeDuration = 0.1f;
         public const float SeverHalfWidth = 0.17f;
 
         [SerializeField] private int piercingLevel;
@@ -21,11 +22,14 @@ namespace SimpleGame
         [SerializeField] private int staticChargeLevel;
         [SerializeField] private int movingSlashLevel;
         [SerializeField] private int shieldBypassLevel;
+        [SerializeField] private int flyingSwordCountLevel;
+        [SerializeField] private int flyingSwordHitCountLevel;
         [SerializeField] private float severDamageMultiplier = 2f;
         [SerializeField] private int hitHealAmount = 2;
         [SerializeField] private float staticDamageMultiplier = 0.75f;
         [SerializeField] private float movingSlashDamageMultiplier = 1.5f;
         [SerializeField] private float shieldBypassChancePerLevel = 0.1f;
+        [SerializeField] private SpriteRenderer severTrailVisual;
 
         private readonly HashSet<EnemyBase> directTargets = new();
         private PlayerRoot owner;
@@ -34,20 +38,34 @@ namespace SimpleGame
         private int piercingTargetsConsumed;
         private bool canOpenPiercingWindowForCommand;
         private float nextSeverAvailableTime;
+        private FlyingSwordController flyingSwords;
 
         public int PiercingLevel => piercingLevel;
         public int StaticChargeLevel => staticChargeLevel;
         public int MovingSlashLevel => movingSlashLevel;
         public int ShieldBypassLevel => shieldBypassLevel;
+        public int FlyingSwordCountLevel => flyingSwordCountLevel;
+        public int FlyingSwordHitCountLevel => flyingSwordHitCountLevel;
         public float ShieldBypassChance =>
             CalculateShieldBypassChance(
                 shieldBypassLevel,
                 shieldBypassChancePerLevel);
         public bool HasSever => severLevel > 0;
 
+        public void ConfigureSeverVisual(
+            SpriteRenderer configuredSeverTrailVisual)
+        {
+            severTrailVisual = configuredSeverTrailVisual;
+            if (severTrailVisual != null)
+            {
+                severTrailVisual.gameObject.SetActive(false);
+            }
+        }
+
         public void Configure(
             PlayerRoot configuredOwner,
-            EnemyWorldService configuredEnemyWorld)
+            EnemyWorldService configuredEnemyWorld,
+            SpawnPointRegistry configuredSpawnPoints)
         {
             owner = configuredOwner;
             enemyWorld = configuredEnemyWorld;
@@ -57,6 +75,8 @@ namespace SimpleGame
             staticChargeLevel = 0;
             movingSlashLevel = 0;
             shieldBypassLevel = 0;
+            flyingSwordCountLevel = 0;
+            flyingSwordHitCountLevel = 0;
             severDamageMultiplier = 2f;
             hitHealAmount = 2;
             staticDamageMultiplier = 0.75f;
@@ -66,6 +86,32 @@ namespace SimpleGame
             piercingTargetsConsumed = 0;
             canOpenPiercingWindowForCommand = false;
             nextSeverAvailableTime = 0f;
+            if (severTrailVisual == null)
+            {
+                severTrailVisual =
+                    transform.Find("cutting")
+                        ?.GetComponent<SpriteRenderer>();
+            }
+
+            if (severTrailVisual != null)
+            {
+                severTrailVisual.gameObject.SetActive(false);
+            }
+
+            flyingSwords = GetComponent<FlyingSwordController>();
+            if (flyingSwords == null)
+            {
+                flyingSwords =
+                    gameObject.AddComponent<FlyingSwordController>();
+            }
+
+            flyingSwords.Configure(
+                owner,
+                enemyWorld,
+                configuredSpawnPoints);
+            flyingSwords.SetLevels(
+                flyingSwordCountLevel,
+                flyingSwordHitCountLevel);
         }
 
         public bool ApplyCard(LevelUpCardDefinition card)
@@ -122,10 +168,25 @@ namespace SimpleGame
                     shieldBypassChancePerLevel =
                         Mathf.Clamp01(card.Value);
                     break;
+                case PlayerStatId.FlyingSwordCount:
+                    flyingSwordCountLevel = AddLevel(
+                        flyingSwordCountLevel,
+                        card.MaxStack,
+                        card.Value);
+                    break;
+                case PlayerStatId.FlyingSwordHitCount:
+                    flyingSwordHitCountLevel = AddLevel(
+                        flyingSwordHitCountLevel,
+                        card.MaxStack,
+                        card.Value);
+                    break;
                 default:
                     return false;
             }
 
+            flyingSwords?.SetLevels(
+                flyingSwordCountLevel,
+                flyingSwordHitCountLevel);
             return true;
         }
 
@@ -193,7 +254,7 @@ namespace SimpleGame
                     critical);
                 if (damaged)
                 {
-                    HandleSuccessfulHit();
+                    HandleEnemyDefeated(target);
                     anyDamage = true;
                     if (!isPrimary)
                     {
@@ -209,12 +270,19 @@ namespace SimpleGame
             }
 
             ConsumePiercingTargets(piercedTargetsThisAttack);
-            if (HasSever &&
-                primaryDamaged &&
+            if (primaryDamaged)
+            {
+                flyingSwords?.HandlePrimaryHit(primary);
+            }
+
+            if (CanTriggerSever(
+                    HasSever,
+                    piercingAllowed,
+                    primaryDamaged) &&
                 TryReserveSever())
             {
                 StartCoroutine(SpawnSeverAfterDelay(
-                    primary.transform.position));
+                    owner.transform.position));
             }
 
             if (staticChargeLevel > 0)
@@ -278,7 +346,7 @@ namespace SimpleGame
                 false);
             if (damaged)
             {
-                HandleSuccessfulHit();
+                HandleEnemyDefeated(enemy);
             }
 
             return damaged;
@@ -344,6 +412,17 @@ namespace SimpleGame
                 Mathf.Max(0, amountPerLevel);
         }
 
+        public static bool CanTriggerHitHeal(
+            bool targetDefeated,
+            int level,
+            float randomValue,
+            float chance = HitHealChance)
+        {
+            return targetDefeated &&
+                level > 0 &&
+                randomValue < Mathf.Clamp01(chance);
+        }
+
         public static int CalculateRemainingPiercingTargets(
             int level,
             int consumed)
@@ -390,6 +469,16 @@ namespace SimpleGame
             float nextAvailableTime)
         {
             return currentTime >= nextAvailableTime;
+        }
+
+        public static bool CanTriggerSever(
+            bool hasSever,
+            bool piercingAllowed,
+            bool primaryDamaged)
+        {
+            return hasSever &&
+                piercingAllowed &&
+                primaryDamaged;
         }
 
         public bool RollShieldBypass()
@@ -497,10 +586,19 @@ namespace SimpleGame
                     : PlayerAttackReaction.None);
         }
 
-        private void HandleSuccessfulHit()
+        private void HandleEnemyDefeated(EnemyBase enemy)
         {
-            if (hitHealLevel > 0 &&
-                Random.value <= HitHealChance)
+            if (enemy == null ||
+                enemy.IsAlive ||
+                hitHealLevel <= 0)
+            {
+                return;
+            }
+
+            if (CanTriggerHitHeal(
+                    true,
+                    hitHealLevel,
+                    Random.value))
             {
                 owner.Health.Heal(CalculateHitHealAmount(
                     hitHealLevel,
@@ -538,7 +636,7 @@ namespace SimpleGame
         }
 
         private IEnumerator SpawnSeverAfterDelay(
-            Vector2 piercedPosition)
+            Vector2 piercingStartPosition)
         {
             yield return new WaitForSeconds(SeverDelay);
             if (owner == null ||
@@ -551,14 +649,14 @@ namespace SimpleGame
             Vector2 currentPlayerPosition =
                 owner.transform.position;
             SlashTrailEffect.Show(
-                piercedPosition,
+                severTrailVisual,
+                piercingStartPosition,
                 currentPlayerPosition,
-                SeverHalfWidth * 2f,
-                0.32f);
+                SeverTrailFadeDuration);
 
             List<EnemyBase> severTargets =
                 enemyWorld.CollectEnemiesAlongSegment(
-                    piercedPosition,
+                    piercingStartPosition,
                     currentPlayerPosition,
                     SeverHalfWidth);
             foreach (EnemyBase enemy in severTargets)

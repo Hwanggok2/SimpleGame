@@ -67,7 +67,8 @@ namespace SimpleGame
             Camera worldCamera,
             LevelExperienceTable experienceTable,
             GlobalBalance globalBalance,
-            PlayerBalanceTable playerBalance)
+            PlayerBalanceTable playerBalance,
+            SpawnPointRegistry spawnPoints)
         {
             health = GetComponent<HealthComponent>();
             movement = GetComponent<PlayerMovement>();
@@ -109,7 +110,7 @@ namespace SimpleGame
                 globalBalance.CriticalChancePerCard,
                 globalBalance.MaximumCriticalChance);
             critical.Add(definition.BaseCriticalChance);
-            combatAbilities.Configure(this, enemyWorld);
+            combatAbilities.Configure(this, enemyWorld, spawnPoints);
             moveSpeedCardLevel = 0;
             movement.SetMaximumSpeedActive(false);
             BuildVisual();
@@ -161,6 +162,8 @@ namespace SimpleGame
                 case PlayerStatId.StaticCharge:
                 case PlayerStatId.MovingSlash:
                 case PlayerStatId.ShieldBypass:
+                case PlayerStatId.FlyingSwordCount:
+                case PlayerStatId.FlyingSwordHitCount:
                     return combatAbilities.ApplyCard(card);
                 default:
                     return false;

@@ -65,7 +65,9 @@ namespace SimpleGame
         HitHeal,
         StaticCharge,
         MovingSlash,
-        ShieldBypass
+        ShieldBypass,
+        FlyingSwordCount,
+        FlyingSwordHitCount
     }
 
     public enum StatOperation

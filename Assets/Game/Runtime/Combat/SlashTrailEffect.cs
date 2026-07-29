@@ -5,25 +5,43 @@ namespace SimpleGame
 {
     public sealed class SlashTrailEffect : MonoBehaviour
     {
+        private static SlashTrailEffect reusableSever;
+
         private LineRenderer line;
+        private SpriteRenderer spriteRenderer;
         private Material material;
         private Color effectColor;
+        private Coroutine fadeCoroutine;
 
         public static void Show(
+            SpriteRenderer template,
             Vector2 start,
             Vector2 end,
-            float width,
             float duration)
         {
-            var effectObject = new GameObject("SeverTrail");
-            var effect = effectObject.AddComponent<SlashTrailEffect>();
-            effect.Configure(
+            if (template == null)
+            {
+                return;
+            }
+
+            if (reusableSever == null)
+            {
+                SpriteRenderer clonedRenderer =
+                    Instantiate(template);
+                clonedRenderer.gameObject.name = "SeverTrail";
+                clonedRenderer.transform.SetParent(null, true);
+                reusableSever =
+                    clonedRenderer.gameObject
+                        .AddComponent<SlashTrailEffect>();
+                reusableSever.spriteRenderer = clonedRenderer;
+            }
+
+            reusableSever.gameObject.SetActive(true);
+            reusableSever.ConfigureSprite(
                 start,
                 end,
-                width,
                 duration,
-                1f,
-                new Color(0.45f, 0.95f, 1f, 0.85f));
+                template);
         }
 
         public static void ShowStaticArc(
@@ -38,7 +56,57 @@ namespace SimpleGame
                 0.035f,
                 0.16f,
                 0.3f,
-                new Color(0.45f, 0.9f, 1f, 0.95f));
+                new Color(0.45f, 0.9f, 1f, 0.95f),
+                true);
+        }
+
+        private void ConfigureSprite(
+            Vector2 start,
+            Vector2 end,
+            float duration,
+            SpriteRenderer template)
+        {
+            if (fadeCoroutine != null)
+            {
+                StopCoroutine(fadeCoroutine);
+            }
+
+            effectColor = template.color;
+            spriteRenderer.color = effectColor;
+            PositionSprite(
+                start,
+                end,
+                template.transform.lossyScale.x,
+                template.transform.position.z);
+            fadeCoroutine = StartCoroutine(FadeRoutine(
+                Mathf.Max(0.05f, duration),
+                false));
+        }
+
+        private void PositionSprite(
+            Vector2 start,
+            Vector2 end,
+            float width,
+            float worldZ)
+        {
+            Vector2 direction = end - start;
+            float length = direction.magnitude;
+            Vector2 midpoint = (start + end) * 0.5f;
+            transform.position =
+                new Vector3(midpoint.x, midpoint.y, worldZ);
+            transform.rotation = Quaternion.Euler(
+                0f,
+                0f,
+                Mathf.Atan2(direction.y, direction.x) *
+                    Mathf.Rad2Deg - 90f);
+
+            Vector2 spriteSize = spriteRenderer.sprite != null
+                ? spriteRenderer.sprite.bounds.size
+                : Vector2.one;
+            transform.localScale = new Vector3(
+                width / Mathf.Max(0.0001f, spriteSize.x),
+                length / Mathf.Max(0.0001f, spriteSize.y),
+                1f);
         }
 
         private void Configure(
@@ -47,10 +115,16 @@ namespace SimpleGame
             float width,
             float duration,
             float endWidthMultiplier,
-            Color color)
+            Color color,
+            bool destroyWhenFinished)
         {
+            if (fadeCoroutine != null)
+            {
+                StopCoroutine(fadeCoroutine);
+            }
+
             effectColor = color;
-            line = gameObject.AddComponent<LineRenderer>();
+            EnsureLine();
             line.positionCount = 2;
             line.useWorldSpace = true;
             line.SetPosition(0, start);
@@ -58,6 +132,29 @@ namespace SimpleGame
             line.startWidth = width;
             line.endWidth = width *
                 Mathf.Max(0f, endWidthMultiplier);
+            line.startColor = color;
+            line.endColor = color;
+            fadeCoroutine = StartCoroutine(FadeRoutine(
+                Mathf.Max(0.05f, duration),
+                destroyWhenFinished));
+        }
+
+        public static float CalculateFadeAlpha(
+            float elapsed,
+            float duration)
+        {
+            return 1f - Mathf.Clamp01(
+                elapsed / Mathf.Max(0.0001f, duration));
+        }
+
+        private void EnsureLine()
+        {
+            if (line != null)
+            {
+                return;
+            }
+
+            line = gameObject.AddComponent<LineRenderer>();
             line.numCapVertices = 2;
             line.sortingOrder = 25;
 
@@ -67,30 +164,58 @@ namespace SimpleGame
                 material = new Material(shader);
                 line.material = material;
             }
-
-            StartCoroutine(FadeRoutine(Mathf.Max(0.05f, duration)));
         }
 
-        private IEnumerator FadeRoutine(float duration)
+        private IEnumerator FadeRoutine(
+            float duration,
+            bool destroyWhenFinished)
         {
             Color color = effectColor;
             float initialAlpha = color.a;
             float elapsed = 0f;
             while (elapsed < duration)
             {
-                elapsed += Time.deltaTime;
                 color.a = initialAlpha *
-                    (1f - Mathf.Clamp01(elapsed / duration));
-                line.startColor = color;
-                line.endColor = color;
+                    CalculateFadeAlpha(elapsed, duration);
+                ApplyColor(color);
                 yield return null;
+                elapsed += Time.deltaTime;
             }
 
-            Destroy(gameObject);
+            color.a = 0f;
+            ApplyColor(color);
+            fadeCoroutine = null;
+            if (destroyWhenFinished)
+            {
+                Destroy(gameObject);
+            }
+            else
+            {
+                gameObject.SetActive(false);
+            }
+        }
+
+        private void ApplyColor(Color color)
+        {
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.color = color;
+            }
+
+            if (line != null)
+            {
+                line.startColor = color;
+                line.endColor = color;
+            }
         }
 
         private void OnDestroy()
         {
+            if (reusableSever == this)
+            {
+                reusableSever = null;
+            }
+
             if (material != null)
             {
                 Destroy(material);

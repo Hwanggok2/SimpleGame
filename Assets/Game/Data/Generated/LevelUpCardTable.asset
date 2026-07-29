@@ -98,11 +98,11 @@ MonoBehaviour:
   - cardId: SEVER_TRAIL
     nameKey: CARD_SEVER_NAME
     displayName: "\uC808\uB2E8"
-    description: "\uACF5\uACA9 0.5\uCD08 \uB4A4 \uCCAB \uACF5\uACA9 \uB300\uC0C1
-      \uC704\uCE58\uBD80\uD130 \uD50C\uB808\uC774\uC5B4 \uD604\uC7AC \uC704\uCE58\uAE4C\uC9C0
-      \uCC38\uACA9\uC744 \uB9CC\uB4ED\uB2C8\uB2E4. \uC7AC\uC0AC\uC6A9 \uB300\uAE30\uC2DC\uAC04\uC740
-      0.3\uCD08\uC774\uBA70 \uAD6C\uAC04\uC758 \uC801\uC5D0\uAC8C \uAE30\uBCF8 \uACF5\uACA9\uB825\uC758
-      2\uBC30 \uD53C\uD574\uB97C \uC90D\uB2C8\uB2E4."
+    description: "\uC2E4\uC81C \uAD00\uD1B5 0.15\uCD08 \uB4A4 \uAD00\uD1B5 \uC2DC\uC791
+      \uC704\uCE58\uBD80\uD130 \uD604\uC7AC \uC704\uCE58\uAE4C\uC9C0 \uAC80\uC740
+      \uC808\uB2E8\uC120\uC744 \uB9CC\uB4ED\uB2C8\uB2E4. \uC120\uC740 0.1\uCD08 \uB3D9\uC548
+      \uC0AC\uB77C\uC9C0\uBA70 \uC7AC\uC0AC\uC6A9 \uB300\uAE30\uC2DC\uAC04\uC740
+      0.1\uCD08, \uD53C\uD574\uB294 \uACF5\uACA9\uB825\uC758 2\uBC30\uC785\uB2C8\uB2E4."
     effectType: 1
     targetStat: 5
     operation: 0
@@ -117,10 +117,9 @@ MonoBehaviour:
   - cardId: HIT_HEAL
     nameKey: CARD_HIT_HEAL_NAME
     displayName: "\uD761\uD608"
-    description: "\uC801\uC5D0\uAC8C \uD53C\uD574\uB97C \uC904 \uB54C\uB9C8\uB2E4
-      5% \uD655\uB960\uB85C \uCCB4\uB825\uC744 \uCE74\uB4DC \uB808\uBCA8\uB2F9 2
-      \uD68C\uBCF5\uD569\uB2C8\uB2E4. 1/2/3\uB808\uBCA8 \uD68C\uBCF5\uB7C9\uC740
-      2/4/6\uC785\uB2C8\uB2E4."
+    description: "\uC801\uC744 \uCC98\uCE58\uD560 \uB54C\uB9C8\uB2E4 5% \uD655\uB960\uB85C
+      \uCCB4\uB825\uC744 \uCE74\uB4DC \uB808\uBCA8\uB2F9 2 \uD68C\uBCF5\uD569\uB2C8\uB2E4.
+      1/2/3\uB808\uBCA8 \uD68C\uBCF5\uB7C9\uC740 2/4/6\uC785\uB2C8\uB2E4."
     effectType: 1
     targetStat: 6
     operation: 0
@@ -182,4 +181,40 @@ MonoBehaviour:
     requiredCardId: 
     rarity: "\uD76C\uADC0"
     iconId: ICON_SHIELD_BYPASS
+    enabled: 1
+  - cardId: FLYING_SWORD_COUNT
+    nameKey: CARD_FLYING_SWORD_COUNT_NAME
+    displayName: "\uC774\uAE30\uC5B4\uAC80 \uC218 \uC99D\uAC00"
+    description: "\uD50C\uB808\uC774\uC5B4\uAC00 \uC801\uC5D0\uAC8C \uD53C\uD574\uB97C
+      \uC8FC\uBA74 \uC900\uBE44\uB41C \uC774\uAE30\uC5B4\uAC80 1\uAC1C\uAC00 \uBB34\uC791\uC704
+      \uC801 Spawn \uC704\uCE58\uC5D0\uC11C \uB0A0\uC544\uAC11\uB2C8\uB2E4. \uB808\uBCA8\uB9C8\uB2E4
+      \uAC80 1\uAC1C\uAC00 \uD65C\uC131\uD654\uB418\uBA70 \uAC80\uB9C8\uB2E4 0.3\uCD08
+      \uD6C4 \uC7AC\uCDA9\uC804\uB429\uB2C8\uB2E4."
+    effectType: 1
+    targetStat: 10
+    operation: 0
+    value: 1
+    maxStack: 3
+    selectionWeight: 60
+    minPlayerLevel: 3
+    requiredCardId:
+    rarity: "\uD76C\uADC0"
+    iconId: ICON_FLYING_SWORD_COUNT
+    enabled: 1
+  - cardId: FLYING_SWORD_HITS
+    nameKey: CARD_FLYING_SWORD_HITS_NAME
+    displayName: "\uC774\uAE30\uC5B4\uAC80 \uD0C0\uACA9 \uC218 \uC99D\uAC00"
+    description: "\uC774\uAE30\uC5B4\uAC80 \uD55C \uC790\uB8E8\uAC00 \uD0C0\uACA9\uD560
+      \uC218 \uC788\uB294 \uC801\uC774 1\uBA85 \uC99D\uAC00\uD569\uB2C8\uB2E4. \uAE30\uBCF8
+      2\uBA85\uC774\uBA70 \uCD5C\uB300 5\uBA85\uC785\uB2C8\uB2E4."
+    effectType: 1
+    targetStat: 11
+    operation: 0
+    value: 1
+    maxStack: 3
+    selectionWeight: 50
+    minPlayerLevel: 4
+    requiredCardId: FLYING_SWORD_COUNT
+    rarity: "\uD76C\uADC0"
+    iconId: ICON_FLYING_SWORD_HITS
     enabled: 1

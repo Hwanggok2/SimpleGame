@@ -14,6 +14,7 @@ namespace SimpleGame
 
         public int PendingCount =>
             Mathf.Max(0, activeEntries.Count - nextEntryIndex);
+        public SpawnPointRegistry SpawnPoints => spawnPoints;
 
         public void Configure(
             GameDataManifest configuredGameData,

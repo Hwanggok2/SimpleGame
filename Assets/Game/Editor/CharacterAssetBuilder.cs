@@ -601,6 +601,10 @@ namespace SimpleGameEditor
             CharacterSpriteAnimator animation =
                 root.AddComponent<CharacterSpriteAnimator>();
             PlayerRoot playerRoot = root.AddComponent<PlayerRoot>();
+            PlayerCombatAbilities combatAbilities =
+                root.GetComponent<PlayerCombatAbilities>();
+            FlyingSwordController flyingSwords =
+                root.AddComponent<FlyingSwordController>();
             ConfigurePhysics(root, 0.34f);
 
             ConfigureVisual(
@@ -610,6 +614,63 @@ namespace SimpleGameEditor
                 1.65f,
                 30,
                 animation);
+            Transform visual = root.transform.Find("Visual");
+            Vector3[] readySwordPositions =
+            {
+                new(0.123f, 0.717f, 0f),
+                new(-0.208f, 0.544f, 0f),
+                new(0.171f, 0.376f, 1f)
+            };
+            var readySwordVisuals =
+                new SpriteRenderer[FlyingSwordController.MaximumSwordCount];
+            for (int index = 0;
+                 index < readySwordVisuals.Length;
+                 index++)
+            {
+                SpriteRenderer readySword = CreateSpriteVisual(
+                    visual,
+                    $"Flying_Sword{index + 1}",
+                    Color.white,
+                    new Vector2(0.052924413f, 0.4592f),
+                    100);
+                readySword.transform.localPosition =
+                    readySwordPositions[index];
+                readySword.gameObject.SetActive(false);
+                readySwordVisuals[index] = readySword;
+            }
+
+            SpriteRenderer attackSword = CreateSpriteVisual(
+                root.transform,
+                "Flying_Sword_Attack",
+                Color.white,
+                new Vector2(0.038196404f, 6.480458f),
+                100);
+            attackSword.transform.localPosition =
+                new Vector3(-5.25f, 7.03f, -0.15f);
+            attackSword.transform.localRotation =
+                Quaternion.Euler(-0.89f, -0.53f, 49.59f);
+            attackSword.gameObject.SetActive(false);
+            flyingSwords.ConfigureVisuals(
+                readySwordVisuals,
+                attackSword);
+
+            SpriteRenderer cutting = CreateSpriteVisual(
+                root.transform,
+                "cutting",
+                new Color(
+                    0.06918234f,
+                    0.06918234f,
+                    0.06918234f,
+                    1f),
+                new Vector2(0.038196404f, 6.480458f),
+                100);
+            cutting.transform.localPosition =
+                new Vector3(-5.25f, 7.03f, -0.15f);
+            cutting.transform.localRotation =
+                Quaternion.Euler(-0.89f, -0.53f, 49.59f);
+            cutting.gameObject.SetActive(false);
+            combatAbilities.ConfigureSeverVisual(cutting);
+
             SpriteRenderer attackRange = CreateSpriteVisual(
                 root.transform,
                 "PlayerAttackRange",

@@ -179,7 +179,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: -1, y: -1}
 --- !u!483693784 &49567086
@@ -984,7 +984,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: 0, y: 0}
 --- !u!483693784 &55269164
@@ -1787,7 +1787,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9784846cd81b39b47b041722bcbe8ac8, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PrototypeGameSession
   player: {fileID: 1579121747}
   enemyFactory: {fileID: 1555288008}
@@ -2004,6 +2004,7 @@ GameObject:
   - component: {fileID: 537347705}
   - component: {fileID: 537347707}
   - component: {fileID: 537347706}
+  - component: {fileID: 537347709}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -2072,7 +2073,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c04793eae99a2e949a06b3ae44550ebb, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CameraShakeController
 --- !u!114 &537347707
 MonoBehaviour:
@@ -2084,7 +2085,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8133aa067f82cd24b99f0650c4efef2e, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CameraFollowController
   target: {fileID: 1579121745}
   smoothTime: 0.08
@@ -2103,6 +2104,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &537347709
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 537347704}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
 --- !u!1 &544626025
 GameObject:
   m_ObjectHideFlags: 0
@@ -2194,7 +2239,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: -1, y: 0}
 --- !u!483693784 &678114541
@@ -3131,7 +3176,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fd35e04defc82a541b17dfd5983692bb, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PrototypeHUDPresenter
 --- !u!1 &922829513
 GameObject:
@@ -3254,7 +3299,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.UI.InputSystemUIInputModule
   m_SendPointerHoverToParent: 1
   m_MoveRepeatDelay: 0.5
@@ -3285,7 +3330,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
   m_FirstSelected: {fileID: 0}
   m_sendNavigationEvents: 1
@@ -3404,7 +3449,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: 1, y: -1}
 --- !u!483693784 &1079790489
@@ -4209,7 +4254,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: -1, y: 1}
 --- !u!483693784 &1089803590
@@ -5014,7 +5059,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: 1, y: 1}
 --- !u!483693784 &1100079584
@@ -6005,7 +6050,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: 1, y: 0}
 --- !u!483693784 &1293598792
@@ -6840,7 +6885,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dc95519e4662bd24ab053eeab3b110e9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunkGrid
   target: {fileID: 1579121745}
   chunkWorldSize: {x: 20.48, y: 20.48}
@@ -7074,7 +7119,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: 0, y: -1}
 --- !u!483693784 &1533000492
@@ -7879,7 +7924,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9696f24c8cc9ae247beb98ad78c818d5, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyWorldRecycler
   session: {fileID: 0}
   enemyWorld: {fileID: 0}
@@ -7909,7 +7954,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ac4a60ccc10499ea4cfea66a0a53ae3, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyWorldService
 --- !u!114 &1555288008
 MonoBehaviour:
@@ -7921,7 +7966,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ad415254fb72a734795bf29e4450d60a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PrototypeEnemyFactory
   enemyRoot: {fileID: 0}
   session: {fileID: 0}
@@ -7955,7 +8000,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 373091d4f96d9d64faddd118a81d6687, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.StageSpawnController
   gameData: {fileID: 11400000, guid: 4e329669e2fa2da4bbf10fd24ec85147, type: 2}
   spawnPoints: {fileID: 2023688665}
@@ -8064,7 +8109,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 759e153329694384bacdbc31ec253595, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PlayerRoot
 --- !u!114 &1579121748
 MonoBehaviour:
@@ -8076,7 +8121,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6bea34548f741ee40847f6080fee6b23, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.PlayerWorldArea
   worldCamera: {fileID: 537347705}
   spawnPadding: 2
@@ -8109,7 +8154,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: febbdcbcb86514e49bca2b2e5eef81b0, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CombatFeedbackController
   cameraShake: {fileID: 537347706}
   profile: {fileID: 0}
@@ -8227,7 +8272,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e4ee4623d6a9b024d8a981fd318a2a06, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.WorldChunk
   coordinate: {x: 0, y: 1}
 --- !u!483693784 &1690953794
@@ -9425,7 +9470,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ad5b98ce56339740b6af9c1092d857d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.SpawnPointRegistry
   spawnPoints:
   - {fileID: 1006967993}

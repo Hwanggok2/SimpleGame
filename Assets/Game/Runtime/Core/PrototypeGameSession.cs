@@ -123,7 +123,8 @@ namespace SimpleGame
                 worldCamera,
                 gameData.PlayerLevelExperience,
                 gameData.GlobalBalance,
-                gameData.PlayerBalance);
+                gameData.PlayerBalance,
+                stageSpawner.SpawnPoints);
             enemyFactory.ConfigureAssets(
                 gameData.EnemyAssets,
                 gameData.EnemyBalance);

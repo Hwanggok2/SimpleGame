@@ -58,7 +58,7 @@ namespace SimpleGame.Tests
             Assert.That(model.PlayerLevels, Has.Count.EqualTo(50));
             Assert.That(model.AccountLevels, Has.Count.EqualTo(4));
             Assert.That(model.PlayerDefinitions, Has.Count.EqualTo(1));
-            Assert.That(model.LevelUpCards, Has.Count.EqualTo(10));
+            Assert.That(model.LevelUpCards, Has.Count.EqualTo(12));
             Assert.That(model.AccountExperienceScoreUnit, Is.EqualTo(5));
             Assert.That(model.CriticalChancePerCard, Is.EqualTo(0.05f));
             Assert.That(model.MaximumCriticalChance, Is.EqualTo(0.5f));
@@ -90,6 +90,12 @@ namespace SimpleGame.Tests
                 severCard.RequiredCardId,
                 Is.EqualTo("PIERCING_UP"));
             Assert.That(severCard.Value, Is.EqualTo(2f));
+            StringAssert.Contains(
+                "실제 관통 0.15초 뒤",
+                severCard.Description);
+            StringAssert.Contains(
+                "재사용 대기시간은 0.1초",
+                severCard.Description);
 
             LevelUpCardDefinition hitHealCard = model.LevelUpCards.Find(
                 card => card.CardId == "HIT_HEAL");
@@ -97,6 +103,9 @@ namespace SimpleGame.Tests
             Assert.That(hitHealCard.DisplayName, Is.EqualTo("흡혈"));
             Assert.That(hitHealCard.Value, Is.EqualTo(2f));
             Assert.That(hitHealCard.MaxStack, Is.EqualTo(3));
+            StringAssert.Contains(
+                "적을 처치할 때마다",
+                hitHealCard.Description);
 
             LevelUpCardDefinition bypassCard = model.LevelUpCards.Find(
                 card => card.CardId == "SHIELD_BYPASS");
@@ -110,6 +119,149 @@ namespace SimpleGame.Tests
                 Is.EqualTo(PlayerStatId.ShieldBypass));
             Assert.That(bypassCard.Value, Is.EqualTo(0.1f));
             Assert.That(bypassCard.MaxStack, Is.EqualTo(3));
+
+            LevelUpCardDefinition flyingSwordCountCard =
+                model.LevelUpCards.Find(
+                    card => card.CardId == "FLYING_SWORD_COUNT");
+            Assert.That(flyingSwordCountCard, Is.Not.Null);
+            Assert.That(
+                flyingSwordCountCard.TargetStat,
+                Is.EqualTo(PlayerStatId.FlyingSwordCount));
+            Assert.That(flyingSwordCountCard.MaxStack, Is.EqualTo(3));
+
+            LevelUpCardDefinition flyingSwordHitCountCard =
+                model.LevelUpCards.Find(
+                    card => card.CardId == "FLYING_SWORD_HITS");
+            Assert.That(flyingSwordHitCountCard, Is.Not.Null);
+            Assert.That(
+                flyingSwordHitCountCard.TargetStat,
+                Is.EqualTo(PlayerStatId.FlyingSwordHitCount));
+            Assert.That(flyingSwordHitCountCard.MaxStack, Is.EqualTo(3));
+            Assert.That(
+                flyingSwordHitCountCard.RequiredCardId,
+                Is.EqualTo("FLYING_SWORD_COUNT"));
+        }
+
+        [Test]
+        public void GeneratedCards_ContainFlyingSwordUpgrades()
+        {
+            LevelUpCardTable table =
+                AssetDatabase.LoadAssetAtPath<LevelUpCardTable>(
+                    "Assets/Game/Data/Generated/" +
+                    "LevelUpCardTable.asset");
+
+            Assert.That(table, Is.Not.Null);
+            Assert.That(table.Definitions, Has.Count.EqualTo(12));
+
+            LevelUpCardDefinition countCard =
+                table.Definitions.Single(
+                    card => card.CardId == "FLYING_SWORD_COUNT");
+            Assert.That(
+                countCard.TargetStat,
+                Is.EqualTo(PlayerStatId.FlyingSwordCount));
+            Assert.That(countCard.MaxStack, Is.EqualTo(3));
+
+            LevelUpCardDefinition hitCard =
+                table.Definitions.Single(
+                    card => card.CardId == "FLYING_SWORD_HITS");
+            Assert.That(
+                hitCard.TargetStat,
+                Is.EqualTo(PlayerStatId.FlyingSwordHitCount));
+            Assert.That(hitCard.MaxStack, Is.EqualTo(3));
+            Assert.That(
+                hitCard.RequiredCardId,
+                Is.EqualTo("FLYING_SWORD_COUNT"));
+
+            LevelUpCardDefinition severCard =
+                table.Definitions.Single(
+                    card => card.CardId == "SEVER_TRAIL");
+            StringAssert.Contains(
+                "실제 관통 0.15초 뒤",
+                severCard.Description);
+            StringAssert.Contains(
+                "재사용 대기시간은 0.1초",
+                severCard.Description);
+
+            LevelUpCardDefinition hitHealCard =
+                table.Definitions.Single(
+                    card => card.CardId == "HIT_HEAL");
+            StringAssert.Contains(
+                "적을 처치할 때마다",
+                hitHealCard.Description);
+        }
+
+        [Test]
+        public void PlayerPrefab_HasReusableSkillVisuals()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                CharacterAssetBuilder.PlayerPrefabPath);
+
+            Assert.That(prefab, Is.Not.Null);
+            FlyingSwordController controller =
+                prefab.GetComponent<FlyingSwordController>();
+            Assert.That(controller, Is.Not.Null);
+
+            var serializedController =
+                new SerializedObject(controller);
+            SerializedProperty readyVisuals =
+                serializedController.FindProperty(
+                    "readySwordVisuals");
+            Assert.That(readyVisuals, Is.Not.Null);
+            Assert.That(
+                readyVisuals.arraySize,
+                Is.EqualTo(FlyingSwordController.MaximumSwordCount));
+
+            Vector3[] expectedPositions =
+            {
+                new(0.123f, 0.717f, 0f),
+                new(-0.208f, 0.544f, 0f),
+                new(0.171f, 0.376f, 1f)
+            };
+            for (int index = 0;
+                 index < readyVisuals.arraySize;
+                 index++)
+            {
+                SpriteRenderer readyVisual =
+                    readyVisuals
+                        .GetArrayElementAtIndex(index)
+                        .objectReferenceValue as SpriteRenderer;
+                Assert.That(readyVisual, Is.Not.Null);
+                Assert.That(
+                    Vector3.Distance(
+                        readyVisual.transform.localPosition,
+                        expectedPositions[index]),
+                    Is.LessThan(0.0001f));
+            }
+
+            SpriteRenderer attackTemplate =
+                serializedController
+                    .FindProperty("attackVisualTemplate")
+                    .objectReferenceValue as SpriteRenderer;
+            Assert.That(attackTemplate, Is.Not.Null);
+            Assert.That(
+                attackTemplate.name,
+                Is.EqualTo("Flying_Sword_Attack"));
+            Assert.That(
+                attackTemplate.gameObject.activeSelf,
+                Is.False);
+
+            PlayerCombatAbilities combatAbilities =
+                prefab.GetComponent<PlayerCombatAbilities>();
+            Assert.That(combatAbilities, Is.Not.Null);
+            var serializedAbilities =
+                new SerializedObject(combatAbilities);
+            SpriteRenderer cutting =
+                serializedAbilities
+                    .FindProperty("severTrailVisual")
+                    .objectReferenceValue as SpriteRenderer;
+            Assert.That(cutting, Is.Not.Null);
+            Assert.That(cutting.name, Is.EqualTo("cutting"));
+            Assert.That(cutting.sprite, Is.Not.Null);
+            Assert.That(cutting.gameObject.activeSelf, Is.False);
+            Assert.That(cutting.sortingOrder, Is.EqualTo(100));
+            Assert.That(cutting.color.r, Is.LessThan(0.1f));
+            Assert.That(cutting.color.g, Is.LessThan(0.1f));
+            Assert.That(cutting.color.b, Is.LessThan(0.1f));
         }
 
         [Test]

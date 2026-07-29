@@ -290,9 +290,85 @@ namespace SimpleGame.Tests
             float distance,
             float expectedSpeed)
         {
+            float speed =
+                PlayerMovement.CalculateMaximumTravelSpeed(distance);
+
             Assert.That(
-                PlayerMovement.CalculateMaximumTravelSpeed(distance),
+                speed,
                 Is.EqualTo(expectedSpeed).Within(0.001f));
+            Assert.That(
+                distance / speed,
+                Is.EqualTo(0.1f).Within(0.0001f));
+        }
+
+        [TestCase(0, 2)]
+        [TestCase(1, 3)]
+        [TestCase(2, 4)]
+        [TestCase(3, 5)]
+        [TestCase(4, 5)]
+        public void FlyingSword_MaximumHitsStartsAtTwoAndCapsAtFive(
+            int level,
+            int expected)
+        {
+            Assert.That(
+                FlyingSwordController.CalculateMaximumHits(level),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(0.099f, 0.1f, false)]
+        [TestCase(0.1f, 0.1f, true)]
+        public void FlyingSword_LaunchIntervalOpensAtPointOneSeconds(
+            float currentTime,
+            float nextLaunchAt,
+            bool expected)
+        {
+            Assert.That(
+                FlyingSwordController.IsLaunchReady(
+                    currentTime,
+                    nextLaunchAt),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(0.299f, 0.3f, false)]
+        [TestCase(0.3f, 0.3f, true)]
+        public void FlyingSword_SlotCooldownOpensAtPointThreeSeconds(
+            float currentTime,
+            float readyAt,
+            bool expected)
+        {
+            Assert.That(
+                FlyingSwordController.IsSlotReady(
+                    currentTime,
+                    readyAt),
+                Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void FlyingSword_ThreeSlotsSustainPointOneSecondCadence()
+        {
+            Assert.That(
+                FlyingSwordController.RechargeDuration,
+                Is.EqualTo(
+                    FlyingSwordController.LaunchInterval *
+                    FlyingSwordController.MaximumSwordCount)
+                    .Within(0.0001f));
+            Assert.That(
+                FlyingSwordController.PostTargetTravelDuration,
+                Is.EqualTo(0.1f).Within(0.0001f));
+        }
+
+        [TestCase(0.1f, 1f)]
+        [TestCase(0.05f, 0.5f)]
+        [TestCase(0f, 0f)]
+        [TestCase(-0.1f, 0f)]
+        public void FlyingSword_FadeAlphaFallsLinearlyAfterPrimaryHit(
+            float remainingDuration,
+            float expectedAlpha)
+        {
+            Assert.That(
+                FlyingSwordController.CalculateFadeAlpha(
+                    remainingDuration),
+                Is.EqualTo(expectedAlpha).Within(0.0001f));
         }
 
         [TestCase(1, 0.1f, 1, 1f)]
@@ -359,6 +435,24 @@ namespace SimpleGame.Tests
                 Is.EqualTo(0.05f).Within(0.0001f));
         }
 
+        [TestCase(true, 1, 0.049f, true)]
+        [TestCase(true, 1, 0.05f, false)]
+        [TestCase(false, 1, 0f, false)]
+        [TestCase(true, 0, 0f, false)]
+        public void HitHeal_TriggersOnlyAfterEnemyDefeat(
+            bool targetDefeated,
+            int level,
+            float randomValue,
+            bool expected)
+        {
+            Assert.That(
+                PlayerCombatAbilities.CanTriggerHitHeal(
+                    targetDefeated,
+                    level,
+                    randomValue),
+                Is.EqualTo(expected));
+        }
+
         [TestCase(1, 0, 1)]
         [TestCase(1, 1, 0)]
         [TestCase(5, 1, 4)]
@@ -416,8 +510,8 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expected));
         }
 
-        [TestCase(0.29f, 0.3f, false)]
-        [TestCase(0.3f, 0.3f, true)]
+        [TestCase(0.099f, 0.1f, false)]
+        [TestCase(0.1f, 0.1f, true)]
         public void Sever_CooldownDiscardsEarlyTrigger(
             float currentTime,
             float nextAvailableTime,
@@ -430,10 +524,48 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expected));
             Assert.That(
                 PlayerCombatAbilities.SeverDelay,
-                Is.EqualTo(0.5f).Within(0.0001f));
+                Is.EqualTo(0.15f).Within(0.0001f));
             Assert.That(
                 PlayerCombatAbilities.SeverReuseCooldown,
-                Is.EqualTo(0.3f).Within(0.0001f));
+                Is.EqualTo(0.1f).Within(0.0001f));
+        }
+
+        [TestCase(true, true, true, true)]
+        [TestCase(true, false, true, false)]
+        [TestCase(true, true, false, false)]
+        [TestCase(false, true, true, false)]
+        public void Sever_TriggersOnlyAfterSuccessfulPiercing(
+            bool hasSever,
+            bool piercingAllowed,
+            bool primaryDamaged,
+            bool expected)
+        {
+            Assert.That(
+                PlayerCombatAbilities.CanTriggerSever(
+                    hasSever,
+                    piercingAllowed,
+                    primaryDamaged),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase(0f, 1f)]
+        [TestCase(0.05f, 0.5f)]
+        [TestCase(0.1f, 0f)]
+        [TestCase(0.2f, 0f)]
+        public void Sever_VisualFadeMatchesFlyingSword(
+            float elapsed,
+            float expectedAlpha)
+        {
+            Assert.That(
+                SlashTrailEffect.CalculateFadeAlpha(
+                    elapsed,
+                    PlayerCombatAbilities.SeverTrailFadeDuration),
+                Is.EqualTo(expectedAlpha).Within(0.0001f));
+            Assert.That(
+                PlayerCombatAbilities.SeverTrailFadeDuration,
+                Is.EqualTo(
+                    FlyingSwordController.PostTargetTravelDuration)
+                    .Within(0.0001f));
         }
 
         [Test]
@@ -450,6 +582,14 @@ namespace SimpleGame.Tests
             Assert.That(
                 CombatGeometry.OverlapsSegment(
                     new Vector2(2f, 0.5f),
+                    0.25f,
+                    Vector2.zero,
+                    new Vector2(4f, 0f),
+                    PlayerCombatAbilities.SeverHalfWidth),
+                Is.False);
+            Assert.That(
+                CombatGeometry.OverlapsSegment(
+                    new Vector2(4.5f, 0f),
                     0.25f,
                     Vector2.zero,
                     new Vector2(4f, 0f),
