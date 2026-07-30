@@ -339,6 +339,27 @@ namespace SimpleGame.Tests
                 Is.GreaterThan(1.25f));
         }
 
+        [TestCase(0, 1f)]
+        [TestCase(1, 1f)]
+        [TestCase(10, 1.1125f)]
+        [TestCase(25, 1.3f)]
+        [TestCase(49, 1.6f)]
+        [TestCase(100, 1.6f)]
+        public void EnemyMoveSpeed_GrowsPerLevelAndCapsAtSixtyPercent(
+            int level,
+            float expectedMultiplier)
+        {
+            const float baseMoveSpeed = 0.8f;
+
+            Assert.That(
+                ProgressionCurve.CalculateEnemyMoveSpeed(
+                    baseMoveSpeed,
+                    level),
+                Is.EqualTo(
+                    baseMoveSpeed * expectedMultiplier)
+                    .Within(0.0001f));
+        }
+
         [TestCase(1, 1f)]
         [TestCase(4, 2.4768f)]
         [TestCase(50, 11.283f)]

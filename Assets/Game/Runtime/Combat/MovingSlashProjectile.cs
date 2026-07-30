@@ -9,7 +9,9 @@ namespace SimpleGame
             "Effects/MovingSlash_Crescent_6f";
         public const int AnimationFrameCount = 6;
         public const float PlayerSpeedMultiplier = 3f;
-        public const float TravelDistance = 7f;
+        public const float DefaultTravelDistance =
+            PlayerCombatAbilities.MovingSlashBaseTravelDistance;
+        public const float MaximumActiveDuration = 1.5f;
         public const float FadeOutDuration = 0.1f;
 
         private const float BaseVisualScale = 1.6f;
@@ -26,7 +28,9 @@ namespace SimpleGame
         private Vector2 origin;
         private float travelSpeed;
         private float sizeMultiplier;
+        private float travelDistance;
         private float damageMultiplier;
+        private float activeElapsed;
         private int remainingHits;
         private bool isFading;
         private float fadeElapsed;
@@ -39,6 +43,7 @@ namespace SimpleGame
             Vector2 direction,
             int maximumHits,
             float sizeMultiplier,
+            float travelDistance,
             float damageMultiplier)
         {
             if (prefab == null)
@@ -57,6 +62,7 @@ namespace SimpleGame
                 direction,
                 maximumHits,
                 sizeMultiplier,
+                travelDistance,
                 damageMultiplier);
         }
 
@@ -75,21 +81,25 @@ namespace SimpleGame
             Vector2 configuredDirection,
             int maximumHits,
             float configuredSizeMultiplier,
+            float configuredTravelDistance,
             float configuredDamageMultiplier)
         {
             owner = configuredOwner;
             enemyWorld = configuredEnemyWorld;
-            float commandDistance = configuredDirection.magnitude;
             direction = configuredDirection.sqrMagnitude > 0.0001f
                 ? configuredDirection.normalized
                 : Vector2.right;
+            travelDistance = Mathf.Max(
+                0f,
+                configuredTravelDistance);
             travelSpeed = CalculateTravelSpeed(
                 owner.MoveSpeed,
-                commandDistance,
+                travelDistance,
                 owner.Movement.IsMaximumSpeedActive);
             remainingHits = Mathf.Max(1, maximumHits);
             sizeMultiplier = Mathf.Max(0.1f, configuredSizeMultiplier);
             damageMultiplier = Mathf.Max(0f, configuredDamageMultiplier);
+            activeElapsed = 0f;
             hitEnemyGenerations.Clear();
             origin = (Vector2)owner.transform.position + direction * 0.45f;
             transform.position = origin;
@@ -127,17 +137,6 @@ namespace SimpleGame
                 return;
             }
 
-            Vector2 previous = transform.position;
-            Vector2 destination =
-                origin + direction * TravelDistance;
-            Vector2 next = Vector2.MoveTowards(
-                previous,
-                destination,
-                travelSpeed * Time.deltaTime);
-            transform.position = next;
-            float distanceTravelled =
-                Vector2.Distance(origin, next);
-
             if (isFading)
             {
                 fadeElapsed += Time.deltaTime;
@@ -150,10 +149,25 @@ namespace SimpleGame
                 return;
             }
 
+            activeElapsed += Time.deltaTime;
+            Vector2 previous = transform.position;
+            Vector2 destination =
+                origin + direction * travelDistance;
+            Vector2 next = Vector2.MoveTowards(
+                previous,
+                destination,
+                travelSpeed * Time.deltaTime);
+            transform.position = next;
+            float distanceTravelled =
+                Vector2.Distance(origin, next);
+
             RefreshVisual(distanceTravelled);
             HitEnemiesAlong(previous, next);
-            if (remainingHits <= 0 ||
-                distanceTravelled >= TravelDistance)
+            if (ShouldBeginFade(
+                remainingHits,
+                distanceTravelled,
+                travelDistance,
+                activeElapsed))
             {
                 BeginFade(distanceTravelled);
             }
@@ -209,23 +223,31 @@ namespace SimpleGame
 
         public static float CalculateTravelSpeed(
             float playerMoveSpeed,
-            float commandDistance,
+            float travelDistance,
             bool maximumSpeedActive)
         {
-            float maximumSpeed =
-                PlayerMovement.CalculateMaximumTravelSpeed(
-                    commandDistance);
-            float currentPlayerSpeed = maximumSpeedActive
-                ? maximumSpeed
-                : Mathf.Max(0f, playerMoveSpeed);
-            return Mathf.Min(
-                currentPlayerSpeed * PlayerSpeedMultiplier,
-                maximumSpeed);
+            return maximumSpeedActive
+                ? PlayerMovement.CalculateMaximumTravelSpeed(
+                    travelDistance)
+                : Mathf.Max(0f, playerMoveSpeed) *
+                    PlayerSpeedMultiplier;
+        }
+
+        public static bool ShouldBeginFade(
+            int remainingHits,
+            float distanceTravelled,
+            float travelDistance,
+            float activeElapsed)
+        {
+            return remainingHits <= 0 ||
+                travelDistance <= 0f ||
+                distanceTravelled >= travelDistance - 0.0001f ||
+                activeElapsed >= MaximumActiveDuration;
         }
 
         public static int CalculateAnimationFrameIndex(
             float distanceTravelled,
-            float travelDistance = TravelDistance,
+            float travelDistance = DefaultTravelDistance,
             int frameCount = AnimationFrameCount)
         {
             if (frameCount <= 1 || travelDistance <= 0f)
@@ -265,7 +287,7 @@ namespace SimpleGame
 
             int frameIndex = CalculateAnimationFrameIndex(
                 distanceTravelled,
-                TravelDistance,
+                travelDistance,
                 animationFrames.Length);
             SetVisualFrame(frameIndex);
         }
@@ -276,7 +298,7 @@ namespace SimpleGame
             fadeElapsed = 0f;
             fadeStartFrame = CalculateAnimationFrameIndex(
                 distanceTravelled,
-                TravelDistance,
+                travelDistance,
                 animationFrames.Length);
         }
 

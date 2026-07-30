@@ -5,6 +5,8 @@ namespace SimpleGame
     public sealed class EnemyWorldRecycler : MonoBehaviour
     {
         private const float CheckInterval = 0.2f;
+        public const float ContinuePushDuration = 0.4f;
+        public const float ContinueDamageFraction = 0.5f;
 
         [SerializeField] private PrototypeGameSession session;
         [SerializeField] private EnemyWorldService enemyWorld;
@@ -21,7 +23,7 @@ namespace SimpleGame
             worldArea = area;
         }
 
-        public void RepositionAllNormalEnemies()
+        public void PushAwayAllNormalEnemies()
         {
             if (session == null ||
                 enemyWorld == null ||
@@ -30,13 +32,31 @@ namespace SimpleGame
                 return;
             }
 
-            foreach (EnemyBase enemy in enemyWorld.Enemies)
+            for (int index = enemyWorld.Enemies.Count - 1;
+                 index >= 0;
+                 index--)
             {
+                EnemyBase enemy = enemyWorld.Enemies[index];
                 if (CanReposition(enemy))
                 {
-                    Reposition(enemy);
+                    Vector2 position =
+                        worldArea.GetOutwardSpawnPosition(
+                            enemy.transform.position);
+                    enemy.ApplyContinuePush(
+                        position,
+                        session.Player.transform.position,
+                        CalculateContinueDamage(
+                            enemy.CurrentHealth),
+                        ContinuePushDuration);
                 }
             }
+        }
+
+        public static float CalculateContinueDamage(
+            float currentHealth)
+        {
+            return Mathf.Max(0f, currentHealth) *
+                ContinueDamageFraction;
         }
 
         private void Update()

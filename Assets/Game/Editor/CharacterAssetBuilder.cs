@@ -23,8 +23,22 @@ namespace SimpleGameEditor
             PrefabRootPath + "/ShieldEnemy.prefab";
         public const string BossPrefabPath =
             PrefabRootPath + "/BossEnemy.prefab";
+        public const string MushroomBossPrefabPath =
+            PrefabRootPath + "/MushroomBoss.prefab";
+        public const string FlyingEyePrefabPath =
+            PrefabRootPath + "/FlyingEyeEnemy.prefab";
+        public const string FlyingEyeBossPrefabPath =
+            PrefabRootPath + "/FlyingEyeBoss.prefab";
+        public const string SkeletonBossPrefabPath =
+            PrefabRootPath + "/SkeletonBoss.prefab";
         public const string MovingSlashPrefabPath =
             PrefabRootPath + "/MovingSlash.prefab";
+        public const string FilthProjectilePrefabPath =
+            PrefabRootPath + "/FilthProjectile.prefab";
+        public const string HealthPickupPrefabPath =
+            PrefabRootPath + "/HealthPickup.prefab";
+        public const string PoisonCloudPrefabPath =
+            PrefabRootPath + "/MushroomPoisonCloud.prefab";
         public const string PrototypeSquareAssetPath =
             RootPath + "/Shared/PrototypeSquare.asset";
         public const string DefaultFontPath =
@@ -113,7 +127,10 @@ namespace SimpleGameEditor
                 12f,
                 12f,
                 enemyFaceRight,
-                enemyFaceLeft);
+                enemyFaceLeft,
+                attack2Frames: LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Goblin/Attack2.png"),
+                attack2Fps: 16f);
 
             Sprite[] skeletonIdle = LoadSprites(
                 "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Idle.png");
@@ -137,14 +154,73 @@ namespace SimpleGameEditor
                 12f,
                 12f,
                 enemyFaceRight,
-                enemyFaceLeft);
+                enemyFaceLeft,
+                attack2Frames: LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Attack2.png"),
+                attack2Fps: 16f);
+
+            Sprite[] mushroomIdle = LoadSprites(
+                "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Idle.png");
+            AnimatorController mushroomController = BuildProfile(
+                "Mushroom",
+                mushroomIdle,
+                LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Run.png"),
+                mushroomIdle,
+                LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Attack1.png"),
+                LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Take Hit.png"),
+                LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Death.png"),
+                12f,
+                12f,
+                12f,
+                14f,
+                12f,
+                12f,
+                enemyFaceRight,
+                enemyFaceLeft,
+                attack2Frames: LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Attack2.png"),
+                attack2Fps: 14f);
+
+            Sprite[] flyingEyeIdle = LoadSprites(
+                "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Flight.png");
+            AnimatorController flyingEyeController = BuildProfile(
+                "FlyingEye",
+                flyingEyeIdle,
+                flyingEyeIdle,
+                flyingEyeIdle,
+                LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Attack1.png"),
+                LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Take Hit.png"),
+                LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Death.png"),
+                12f,
+                12f,
+                12f,
+                16f,
+                12f,
+                12f,
+                enemyFaceRight,
+                enemyFaceLeft,
+                attack2Frames: LoadSprites(
+                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Attack2.png"),
+                attack2Fps: 16f);
 
             MovingSlashProjectile movingSlashPrefab =
                 BuildMovingSlashPrefab();
+            FilthProjectile filthProjectilePrefab =
+                BuildFilthProjectilePrefab();
+            BuildHealthPickupPrefab();
+            BuildPoisonCloudPrefab();
             BuildPlayerPrefab(
                 playerController,
                 playerIdle[0],
-                movingSlashPrefab);
+                movingSlashPrefab,
+                filthProjectilePrefab);
             BuildEnemyPrefab(
                 EnemyArchetype.Melee,
                 goblinController,
@@ -165,6 +241,26 @@ namespace SimpleGameEditor
                 goblinController,
                 goblinIdle[0],
                 BossPrefabPath);
+            BuildEnemyPrefab(
+                EnemyArchetype.Boss,
+                mushroomController,
+                mushroomIdle[0],
+                MushroomBossPrefabPath);
+            BuildEnemyPrefab(
+                EnemyArchetype.Melee,
+                flyingEyeController,
+                flyingEyeIdle[0],
+                FlyingEyePrefabPath);
+            BuildEnemyPrefab(
+                EnemyArchetype.Boss,
+                flyingEyeController,
+                flyingEyeIdle[0],
+                FlyingEyeBossPrefabPath);
+            BuildEnemyPrefab(
+                EnemyArchetype.Boss,
+                skeletonController,
+                skeletonIdle[0],
+                SkeletonBossPrefabPath);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -189,7 +285,9 @@ namespace SimpleGameEditor
             AnimationClip faceLeft,
             string clipFolderOverride = null,
             string controllerPathOverride = null,
-            string clipPrefixOverride = null)
+            string clipPrefixOverride = null,
+            Sprite[] attack2Frames = null,
+            float attack2Fps = 0f)
         {
             string clipFolder =
                 clipFolderOverride ?? $"{AnimationPath}/{profile}";
@@ -218,6 +316,16 @@ namespace SimpleGameEditor
                 attackFrames,
                 attackFps,
                 false);
+            AnimationClip attack2 =
+                attack2Frames != null && attack2Frames.Length > 0
+                    ? CreateClip(
+                        $"{clipFolder}/{clipPrefix}_Attack2.anim",
+                        attack2Frames,
+                        attack2Fps > 0f
+                            ? attack2Fps
+                            : attackFps,
+                        false)
+                    : null;
             AnimationClip hurt = CreateClip(
                 $"{clipFolder}/{clipPrefix}_Hurt.anim",
                 hurtFrames,
@@ -236,6 +344,7 @@ namespace SimpleGameEditor
                 move,
                 guard,
                 attack,
+                attack2,
                 hurt,
                 death,
                 faceRight,
@@ -342,6 +451,7 @@ namespace SimpleGameEditor
             AnimationClip moveClip,
             AnimationClip guardClip,
             AnimationClip attackClip,
+            AnimationClip attack2Clip,
             AnimationClip hurtClip,
             AnimationClip deathClip,
             AnimationClip faceRightClip,
@@ -353,6 +463,7 @@ namespace SimpleGameEditor
             {
                 EnsureControllerStates(
                     existing,
+                    attack2Clip,
                     deathClip,
                     faceRightClip,
                     faceLeftClip);
@@ -375,6 +486,12 @@ namespace SimpleGameEditor
             controller.AddParameter(
                 CharacterSpriteAnimator.AttackParameter,
                 AnimatorControllerParameterType.Trigger);
+            if (attack2Clip != null)
+            {
+                controller.AddParameter(
+                    CharacterSpriteAnimator.Attack2Parameter,
+                    AnimatorControllerParameterType.Trigger);
+            }
             controller.AddParameter(
                 CharacterSpriteAnimator.HurtParameter,
                 AnimatorControllerParameterType.Trigger);
@@ -387,6 +504,13 @@ namespace SimpleGameEditor
             AnimatorState move = AddState(machine, "Move", moveClip, new Vector3(520f, -80f));
             AnimatorState guard = AddState(machine, "Guard", guardClip, new Vector3(520f, 120f));
             AnimatorState attack = AddState(machine, "Attack", attackClip, new Vector3(780f, -80f));
+            AnimatorState attack2 = attack2Clip != null
+                ? AddState(
+                    machine,
+                    "Attack2",
+                    attack2Clip,
+                    new Vector3(780f, -180f))
+                : null;
             AnimatorState hurt = AddState(machine, "Hurt", hurtClip, new Vector3(780f, 120f));
             AnimatorState death = AddState(machine, "Death", deathClip, new Vector3(1040f, 20f));
             machine.defaultState = idle;
@@ -402,6 +526,13 @@ namespace SimpleGameEditor
                 machine,
                 attack,
                 CharacterSpriteAnimator.AttackParameter);
+            if (attack2 != null)
+            {
+                AddTriggerTransition(
+                    machine,
+                    attack2,
+                    CharacterSpriteAnimator.Attack2Parameter);
+            }
             AddTriggerTransition(
                 machine,
                 hurt,
@@ -412,6 +543,10 @@ namespace SimpleGameEditor
                 CharacterSpriteAnimator.DeathParameter);
 
             AddReturnTransitions(attack, idle, move, guard);
+            if (attack2 != null)
+            {
+                AddReturnTransitions(attack2, idle, move, guard);
+            }
             AddReturnTransitions(hurt, idle, move, guard);
 
             controller.AddLayer("Facing");
@@ -454,10 +589,73 @@ namespace SimpleGameEditor
 
         private static void EnsureControllerStates(
             AnimatorController controller,
+            AnimationClip attack2Clip,
             AnimationClip deathClip,
             AnimationClip faceRightClip,
             AnimationClip faceLeftClip)
         {
+            if (attack2Clip != null)
+            {
+                if (!controller.parameters.Any(
+                        parameter =>
+                            parameter.name ==
+                            CharacterSpriteAnimator.Attack2Parameter))
+                {
+                    controller.AddParameter(
+                        CharacterSpriteAnimator.Attack2Parameter,
+                        AnimatorControllerParameterType.Trigger);
+                }
+
+                AnimatorStateMachine attackMachine =
+                    controller.layers[0].stateMachine;
+                AnimatorState attack2 = attackMachine.states
+                    .Select(child => child.state)
+                    .FirstOrDefault(state => state.name == "Attack2");
+                if (attack2 == null)
+                {
+                    attack2 = AddState(
+                        attackMachine,
+                        "Attack2",
+                        attack2Clip,
+                        new Vector3(780f, -180f));
+                    AnimatorState idle = attackMachine.states
+                        .Select(child => child.state)
+                        .First(state => state.name == "Idle");
+                    AnimatorState move = attackMachine.states
+                        .Select(child => child.state)
+                        .First(state => state.name == "Move");
+                    AnimatorState guard = attackMachine.states
+                        .Select(child => child.state)
+                        .First(state => state.name == "Guard");
+                    AddReturnTransitions(
+                        attack2,
+                        idle,
+                        move,
+                        guard);
+                }
+                else
+                {
+                    attack2.motion = attack2Clip;
+                }
+
+                bool hasAttack2Transition =
+                    attackMachine.anyStateTransitions.Any(
+                        transition =>
+                            transition.destinationState == attack2 &&
+                            transition.conditions.Any(
+                                condition =>
+                                    condition.parameter ==
+                                    CharacterSpriteAnimator
+                                        .Attack2Parameter));
+                if (!hasAttack2Transition)
+                {
+                    AddTriggerTransition(
+                        attackMachine,
+                        attack2,
+                        CharacterSpriteAnimator.Attack2Parameter);
+                }
+            }
+
             if (!controller.parameters.Any(
                     parameter =>
                         parameter.name ==
@@ -627,7 +825,8 @@ namespace SimpleGameEditor
         private static void BuildPlayerPrefab(
             RuntimeAnimatorController controller,
             Sprite idleSprite,
-            MovingSlashProjectile movingSlashPrefab)
+            MovingSlashProjectile movingSlashPrefab,
+            FilthProjectile filthProjectilePrefab)
         {
             var root = new GameObject("Player");
             root.AddComponent<HealthComponent>();
@@ -635,7 +834,8 @@ namespace SimpleGameEditor
             root.AddComponent<CriticalSystem>();
             root.AddComponent<PlayerProgression>();
             root.AddComponent<PlayerStats>();
-            root.AddComponent<PlayerController>();
+            PlayerController playerController =
+                root.AddComponent<PlayerController>();
             CharacterSpriteAnimator animation =
                 root.AddComponent<CharacterSpriteAnimator>();
             PlayerRoot playerRoot = root.AddComponent<PlayerRoot>();
@@ -710,6 +910,26 @@ namespace SimpleGameEditor
             combatAbilities.ConfigureSeverVisual(cutting);
             combatAbilities.ConfigureMovingSlashPrefab(
                 movingSlashPrefab);
+            combatAbilities.ConfigureFilthProjectilePrefab(
+                filthProjectilePrefab);
+
+            SpriteRenderer aimRay = CreateSpriteVisual(
+                root.transform,
+                "AimRay",
+                new Color(0.2f, 0.9f, 1f, 0.68f),
+                new Vector2(0.01f, PlayerController.AimRayWidth),
+                108);
+            SpriteRenderer aimEndpoint = CreateSpriteVisual(
+                root.transform,
+                "AimEndpoint",
+                new Color(0.12f, 0.92f, 1f, 0.86f),
+                Vector2.one * PlayerController.AimEndpointSize,
+                109);
+            aimEndpoint.transform.localRotation =
+                Quaternion.Euler(0f, 0f, 45f);
+            playerController.ConfigureAimVisuals(
+                aimRay,
+                aimEndpoint);
 
             SpriteRenderer attackRange = CreateSpriteVisual(
                 root.transform,
@@ -726,6 +946,48 @@ namespace SimpleGameEditor
             playerRoot.ConfigureVisuals(attackRange, levelLabel);
             PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
             UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        private static FilthProjectile BuildFilthProjectilePrefab()
+        {
+            var root = new GameObject("FilthProjectile");
+            SpriteRenderer orb = CreateSpriteVisual(
+                root.transform,
+                "Orb",
+                new Color(0.34f, 0.2f, 0.08f, 1f),
+                new Vector2(0.42f, 0.42f),
+                27);
+            orb.transform.localRotation =
+                Quaternion.Euler(0f, 0f, 45f);
+
+            var field = new GameObject("DamageField");
+            field.transform.SetParent(root.transform, false);
+            SpriteRenderer outer = CreateSpriteVisual(
+                field.transform,
+                "Outer",
+                new Color(0.31f, 0.42f, 0.08f, 0.28f),
+                Vector2.one,
+                15);
+            outer.transform.localRotation =
+                Quaternion.Euler(0f, 0f, 45f);
+            SpriteRenderer inner = CreateSpriteVisual(
+                field.transform,
+                "Inner",
+                new Color(0.43f, 0.24f, 0.06f, 0.32f),
+                Vector2.one * 0.68f,
+                16);
+            inner.transform.localRotation =
+                Quaternion.Euler(0f, 0f, 15f);
+            field.SetActive(false);
+
+            FilthProjectile projectile =
+                root.AddComponent<FilthProjectile>();
+            projectile.ConfigureVisuals(orb, field);
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(
+                root,
+                FilthProjectilePrefabPath);
+            UnityEngine.Object.DestroyImmediate(root);
+            return prefab.GetComponent<FilthProjectile>();
         }
 
         private static void BuildEnemyPrefab(
@@ -843,6 +1105,67 @@ namespace SimpleGameEditor
             }
 
             PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        private static void BuildHealthPickupPrefab()
+        {
+            var root = new GameObject("HealthPickup");
+            root.AddComponent<HealthPickup>();
+            ConfigurePhysics(root, 0.4f);
+
+            SpriteRenderer diamond = CreateSpriteVisual(
+                root.transform,
+                "Orb",
+                new Color(0.95f, 0.2f, 0.28f, 0.95f),
+                new Vector2(0.72f, 0.72f),
+                18);
+            diamond.transform.localRotation =
+                Quaternion.Euler(0f, 0f, 45f);
+            CreateSpriteVisual(
+                root.transform,
+                "CrossHorizontal",
+                Color.white,
+                new Vector2(0.42f, 0.12f),
+                19);
+            CreateSpriteVisual(
+                root.transform,
+                "CrossVertical",
+                Color.white,
+                new Vector2(0.12f, 0.42f),
+                19);
+
+            PrefabUtility.SaveAsPrefabAsset(
+                root,
+                HealthPickupPrefabPath);
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        private static void BuildPoisonCloudPrefab()
+        {
+            var root = new GameObject("MushroomPoisonCloud");
+            root.AddComponent<MushroomPoisonCloud>();
+
+            SpriteRenderer core = CreateSpriteVisual(
+                root.transform,
+                "CloudCore",
+                new Color(0.25f, 0.72f, 0.16f, 0.24f),
+                Vector2.one * MushroomPoisonCloud.DamageRadius * 2f,
+                16);
+            core.transform.localRotation =
+                Quaternion.Euler(0f, 0f, 45f);
+            SpriteRenderer inner = CreateSpriteVisual(
+                root.transform,
+                "CloudInner",
+                new Color(0.48f, 0.9f, 0.16f, 0.2f),
+                Vector2.one * MushroomPoisonCloud.DamageRadius * 1.45f,
+                17);
+            inner.transform.localRotation =
+                Quaternion.Euler(0f, 0f, 15f);
+
+            PrefabUtility.SaveAsPrefabAsset(
+                root,
+                PoisonCloudPrefabPath);
             UnityEngine.Object.DestroyImmediate(root);
         }
 
@@ -1125,6 +1448,8 @@ namespace SimpleGameEditor
             EditorAssetUtility.EnsureFolder(PlayerAnimationPath);
             EditorAssetUtility.EnsureFolder(AnimationPath + "/Goblin");
             EditorAssetUtility.EnsureFolder(AnimationPath + "/Skeleton");
+            EditorAssetUtility.EnsureFolder(AnimationPath + "/Mushroom");
+            EditorAssetUtility.EnsureFolder(AnimationPath + "/FlyingEye");
             EditorAssetUtility.EnsureFolder(AnimatorPath);
             EditorAssetUtility.EnsureFolder(RootPath + "/Shared");
             EditorAssetUtility.EnsureFolder(PrefabRootPath);

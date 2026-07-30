@@ -10,6 +10,8 @@ namespace SimpleGame
     {
         public const float CardChoiceInputDelay = 0.7f;
         public const int MaximumCardRerollsPerRun = 3;
+        public const int BossRerollReward = 1;
+        public const int LevelUpHealAmount = 2;
 
         [Header("Scene References")]
         [SerializeField] private PlayerRoot player;
@@ -20,6 +22,7 @@ namespace SimpleGame
         [SerializeField] private CombatFeedbackController combatFeedback;
         [SerializeField] private EnemyWorldRecycler enemyRecycler;
         [SerializeField] private PrototypeHUDPresenter hudPresenter;
+        [SerializeField] private PoisonCloudSpawner poisonCloudSpawner;
         [Header("Game Data")]
         [SerializeField] private string stageId = "Stage01";
         [SerializeField] private GameDataManifest gameData;
@@ -33,6 +36,7 @@ namespace SimpleGame
             new();
         private GameRunState state = GameRunState.Playing;
         private int pendingCardSelections;
+        private int pendingBossRewardSelections;
         private bool selectingStartingCards;
         private int remainingCardRerolls =
             MaximumCardRerollsPerRun;
@@ -103,6 +107,12 @@ namespace SimpleGame
             hudPresenter = configuredPresenter;
         }
 
+        public void ConfigureWorldRewards(
+            PoisonCloudSpawner configuredPoisonCloudSpawner)
+        {
+            poisonCloudSpawner = configuredPoisonCloudSpawner;
+        }
+
         private void Start()
         {
             Time.timeScale = 1f;
@@ -144,7 +154,9 @@ namespace SimpleGame
             player.Health.Depleted += OnPlayerDepleted;
             player.Progression.LevelUpCardRequested += OnPlayerLevelUp;
             stageSpawner.Begin(stageId);
-            ShowHint("10분 동안 생존하세요. 빈 곳을 누르면 이동하고 적을 누르면 공격합니다.");
+            ShowHint(
+                "왼쪽 조이스틱으로 조준하고 오른쪽 공격 버튼을 누르세요. " +
+                "화면 직접 터치도 사용할 수 있습니다.");
             QueueCardSelections(
                 CalculateStartingCardSelectionCount(accountLevel),
                 true);
@@ -195,9 +207,25 @@ namespace SimpleGame
 
         public void OnEnemyDefeated(EnemyBase enemy)
         {
+            bool isBoss = enemy.Archetype == EnemyArchetype.Boss;
+            bool isMushroomBoss =
+                PrototypeEnemyDefinitions.IsMushroomBoss(
+                    enemy.Definition.EnemyId);
+            Vector2 defeatedPosition = enemy.transform.position;
             enemyWorld.Unregister(enemy);
             Score += enemy.Definition.Score;
             player.Progression.AddExperience(enemy.Definition.KillExperience);
+            if (isMushroomBoss)
+            {
+                poisonCloudSpawner?.Schedule(defeatedPosition);
+            }
+
+            if (isBoss)
+            {
+                remainingCardRerolls =
+                    CalculateBossRewardRerolls(remainingCardRerolls);
+                QueueCardSelections(1, false, true);
+            }
         }
 
         public void ShowHint(string message)
@@ -259,6 +287,11 @@ namespace SimpleGame
             }
 
             cardStacks[selected.CardId] = GetCardStack(selected.CardId) + 1;
+            if (pendingBossRewardSelections > 0)
+            {
+                pendingBossRewardSelections--;
+            }
+
             pendingCardSelections--;
             if (pendingCardSelections > 0)
             {
@@ -327,7 +360,7 @@ namespace SimpleGame
 
             continueCount++;
             player.RestoreAfterContinue();
-            enemyRecycler.RepositionAllNormalEnemies();
+            enemyRecycler.PushAwayAllNormalEnemies();
 
             state = GameRunState.Playing;
             GameOverVisibilityChanged?.Invoke(false);
@@ -365,6 +398,7 @@ namespace SimpleGame
 
             state = GameRunState.GameOver;
             pendingCardSelections = 0;
+            pendingBossRewardSelections = 0;
             selectingStartingCards = false;
             Time.timeScale = 1f;
             currentCardChoices.Clear();
@@ -382,7 +416,7 @@ namespace SimpleGame
                 return;
             }
 
-            player.Health.RestoreFull();
+            player.Health.Heal(LevelUpHealAmount);
             foreach (EnemyBase enemy in enemyWorld.Enemies)
             {
                 if (enemy != null && enemy.IsAlive)
@@ -400,7 +434,19 @@ namespace SimpleGame
             return Mathf.Max(0, currentAccountLevel - 1);
         }
 
-        private void QueueCardSelections(int count, bool startingCards)
+        public static int CalculateBossRewardRerolls(
+            int currentRerolls)
+        {
+            return Mathf.Clamp(
+                currentRerolls + BossRerollReward,
+                0,
+                MaximumCardRerollsPerRun);
+        }
+
+        private void QueueCardSelections(
+            int count,
+            bool startingCards,
+            bool bossReward = false)
         {
             if (count <= 0)
             {
@@ -408,6 +454,11 @@ namespace SimpleGame
             }
 
             pendingCardSelections += count;
+            if (bossReward)
+            {
+                pendingBossRewardSelections += count;
+            }
+
             selectingStartingCards |= startingCards;
             state = GameRunState.CardSelection;
             Time.timeScale = 0f;
@@ -565,9 +616,11 @@ namespace SimpleGame
 
         private void ShowCardSelectionHint()
         {
-            string source = selectingStartingCards
-                ? $"계정 레벨 {accountLevel} 시작 보너스"
-                : "레벨 업";
+            string source = pendingBossRewardSelections > 0
+                ? "보스 처치 보상"
+                : selectingStartingCards
+                    ? $"계정 레벨 {accountLevel} 시작 보너스"
+                    : "레벨 업";
             ShowHint(
                 $"{source}: 카드를 선택하세요. " +
                 $"남은 선택 {pendingCardSelections}회");
@@ -581,6 +634,7 @@ namespace SimpleGame
             }
 
             pendingCardSelections = 0;
+            pendingBossRewardSelections = 0;
             selectingStartingCards = false;
             SetCardChoicesInteractable(false);
             CardSelectionVisibilityChanged?.Invoke(false);

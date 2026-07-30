@@ -17,6 +17,7 @@ namespace SimpleGame
         {
             session = gameSession;
             view.Initialize();
+            view.InitializeAimControls(session.Player);
 
             view.Bind(HudButtonId.CardChoice0, () => session.SelectCard(0));
             view.Bind(HudButtonId.CardChoice1, () => session.SelectCard(1));
@@ -26,6 +27,9 @@ namespace SimpleGame
             view.Bind(HudButtonId.CardReroll2, () => session.RerollCard(2));
             view.Bind(HudButtonId.Settings, session.TogglePause);
             view.Bind(HudButtonId.ContinueAd, session.SimulateRewardedContinue);
+            view.Bind(
+                HudButtonId.Attack,
+                () => session.Player.ExecuteAimedCommand());
 
             session.HintChanged += OnHintChanged;
             session.CardSelectionVisibilityChanged += view.ShowCardSelection;
@@ -59,6 +63,11 @@ namespace SimpleGame
             }
 
             session.HintChanged -= OnHintChanged;
+            if (view == null)
+            {
+                return;
+            }
+
             session.CardSelectionVisibilityChanged -= view.ShowCardSelection;
             session.CardChoicesChanged -= view.SetCardChoices;
             session.CardChoiceInteractivityChanged -=
@@ -67,6 +76,7 @@ namespace SimpleGame
             session.PauseVisibilityChanged -= view.ShowPauseDetails;
             session.PauseDetailsChanged -= view.SetPauseDetails;
             session.GameOverVisibilityChanged -= view.ShowGameOver;
+            view.InitializeAimControls(null);
         }
 
         private void OnHintChanged(string message)

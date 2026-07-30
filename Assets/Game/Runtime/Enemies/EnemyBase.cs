@@ -24,6 +24,7 @@ namespace SimpleGame
         [SerializeField] private EnemyHealthBar healthBar;
 
         private Collider2D hitCollider;
+        private CircleCollider2D circleCollider;
         private Coroutine deathRoutine;
         private EnemyWorldService enemyWorld;
         private PrototypeEnemyFactory spawnFactory;
@@ -41,6 +42,31 @@ namespace SimpleGame
         public float MaxHealth =>
             health != null ? health.MaxHealth : 0f;
         public bool IsAlive => health != null && health.IsAlive;
+        public bool AllowsEnemyOverlap =>
+            Definition != null && Definition.AllowsEnemyOverlap;
+        public float CollisionRadius
+        {
+            get
+            {
+                if (circleCollider == null)
+                {
+                    circleCollider =
+                        hitCollider as CircleCollider2D ??
+                        GetComponent<CircleCollider2D>();
+                }
+
+                if (circleCollider == null)
+                {
+                    return 0f;
+                }
+
+                Vector3 scale = circleCollider.transform.lossyScale;
+                return circleCollider.radius *
+                    Mathf.Max(
+                        Mathf.Abs(scale.x),
+                        Mathf.Abs(scale.y));
+            }
+        }
         public PrototypeGameSession Session { get; private set; }
         public uint SpawnGeneration { get; private set; }
 
@@ -88,6 +114,7 @@ namespace SimpleGame
             bossAttack = GetComponent<BossAttackModule>();
             characterAnimation = GetComponent<CharacterSpriteAnimator>();
             hitCollider = GetComponent<Collider2D>();
+            circleCollider = hitCollider as CircleCollider2D;
             if (characterAnimation == null)
             {
                 Debug.LogError(
@@ -116,7 +143,9 @@ namespace SimpleGame
 
             SetGameplayVisualsVisible(true);
             BuildVisual();
-            movement.Configure(Definition.MoveSpeed, characterAnimation);
+            movement.Configure(
+                Definition.CalculateMoveSpeed(level),
+                characterAnimation);
             attack?.Configure(this);
             bossAttack?.Configure(this);
             stateMachine.Configure(this);
@@ -242,7 +271,9 @@ namespace SimpleGame
                 (Vector2)transform.position;
 
             string enemyName =
-                PrototypeEnemyDefinitions.GetDisplayName(Archetype);
+                PrototypeEnemyDefinitions.GetDisplayName(
+                    Definition.EnemyId,
+                    Archetype);
             string sideText = side == AttackSide.Front
                 ? "정면"
                 : "후면";
@@ -255,20 +286,7 @@ namespace SimpleGame
 
             if (!health.IsAlive)
             {
-                movement.StopImmediately();
-                attack?.Cancel();
-                bossAttack?.Cancel();
-                if (hitCollider != null)
-                {
-                    hitCollider.enabled = false;
-                }
-
-                SetGameplayVisualsVisible(false);
-                float deathDuration =
-                    characterAnimation.PlayDeath(hitDirection);
-                Session.OnEnemyDefeated(this);
-                deathRoutine = StartCoroutine(
-                    DeactivateAfterDeath(deathDuration));
+                BeginDeath(hitDirection);
                 return damaged;
             }
 
@@ -280,6 +298,51 @@ namespace SimpleGame
             return damaged;
         }
 
+        public void ApplyContinuePush(
+            Vector2 position,
+            Vector2 playerPosition,
+            float damage,
+            float duration)
+        {
+            if (!IsAlive)
+            {
+                return;
+            }
+
+            attack?.Cancel();
+            bossAttack?.Cancel();
+            movement.StopImmediately();
+            stateMachine.ResetAfterReposition();
+
+            Vector2 startPosition = transform.position;
+            bool damaged = health.Apply(new CombatResult(
+                Mathf.Max(0f, damage),
+                MaxHealth,
+                PlayerAttackReaction.None));
+            Vector2 hitDirection = playerPosition - startPosition;
+            if (!health.IsAlive)
+            {
+                BeginDeath(hitDirection);
+                return;
+            }
+
+            Vector2 destination = enemyWorld != null
+                ? enemyWorld.FindOpenEnemyPosition(
+                    position,
+                    EnemyWorldService.GetColliderRadius(this),
+                    this,
+                    AllowsEnemyOverlap)
+                : position;
+            movement.Knockback(
+                destination,
+                duration,
+                ResolveContinuePushOverlap);
+            if (damaged)
+            {
+                characterAnimation.PlayHurt(hitDirection);
+            }
+        }
+
         public void Reposition(Vector2 position, Vector2 targetPosition)
         {
             attack?.Cancel();
@@ -289,10 +352,34 @@ namespace SimpleGame
                 ? enemyWorld.FindOpenEnemyPosition(
                     position,
                     EnemyWorldService.GetColliderRadius(this),
-                    this)
+                    this,
+                    AllowsEnemyOverlap)
                 : position;
             facing.FaceImmediate(targetPosition);
             stateMachine.ResetAfterReposition();
+        }
+
+        private void ResolveContinuePushOverlap()
+        {
+            enemyWorld?.SeparateEnemy(this);
+        }
+
+        private void BeginDeath(Vector2 hitDirection)
+        {
+            movement.StopImmediately();
+            attack?.Cancel();
+            bossAttack?.Cancel();
+            if (hitCollider != null)
+            {
+                hitCollider.enabled = false;
+            }
+
+            SetGameplayVisualsVisible(false);
+            float deathDuration =
+                characterAnimation.PlayDeath(hitDirection);
+            Session.OnEnemyDefeated(this);
+            deathRoutine = StartCoroutine(
+                DeactivateAfterDeath(deathDuration));
         }
 
         private void BuildVisual()
@@ -331,9 +418,11 @@ namespace SimpleGame
             facingMarker.transform.localPosition = new Vector3(0f, -size * 0.55f, 0f);
             levelLabel.transform.localPosition =
                 new Vector3(0f, size * 0.82f, 0f);
-            levelLabel.text =
-                $"{PrototypeEnemyDefinitions.GetDisplayName(Archetype)} " +
-                $"레벨 {level}";
+            string displayName =
+                PrototypeEnemyDefinitions.GetDisplayName(
+                    Definition.EnemyId,
+                    Archetype);
+            levelLabel.text = $"{displayName} 레벨 {level}";
             RefreshLevelLabel();
         }
 

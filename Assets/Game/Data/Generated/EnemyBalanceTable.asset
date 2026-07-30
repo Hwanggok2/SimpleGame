@@ -72,7 +72,7 @@ MonoBehaviour:
     showHpBar: 1
   - enemyId: GoblinBoss
     archetype: 3
-    moveSpeed: 0.5
+    moveSpeed: 0.75
     attackRange: 2.6
     attackDamage: 4
     attackWindup: 1.5
@@ -88,4 +88,80 @@ MonoBehaviour:
     hpGrowthRate: 3.4
     levelDifficultyOffset: 0
     combatProfileId: Boss
+    showHpBar: 1
+  - enemyId: MushroomBoss
+    archetype: 3
+    moveSpeed: 0.72
+    attackRange: 2.6
+    attackDamage: 4
+    attackWindup: 1.3
+    attackActiveDuration: 0.5
+    attackCooldown: 2.8
+    attackAreaRadius: 1.5
+    approachRange: 0
+    facingTurnDelay: 0.5
+    postAttackFacingLock: 0
+    killExperience: 10
+    score: 70
+    baseMaxHp: 18
+    hpGrowthRate: 3.8
+    levelDifficultyOffset: 0
+    combatProfileId: BossMushroom
+    showHpBar: 1
+  - enemyId: FlyingEye
+    archetype: 0
+    moveSpeed: 0.95
+    attackRange: 0.95
+    attackDamage: 1
+    attackWindup: 0.65
+    attackActiveDuration: 0
+    attackCooldown: 1.8
+    attackAreaRadius: 0
+    approachRange: 0
+    facingTurnDelay: 0.5
+    postAttackFacingLock: 0
+    killExperience: 2
+    score: 8
+    baseMaxHp: 3
+    hpGrowthRate: 0.75
+    levelDifficultyOffset: 0
+    combatProfileId: FlyingMelee
+    showHpBar: 1
+  - enemyId: FlyingEyeBoss
+    archetype: 3
+    moveSpeed: 0.88
+    attackRange: 3.6
+    attackDamage: 4
+    attackWindup: 0.9
+    attackActiveDuration: 0.5
+    attackCooldown: 2.5
+    attackAreaRadius: 1.6
+    approachRange: 0
+    facingTurnDelay: 0.5
+    postAttackFacingLock: 0
+    killExperience: 12
+    score: 90
+    baseMaxHp: 20
+    hpGrowthRate: 4
+    levelDifficultyOffset: 0
+    combatProfileId: BossFlyingEye
+    showHpBar: 1
+  - enemyId: SkeletonBoss
+    archetype: 3
+    moveSpeed: 0.8
+    attackRange: 3
+    attackDamage: 4
+    attackWindup: 1.2
+    attackActiveDuration: 0.5
+    attackCooldown: 3
+    attackAreaRadius: 1.5
+    approachRange: 0
+    facingTurnDelay: 0.5
+    postAttackFacingLock: 0
+    killExperience: 15
+    score: 120
+    baseMaxHp: 22
+    hpGrowthRate: 4.2
+    levelDifficultyOffset: 0
+    combatProfileId: BossSkeleton
     showHpBar: 1

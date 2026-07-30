@@ -78,10 +78,20 @@ namespace SimpleGameEditor
                 GetOrCreateSystemGroup(systems.transform, "Spawning");
             StageSpawnController stageSpawner =
                 spawningSystems.AddComponent<StageSpawnController>();
+            HealthPickupSpawner healthPickupSpawner =
+                spawningSystems.AddComponent<HealthPickupSpawner>();
+            PoisonCloudSpawner poisonCloudSpawner =
+                spawningSystems.AddComponent<PoisonCloudSpawner>();
 
             var entities = new GameObject("Entities");
             Transform enemyRoot = new GameObject("Enemies").transform;
             enemyRoot.SetParent(entities.transform, false);
+            Transform pickupRoot =
+                new GameObject("HealthPickups").transform;
+            pickupRoot.SetParent(entities.transform, false);
+            Transform cloudRoot =
+                new GameObject("PoisonClouds").transform;
+            cloudRoot.SetParent(entities.transform, false);
 
             PlayerRoot player = CreatePlayer(entities.transform);
             PlayerWorldArea worldArea =
@@ -93,6 +103,23 @@ namespace SimpleGameEditor
             SpawnPointRegistry spawnPoints =
                 CreateDefaultSpawnPoints(player.transform);
             stageSpawner.Configure(gameData, spawnPoints, factory);
+            HealthPickup healthPickupPrefab =
+                LoadPrefabComponent<HealthPickup>(
+                    CharacterAssetBuilder.HealthPickupPrefabPath);
+            MushroomPoisonCloud poisonCloudPrefab =
+                LoadPrefabComponent<MushroomPoisonCloud>(
+                    CharacterAssetBuilder.PoisonCloudPrefabPath);
+            healthPickupSpawner.Configure(
+                session,
+                player,
+                worldArea,
+                healthPickupPrefab,
+                pickupRoot);
+            poisonCloudSpawner.Configure(
+                session,
+                player,
+                poisonCloudPrefab,
+                cloudRoot);
             PrototypeHUDPresenter presenter = CreateHud();
 
             session.ConfigureScene(
@@ -105,6 +132,7 @@ namespace SimpleGameEditor
                 presenter,
                 enemyWorld);
             session.ConfigureData(gameData, stageSpawner);
+            session.ConfigureWorldRewards(poisonCloudSpawner);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -233,6 +261,23 @@ namespace SimpleGameEditor
             playerObject.transform.SetParent(parent, false);
             playerObject.transform.position = Vector3.zero;
             return playerObject.GetComponent<PlayerRoot>();
+        }
+
+        private static T LoadPrefabComponent<T>(string path)
+            where T : Component
+        {
+            GameObject prefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            T component = prefab != null
+                ? prefab.GetComponent<T>()
+                : null;
+            if (component == null)
+            {
+                throw new InvalidOperationException(
+                    $"Prefab component {typeof(T).Name} not found: {path}");
+            }
+
+            return component;
         }
 
         private static SpawnPointRegistry CreateDefaultSpawnPoints(
@@ -458,6 +503,12 @@ namespace SimpleGameEditor
                 LoadOrCreatePrefab(
                     PauseDetailsPanelPrefabPath,
                     CreatePauseDetailsPanelPrefab);
+            if (pausePrefab.transform.Find(
+                    "ControlPadToggle") == null)
+            {
+                pausePrefab = CreatePauseDetailsPanelPrefab();
+            }
+
             GameObject gameOverPrefab =
                 LoadOrCreatePrefab(
                     GameOverPanelPrefabPath,
@@ -471,7 +522,11 @@ namespace SimpleGameEditor
                     ? hudPrefab.GetComponent<PrototypeHUDView>()
                     : null;
             if (existingHudView == null ||
-                existingHudView.SettingsButton == null)
+                existingHudView.SettingsButton == null ||
+                existingHudView.AttackButton == null ||
+                existingHudView.AttackButton.GetComponent<
+                    AttackCommandButton>() == null ||
+                existingHudView.AimJoystick == null)
             {
                 CreatePrototypeHudPrefab(
                     cardSelectionPrefab,
@@ -545,8 +600,23 @@ namespace SimpleGameEditor
             TMP_Text hintLabel = CreateStretchText(
                 hintPanel.transform,
                 HudTextId.Hint,
-                "빈 곳을 누르면 이동하고 적을 누르면 공격합니다.",
+                "왼쪽 조이스틱으로 조준하고 오른쪽 공격 버튼을 누르세요.",
                 29f);
+            hintPanel.GetComponent<Image>().raycastTarget = false;
+            hintLabel.raycastTarget = false;
+
+            var commandControlsObject = new GameObject(
+                "CommandControls",
+                typeof(RectTransform));
+            commandControlsObject.transform.SetParent(
+                canvasObject.transform,
+                false);
+            StretchRect(
+                commandControlsObject.GetComponent<RectTransform>());
+            AimJoystickControl aimJoystick =
+                CreateAimJoystick(commandControlsObject.transform);
+            Button attackButton =
+                CreateAttackButton(commandControlsObject.transform);
 
             var modalRootObject = new GameObject(
                 "ModalRoot",
@@ -581,6 +651,8 @@ namespace SimpleGameEditor
                 experienceSlider,
                 experienceLabel,
                 settingsButton,
+                attackButton,
+                aimJoystick,
                 modalRootObject.transform,
                 cardSelectionPrefab,
                 pausePrefab,
@@ -632,12 +704,79 @@ namespace SimpleGameEditor
             RectTransform labelRect = label.rectTransform;
             labelRect.anchorMin = Vector2.zero;
             labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(70f, 70f);
+            labelRect.offsetMin = new Vector2(70f, 190f);
             labelRect.offsetMax = new Vector2(-70f, -70f);
             label.alignment = TextAlignmentOptions.TopLeft;
+            CreateControlPadToggle(panel.transform);
             return SaveTemporaryPrefab(
                 panel,
                 PauseDetailsPanelPrefabPath);
+        }
+
+        private static Toggle CreateControlPadToggle(
+            Transform parent)
+        {
+            var toggleObject = new GameObject(
+                "ControlPadToggle",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Toggle));
+            toggleObject.transform.SetParent(parent, false);
+
+            RectTransform rect =
+                toggleObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 72f);
+            rect.sizeDelta = new Vector2(480f, 86f);
+
+            Image background = toggleObject.GetComponent<Image>();
+            background.color =
+                new Color(0.08f, 0.24f, 0.31f, 0.96f);
+            background.raycastTarget = true;
+
+            var checkmarkObject = new GameObject(
+                "Checkmark",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            checkmarkObject.transform.SetParent(
+                toggleObject.transform,
+                false);
+            RectTransform checkmarkRect =
+                checkmarkObject.GetComponent<RectTransform>();
+            checkmarkRect.anchorMin = new Vector2(0f, 0.5f);
+            checkmarkRect.anchorMax = new Vector2(0f, 0.5f);
+            checkmarkRect.pivot = new Vector2(0.5f, 0.5f);
+            checkmarkRect.anchoredPosition = new Vector2(48f, 0f);
+            checkmarkRect.sizeDelta = new Vector2(46f, 46f);
+            Image checkmark =
+                checkmarkObject.GetComponent<Image>();
+            checkmark.sprite = LoadBuiltinCircleSprite();
+            checkmark.color =
+                new Color(0.25f, 0.88f, 1f, 1f);
+            checkmark.raycastTarget = false;
+
+            TMP_Text label = CreateTextObject(
+                toggleObject.transform,
+                "Label",
+                "조작 패드 표시",
+                30f);
+            RectTransform labelRect = label.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(90f, 8f);
+            labelRect.offsetMax = new Vector2(-18f, -8f);
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.raycastTarget = false;
+
+            Toggle toggle = toggleObject.GetComponent<Toggle>();
+            toggle.targetGraphic = background;
+            toggle.graphic = checkmark;
+            toggle.isOn = true;
+            return toggle;
         }
 
         private static GameObject CreateGameOverPanelPrefab()
@@ -1084,6 +1223,98 @@ namespace SimpleGameEditor
             RectTransform rect = instance.GetComponent<RectTransform>();
             rect.anchoredPosition = new Vector2(x, -70f);
             return instance.GetComponent<Button>();
+        }
+
+        private static AimJoystickControl CreateAimJoystick(
+            Transform parent)
+        {
+            var joystickObject = new GameObject(
+                "AimJoystick",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(AimJoystickControl));
+            joystickObject.transform.SetParent(parent, false);
+
+            RectTransform joystickRect =
+                joystickObject.GetComponent<RectTransform>();
+            joystickRect.anchorMin = Vector2.zero;
+            joystickRect.anchorMax = Vector2.zero;
+            joystickRect.pivot = new Vector2(0.5f, 0.5f);
+            joystickRect.anchoredPosition =
+                new Vector2(178f, 315f);
+            joystickRect.sizeDelta = new Vector2(280f, 280f);
+
+            Image joystickImage =
+                joystickObject.GetComponent<Image>();
+            joystickImage.sprite = LoadBuiltinCircleSprite();
+            joystickImage.color =
+                new Color(0.04f, 0.16f, 0.22f, 0.62f);
+            joystickImage.raycastTarget = true;
+
+            var knobObject = new GameObject(
+                "Knob",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            knobObject.transform.SetParent(
+                joystickObject.transform,
+                false);
+            RectTransform knobRect =
+                knobObject.GetComponent<RectTransform>();
+            knobRect.anchorMin = new Vector2(0.5f, 0.5f);
+            knobRect.anchorMax = new Vector2(0.5f, 0.5f);
+            knobRect.pivot = new Vector2(0.5f, 0.5f);
+            knobRect.anchoredPosition = Vector2.zero;
+            knobRect.sizeDelta = new Vector2(104f, 104f);
+            Image knobImage = knobObject.GetComponent<Image>();
+            knobImage.sprite = LoadBuiltinCircleSprite();
+            knobImage.color =
+                new Color(0.25f, 0.88f, 1f, 0.88f);
+            knobImage.raycastTarget = false;
+
+            AimJoystickControl control =
+                joystickObject.GetComponent<AimJoystickControl>();
+            control.Configure(joystickRect, knobRect);
+            return control;
+        }
+
+        private static Button CreateAttackButton(Transform parent)
+        {
+            Button attackButton = CreateButtonVisual(
+                HudButtonId.Attack.ToString(),
+                "공격");
+            attackButton.transform.SetParent(parent, false);
+            attackButton.gameObject.AddComponent<
+                AttackCommandButton>();
+
+            RectTransform rect =
+                attackButton.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition =
+                new Vector2(-168f, 315f);
+            rect.sizeDelta = new Vector2(224f, 224f);
+
+            Image image = attackButton.GetComponent<Image>();
+            image.sprite = LoadBuiltinCircleSprite();
+            image.color =
+                new Color(0.88f, 0.22f, 0.12f, 0.92f);
+            image.raycastTarget = true;
+
+            TMP_Text label =
+                attackButton.GetComponentInChildren<TMP_Text>();
+            label.fontSize = 38f;
+            label.fontStyle = FontStyles.Bold;
+            label.raycastTarget = false;
+            return attackButton;
+        }
+
+        private static Sprite LoadBuiltinCircleSprite()
+        {
+            return AssetDatabase.GetBuiltinExtraResource<Sprite>(
+                "UI/Skin/Knob.psd");
         }
 
         private static Button CreateButtonVisual(

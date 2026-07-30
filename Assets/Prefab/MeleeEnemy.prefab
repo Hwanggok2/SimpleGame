@@ -561,7 +561,7 @@ SpriteRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2872675164067189357}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
@@ -1062,6 +1062,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CharacterSpriteAnimator
   animator: {fileID: 8850217418853797975}
   spriteRenderer: {fileID: 8854860889332483175}
+  baseTint: {r: 1, g: 1, b: 1, a: 1}
+  pulseTint: {r: 1, g: 1, b: 1, a: 1}
+  tintPulseSpeed: 0
 --- !u!114 &230261862494887045
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -38,7 +38,7 @@ namespace SimpleGame
             }
 
             bool causesRecoil = side == AttackSide.Front &&
-                definition.Archetype == EnemyArchetype.Shield &&
+                definition.BlocksFrontAttacks &&
                 damage < safeTargetMaxHealth &&
                 !critical;
 
@@ -81,6 +81,17 @@ namespace SimpleGame
             return frontHits == 3 && rearHits == 1
                 ? EnemyThreatLevel.ThreeFrontOneRear
                 : EnemyThreatLevel.Dangerous;
+        }
+
+        public static bool CanPiercePastTarget(
+            EnemyDefinition definition,
+            AttackSide side,
+            bool targetDefeatedByAttack)
+        {
+            return definition == null ||
+                !definition.BlocksFrontAttacks ||
+                side != AttackSide.Front ||
+                targetDefeatedByAttack;
         }
 
         public static bool CanPiercePastTarget(

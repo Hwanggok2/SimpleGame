@@ -89,7 +89,11 @@ namespace SimpleGame
             float radius =
                 EnemyWorldService.GetColliderRadius(prefab);
             Vector2 spawnPosition =
-                enemyWorld.FindOpenEnemyPosition(position, radius);
+                enemyWorld.FindOpenEnemyPosition(
+                    position,
+                    radius,
+                    incomingAllowsEnemyOverlap:
+                        definition.AllowsEnemyOverlap);
             EnemyBase enemy = Acquire(prefab, spawnPosition);
             enemy.name =
                 $"{enemyId}_W{waveNumber:00}_Lv{level}";

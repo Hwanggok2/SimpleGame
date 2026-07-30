@@ -3168,7 +3168,7 @@ MonoBehaviour:
     spawnTimeSec: 234.34
     spawnIndex: 15
     spawnPointId: BOTTOM_05
-    enemyId: GoblinBoss
+    enemyId: MushroomBoss
     enemyLevel: 20
   - stageId: Stage01
     waveId: WAVE_24
@@ -3427,7 +3427,7 @@ MonoBehaviour:
     spawnTimeSec: 244.17
     spawnIndex: 15
     spawnPointId: BOTTOM_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 21
   - stageId: Stage01
     waveId: WAVE_25
@@ -3532,7 +3532,7 @@ MonoBehaviour:
     spawnTimeSec: 247.56
     spawnIndex: 30
     spawnPointId: RIGHT_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 21
   - stageId: Stage01
     waveId: WAVE_25
@@ -3693,7 +3693,7 @@ MonoBehaviour:
     spawnTimeSec: 253.8
     spawnIndex: 14
     spawnPointId: LEFT_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 22
   - stageId: Stage01
     waveId: WAVE_26
@@ -3798,7 +3798,7 @@ MonoBehaviour:
     spawnTimeSec: 257.02
     spawnIndex: 29
     spawnPointId: BOTTOM_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 22
   - stageId: Stage01
     waveId: WAVE_26
@@ -3980,7 +3980,7 @@ MonoBehaviour:
     spawnTimeSec: 263.66
     spawnIndex: 14
     spawnPointId: LEFT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 23
   - stageId: Stage01
     waveId: WAVE_27
@@ -4092,7 +4092,7 @@ MonoBehaviour:
     spawnTimeSec: 266.94
     spawnIndex: 30
     spawnPointId: LEFT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 23
   - stageId: Stage01
     waveId: WAVE_27
@@ -4288,7 +4288,7 @@ MonoBehaviour:
     spawnTimeSec: 273.74
     spawnIndex: 15
     spawnPointId: BOTTOM_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 23
   - stageId: Stage01
     waveId: WAVE_28
@@ -4393,7 +4393,7 @@ MonoBehaviour:
     spawnTimeSec: 276.67
     spawnIndex: 30
     spawnPointId: RIGHT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 23
   - stageId: Stage01
     waveId: WAVE_28
@@ -4498,7 +4498,7 @@ MonoBehaviour:
     spawnTimeSec: 279.6
     spawnIndex: 45
     spawnPointId: TOP_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 23
   - stageId: Stage01
     waveId: WAVE_29
@@ -4603,7 +4603,7 @@ MonoBehaviour:
     spawnTimeSec: 283.62
     spawnIndex: 15
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 24
   - stageId: Stage01
     waveId: WAVE_29
@@ -4708,7 +4708,7 @@ MonoBehaviour:
     spawnTimeSec: 286.42
     spawnIndex: 30
     spawnPointId: RIGHT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 24
   - stageId: Stage01
     waveId: WAVE_29
@@ -4813,7 +4813,7 @@ MonoBehaviour:
     spawnTimeSec: 289.23
     spawnIndex: 45
     spawnPointId: TOP_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 24
   - stageId: Stage01
     waveId: WAVE_29
@@ -4932,7 +4932,7 @@ MonoBehaviour:
     spawnTimeSec: 293.56
     spawnIndex: 15
     spawnPointId: TOP_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 25
   - stageId: Stage01
     waveId: WAVE_30
@@ -5037,7 +5037,7 @@ MonoBehaviour:
     spawnTimeSec: 296.31
     spawnIndex: 30
     spawnPointId: LEFT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 25
   - stageId: Stage01
     waveId: WAVE_30
@@ -5142,7 +5142,7 @@ MonoBehaviour:
     spawnTimeSec: 299.05
     spawnIndex: 45
     spawnPointId: BOTTOM_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 25
   - stageId: Stage01
     waveId: WAVE_30
@@ -5268,7 +5268,7 @@ MonoBehaviour:
     spawnTimeSec: 303.46
     spawnIndex: 15
     spawnPointId: LEFT_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 26
   - stageId: Stage01
     waveId: WAVE_31
@@ -5373,7 +5373,7 @@ MonoBehaviour:
     spawnTimeSec: 306.09
     spawnIndex: 30
     spawnPointId: BOTTOM_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 26
   - stageId: Stage01
     waveId: WAVE_31
@@ -5478,7 +5478,7 @@ MonoBehaviour:
     spawnTimeSec: 308.72
     spawnIndex: 45
     spawnPointId: RIGHT_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 26
   - stageId: Stage01
     waveId: WAVE_31
@@ -5618,7 +5618,7 @@ MonoBehaviour:
     spawnTimeSec: 313.32
     spawnIndex: 15
     spawnPointId: TOP_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 27
   - stageId: Stage01
     waveId: WAVE_32
@@ -5723,7 +5723,7 @@ MonoBehaviour:
     spawnTimeSec: 315.8
     spawnIndex: 30
     spawnPointId: LEFT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 27
   - stageId: Stage01
     waveId: WAVE_32
@@ -5828,7 +5828,7 @@ MonoBehaviour:
     spawnTimeSec: 318.28
     spawnIndex: 45
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 28
   - stageId: Stage01
     waveId: WAVE_32
@@ -5989,7 +5989,7 @@ MonoBehaviour:
     spawnTimeSec: 323.23
     spawnIndex: 15
     spawnPointId: TOP_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 27
   - stageId: Stage01
     waveId: WAVE_33
@@ -6094,7 +6094,7 @@ MonoBehaviour:
     spawnTimeSec: 325.62
     spawnIndex: 30
     spawnPointId: LEFT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 27
   - stageId: Stage01
     waveId: WAVE_33
@@ -6206,7 +6206,7 @@ MonoBehaviour:
     spawnTimeSec: 328.17
     spawnIndex: 46
     spawnPointId: LEFT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 27
   - stageId: Stage01
     waveId: WAVE_33
@@ -6374,7 +6374,7 @@ MonoBehaviour:
     spawnTimeSec: 333.15
     spawnIndex: 15
     spawnPointId: BOTTOM_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 28
   - stageId: Stage01
     waveId: WAVE_34
@@ -6479,7 +6479,7 @@ MonoBehaviour:
     spawnTimeSec: 335.45
     spawnIndex: 30
     spawnPointId: RIGHT_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 28
   - stageId: Stage01
     waveId: WAVE_34
@@ -6591,7 +6591,7 @@ MonoBehaviour:
     spawnTimeSec: 337.91
     spawnIndex: 46
     spawnPointId: RIGHT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 28
   - stageId: Stage01
     waveId: WAVE_34
@@ -6773,7 +6773,7 @@ MonoBehaviour:
     spawnTimeSec: 343.08
     spawnIndex: 15
     spawnPointId: BOTTOM_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 29
   - stageId: Stage01
     waveId: WAVE_35
@@ -6885,7 +6885,7 @@ MonoBehaviour:
     spawnTimeSec: 345.45
     spawnIndex: 31
     spawnPointId: BOTTOM_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 29
   - stageId: Stage01
     waveId: WAVE_35
@@ -6997,7 +6997,7 @@ MonoBehaviour:
     spawnTimeSec: 347.82
     spawnIndex: 47
     spawnPointId: BOTTOM_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 29
   - stageId: Stage01
     waveId: WAVE_35
@@ -7193,7 +7193,7 @@ MonoBehaviour:
     spawnTimeSec: 353.15
     spawnIndex: 16
     spawnPointId: RIGHT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 30
   - stageId: Stage01
     waveId: WAVE_36
@@ -7263,7 +7263,7 @@ MonoBehaviour:
     spawnTimeSec: 354.58
     spawnIndex: 26
     spawnPointId: LEFT_05
-    enemyId: GoblinBoss
+    enemyId: FlyingEyeBoss
     enemyLevel: 31
   - stageId: Stage01
     waveId: WAVE_36
@@ -7305,7 +7305,7 @@ MonoBehaviour:
     spawnTimeSec: 355.44
     spawnIndex: 32
     spawnPointId: RIGHT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 30
   - stageId: Stage01
     waveId: WAVE_36
@@ -7417,7 +7417,7 @@ MonoBehaviour:
     spawnTimeSec: 357.74
     spawnIndex: 48
     spawnPointId: RIGHT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 31
   - stageId: Stage01
     waveId: WAVE_36
@@ -7592,7 +7592,7 @@ MonoBehaviour:
     spawnTimeSec: 362.53
     spawnIndex: 12
     spawnPointId: RIGHT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 32
   - stageId: Stage01
     waveId: WAVE_37
@@ -7683,7 +7683,7 @@ MonoBehaviour:
     spawnTimeSec: 364.33
     spawnIndex: 25
     spawnPointId: BOTTOM_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 32
   - stageId: Stage01
     waveId: WAVE_37
@@ -7767,7 +7767,7 @@ MonoBehaviour:
     spawnTimeSec: 365.99
     spawnIndex: 37
     spawnPointId: BOTTOM_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 31
   - stageId: Stage01
     waveId: WAVE_37
@@ -7858,7 +7858,7 @@ MonoBehaviour:
     spawnTimeSec: 367.8
     spawnIndex: 50
     spawnPointId: LEFT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 31
   - stageId: Stage01
     waveId: WAVE_37
@@ -7949,7 +7949,7 @@ MonoBehaviour:
     spawnTimeSec: 369.6
     spawnIndex: 63
     spawnPointId: TOP_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 31
   - stageId: Stage01
     waveId: WAVE_38
@@ -8033,7 +8033,7 @@ MonoBehaviour:
     spawnTimeSec: 372.46
     spawnIndex: 12
     spawnPointId: LEFT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 32
   - stageId: Stage01
     waveId: WAVE_38
@@ -8124,7 +8124,7 @@ MonoBehaviour:
     spawnTimeSec: 374.18
     spawnIndex: 25
     spawnPointId: TOP_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 32
   - stageId: Stage01
     waveId: WAVE_38
@@ -8208,7 +8208,7 @@ MonoBehaviour:
     spawnTimeSec: 375.76
     spawnIndex: 37
     spawnPointId: TOP_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 33
   - stageId: Stage01
     waveId: WAVE_38
@@ -8299,7 +8299,7 @@ MonoBehaviour:
     spawnTimeSec: 377.48
     spawnIndex: 50
     spawnPointId: RIGHT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 32
   - stageId: Stage01
     waveId: WAVE_38
@@ -8390,7 +8390,7 @@ MonoBehaviour:
     spawnTimeSec: 379.2
     spawnIndex: 63
     spawnPointId: BOTTOM_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 32
   - stageId: Stage01
     waveId: WAVE_38
@@ -8495,7 +8495,7 @@ MonoBehaviour:
     spawnTimeSec: 382.41
     spawnIndex: 12
     spawnPointId: TOP_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_39
@@ -8586,7 +8586,7 @@ MonoBehaviour:
     spawnTimeSec: 384.08
     spawnIndex: 25
     spawnPointId: RIGHT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 33
   - stageId: Stage01
     waveId: WAVE_39
@@ -8670,7 +8670,7 @@ MonoBehaviour:
     spawnTimeSec: 385.62
     spawnIndex: 37
     spawnPointId: RIGHT_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 33
   - stageId: Stage01
     waveId: WAVE_39
@@ -8761,7 +8761,7 @@ MonoBehaviour:
     spawnTimeSec: 387.29
     spawnIndex: 50
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_39
@@ -8852,7 +8852,7 @@ MonoBehaviour:
     spawnTimeSec: 388.96
     spawnIndex: 63
     spawnPointId: LEFT_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_39
@@ -8971,7 +8971,7 @@ MonoBehaviour:
     spawnTimeSec: 392.37
     spawnIndex: 12
     spawnPointId: LEFT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 33
   - stageId: Stage01
     waveId: WAVE_40
@@ -9062,7 +9062,7 @@ MonoBehaviour:
     spawnTimeSec: 393.99
     spawnIndex: 25
     spawnPointId: TOP_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 33
   - stageId: Stage01
     waveId: WAVE_40
@@ -9153,7 +9153,7 @@ MonoBehaviour:
     spawnTimeSec: 395.61
     spawnIndex: 38
     spawnPointId: RIGHT_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 33
   - stageId: Stage01
     waveId: WAVE_40
@@ -9244,7 +9244,7 @@ MonoBehaviour:
     spawnTimeSec: 397.23
     spawnIndex: 51
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_40
@@ -9328,7 +9328,7 @@ MonoBehaviour:
     spawnTimeSec: 398.73
     spawnIndex: 63
     spawnPointId: BOTTOM_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_40
@@ -9461,7 +9461,7 @@ MonoBehaviour:
     spawnTimeSec: 402.33
     spawnIndex: 12
     spawnPointId: TOP_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_41
@@ -9552,7 +9552,7 @@ MonoBehaviour:
     spawnTimeSec: 403.91
     spawnIndex: 25
     spawnPointId: RIGHT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_41
@@ -9643,7 +9643,7 @@ MonoBehaviour:
     spawnTimeSec: 405.48
     spawnIndex: 38
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 35
   - stageId: Stage01
     waveId: WAVE_41
@@ -9734,7 +9734,7 @@ MonoBehaviour:
     spawnTimeSec: 407.06
     spawnIndex: 51
     spawnPointId: LEFT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_41
@@ -9825,7 +9825,7 @@ MonoBehaviour:
     spawnTimeSec: 408.63
     spawnIndex: 64
     spawnPointId: TOP_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 34
   - stageId: Stage01
     waveId: WAVE_41
@@ -9972,7 +9972,7 @@ MonoBehaviour:
     spawnTimeSec: 412.39
     spawnIndex: 13
     spawnPointId: TOP_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 35
   - stageId: Stage01
     waveId: WAVE_42
@@ -10063,7 +10063,7 @@ MonoBehaviour:
     spawnTimeSec: 413.91
     spawnIndex: 26
     spawnPointId: RIGHT_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 35
   - stageId: Stage01
     waveId: WAVE_42
@@ -10154,7 +10154,7 @@ MonoBehaviour:
     spawnTimeSec: 415.42
     spawnIndex: 39
     spawnPointId: BOTTOM_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 35
   - stageId: Stage01
     waveId: WAVE_42
@@ -10245,7 +10245,7 @@ MonoBehaviour:
     spawnTimeSec: 416.93
     spawnIndex: 52
     spawnPointId: LEFT_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 35
   - stageId: Stage01
     waveId: WAVE_42
@@ -10336,7 +10336,7 @@ MonoBehaviour:
     spawnTimeSec: 418.44
     spawnIndex: 65
     spawnPointId: TOP_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 35
   - stageId: Stage01
     waveId: WAVE_42
@@ -10490,7 +10490,7 @@ MonoBehaviour:
     spawnTimeSec: 422.24
     spawnIndex: 12
     spawnPointId: RIGHT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 36
   - stageId: Stage01
     waveId: WAVE_43
@@ -10581,7 +10581,7 @@ MonoBehaviour:
     spawnTimeSec: 423.72
     spawnIndex: 25
     spawnPointId: BOTTOM_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 37
   - stageId: Stage01
     waveId: WAVE_43
@@ -10672,7 +10672,7 @@ MonoBehaviour:
     spawnTimeSec: 425.19
     spawnIndex: 38
     spawnPointId: LEFT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 36
   - stageId: Stage01
     waveId: WAVE_43
@@ -10763,7 +10763,7 @@ MonoBehaviour:
     spawnTimeSec: 426.66
     spawnIndex: 51
     spawnPointId: TOP_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 37
   - stageId: Stage01
     waveId: WAVE_43
@@ -10854,7 +10854,7 @@ MonoBehaviour:
     spawnTimeSec: 428.13
     spawnIndex: 64
     spawnPointId: RIGHT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 36
   - stageId: Stage01
     waveId: WAVE_43
@@ -10945,7 +10945,7 @@ MonoBehaviour:
     spawnTimeSec: 429.6
     spawnIndex: 77
     spawnPointId: BOTTOM_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 36
   - stageId: Stage01
     waveId: WAVE_44
@@ -11036,7 +11036,7 @@ MonoBehaviour:
     spawnTimeSec: 432.31
     spawnIndex: 13
     spawnPointId: BOTTOM_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 37
   - stageId: Stage01
     waveId: WAVE_44
@@ -11127,7 +11127,7 @@ MonoBehaviour:
     spawnTimeSec: 433.72
     spawnIndex: 26
     spawnPointId: LEFT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 37
   - stageId: Stage01
     waveId: WAVE_44
@@ -11218,7 +11218,7 @@ MonoBehaviour:
     spawnTimeSec: 435.14
     spawnIndex: 39
     spawnPointId: TOP_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 37
   - stageId: Stage01
     waveId: WAVE_44
@@ -11309,7 +11309,7 @@ MonoBehaviour:
     spawnTimeSec: 436.55
     spawnIndex: 52
     spawnPointId: RIGHT_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 37
   - stageId: Stage01
     waveId: WAVE_44
@@ -11400,7 +11400,7 @@ MonoBehaviour:
     spawnTimeSec: 437.97
     spawnIndex: 65
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 37
   - stageId: Stage01
     waveId: WAVE_44
@@ -11491,7 +11491,7 @@ MonoBehaviour:
     spawnTimeSec: 439.38
     spawnIndex: 78
     spawnPointId: LEFT_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 37
   - stageId: Stage01
     waveId: WAVE_44
@@ -11596,7 +11596,7 @@ MonoBehaviour:
     spawnTimeSec: 442.27
     spawnIndex: 13
     spawnPointId: RIGHT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 38
   - stageId: Stage01
     waveId: WAVE_45
@@ -11687,7 +11687,7 @@ MonoBehaviour:
     spawnTimeSec: 443.65
     spawnIndex: 26
     spawnPointId: BOTTOM_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 39
   - stageId: Stage01
     waveId: WAVE_45
@@ -11778,7 +11778,7 @@ MonoBehaviour:
     spawnTimeSec: 445.03
     spawnIndex: 39
     spawnPointId: LEFT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 38
   - stageId: Stage01
     waveId: WAVE_45
@@ -11869,7 +11869,7 @@ MonoBehaviour:
     spawnTimeSec: 446.41
     spawnIndex: 52
     spawnPointId: TOP_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 38
   - stageId: Stage01
     waveId: WAVE_45
@@ -11960,7 +11960,7 @@ MonoBehaviour:
     spawnTimeSec: 447.8
     spawnIndex: 65
     spawnPointId: RIGHT_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 39
   - stageId: Stage01
     waveId: WAVE_45
@@ -12051,7 +12051,7 @@ MonoBehaviour:
     spawnTimeSec: 449.18
     spawnIndex: 78
     spawnPointId: BOTTOM_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 38
   - stageId: Stage01
     waveId: WAVE_45
@@ -12170,7 +12170,7 @@ MonoBehaviour:
     spawnTimeSec: 452.23
     spawnIndex: 13
     spawnPointId: BOTTOM_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 39
   - stageId: Stage01
     waveId: WAVE_46
@@ -12261,7 +12261,7 @@ MonoBehaviour:
     spawnTimeSec: 453.56
     spawnIndex: 26
     spawnPointId: LEFT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 39
   - stageId: Stage01
     waveId: WAVE_46
@@ -12359,7 +12359,7 @@ MonoBehaviour:
     spawnTimeSec: 454.99
     spawnIndex: 40
     spawnPointId: RIGHT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 38
   - stageId: Stage01
     waveId: WAVE_46
@@ -12450,7 +12450,7 @@ MonoBehaviour:
     spawnTimeSec: 456.32
     spawnIndex: 53
     spawnPointId: BOTTOM_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 38
   - stageId: Stage01
     waveId: WAVE_46
@@ -12541,7 +12541,7 @@ MonoBehaviour:
     spawnTimeSec: 457.65
     spawnIndex: 66
     spawnPointId: LEFT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 39
   - stageId: Stage01
     waveId: WAVE_46
@@ -12632,7 +12632,7 @@ MonoBehaviour:
     spawnTimeSec: 458.99
     spawnIndex: 79
     spawnPointId: TOP_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 39
   - stageId: Stage01
     waveId: WAVE_46
@@ -12765,7 +12765,7 @@ MonoBehaviour:
     spawnTimeSec: 462.2
     spawnIndex: 13
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 39
   - stageId: Stage01
     waveId: WAVE_47
@@ -12856,7 +12856,7 @@ MonoBehaviour:
     spawnTimeSec: 463.5
     spawnIndex: 26
     spawnPointId: LEFT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 40
   - stageId: Stage01
     waveId: WAVE_47
@@ -12954,7 +12954,7 @@ MonoBehaviour:
     spawnTimeSec: 464.9
     spawnIndex: 40
     spawnPointId: RIGHT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 40
   - stageId: Stage01
     waveId: WAVE_47
@@ -13045,7 +13045,7 @@ MonoBehaviour:
     spawnTimeSec: 466.2
     spawnIndex: 53
     spawnPointId: BOTTOM_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 40
   - stageId: Stage01
     waveId: WAVE_47
@@ -13136,7 +13136,7 @@ MonoBehaviour:
     spawnTimeSec: 467.5
     spawnIndex: 66
     spawnPointId: LEFT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 39
   - stageId: Stage01
     waveId: WAVE_47
@@ -13234,7 +13234,7 @@ MonoBehaviour:
     spawnTimeSec: 468.9
     spawnIndex: 80
     spawnPointId: RIGHT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 40
   - stageId: Stage01
     waveId: WAVE_47
@@ -13381,7 +13381,7 @@ MonoBehaviour:
     spawnTimeSec: 472.26
     spawnIndex: 14
     spawnPointId: RIGHT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 40
   - stageId: Stage01
     waveId: WAVE_48
@@ -13472,7 +13472,7 @@ MonoBehaviour:
     spawnTimeSec: 473.51
     spawnIndex: 27
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 41
   - stageId: Stage01
     waveId: WAVE_48
@@ -13542,7 +13542,7 @@ MonoBehaviour:
     spawnTimeSec: 474.48
     spawnIndex: 37
     spawnPointId: TOP_04
-    enemyId: GoblinBoss
+    enemyId: FlyingEye
     enemyLevel: 41
   - stageId: Stage01
     waveId: WAVE_48
@@ -13570,7 +13570,7 @@ MonoBehaviour:
     spawnTimeSec: 474.87
     spawnIndex: 41
     spawnPointId: TOP_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 40
   - stageId: Stage01
     waveId: WAVE_48
@@ -13668,7 +13668,7 @@ MonoBehaviour:
     spawnTimeSec: 476.22
     spawnIndex: 55
     spawnPointId: BOTTOM_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 40
   - stageId: Stage01
     waveId: WAVE_48
@@ -13766,7 +13766,7 @@ MonoBehaviour:
     spawnTimeSec: 477.57
     spawnIndex: 69
     spawnPointId: TOP_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 41
   - stageId: Stage01
     waveId: WAVE_48
@@ -13864,7 +13864,7 @@ MonoBehaviour:
     spawnTimeSec: 478.92
     spawnIndex: 83
     spawnPointId: BOTTOM_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 41
   - stageId: Stage01
     waveId: WAVE_48
@@ -14004,7 +14004,7 @@ MonoBehaviour:
     spawnTimeSec: 482.12
     spawnIndex: 13
     spawnPointId: RIGHT_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 42
   - stageId: Stage01
     waveId: WAVE_49
@@ -14095,7 +14095,7 @@ MonoBehaviour:
     spawnTimeSec: 483.34
     spawnIndex: 26
     spawnPointId: BOTTOM_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 41
   - stageId: Stage01
     waveId: WAVE_49
@@ -14193,7 +14193,7 @@ MonoBehaviour:
     spawnTimeSec: 484.65
     spawnIndex: 40
     spawnPointId: TOP_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 42
   - stageId: Stage01
     waveId: WAVE_49
@@ -14291,7 +14291,7 @@ MonoBehaviour:
     spawnTimeSec: 485.95
     spawnIndex: 54
     spawnPointId: BOTTOM_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 42
   - stageId: Stage01
     waveId: WAVE_49
@@ -14389,7 +14389,7 @@ MonoBehaviour:
     spawnTimeSec: 487.26
     spawnIndex: 68
     spawnPointId: TOP_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 41
   - stageId: Stage01
     waveId: WAVE_49
@@ -14480,7 +14480,7 @@ MonoBehaviour:
     spawnTimeSec: 488.48
     spawnIndex: 81
     spawnPointId: RIGHT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 42
   - stageId: Stage01
     waveId: WAVE_49
@@ -14662,7 +14662,7 @@ MonoBehaviour:
     spawnTimeSec: 492.19
     spawnIndex: 14
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 42
   - stageId: Stage01
     waveId: WAVE_50
@@ -14760,7 +14760,7 @@ MonoBehaviour:
     spawnTimeSec: 493.47
     spawnIndex: 28
     spawnPointId: TOP_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 43
   - stageId: Stage01
     waveId: WAVE_50
@@ -14851,7 +14851,7 @@ MonoBehaviour:
     spawnTimeSec: 494.66
     spawnIndex: 41
     spawnPointId: RIGHT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 42
   - stageId: Stage01
     waveId: WAVE_50
@@ -14949,7 +14949,7 @@ MonoBehaviour:
     spawnTimeSec: 495.94
     spawnIndex: 55
     spawnPointId: LEFT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 42
   - stageId: Stage01
     waveId: WAVE_50
@@ -15040,7 +15040,7 @@ MonoBehaviour:
     spawnTimeSec: 497.13
     spawnIndex: 68
     spawnPointId: TOP_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 43
   - stageId: Stage01
     waveId: WAVE_50
@@ -15138,7 +15138,7 @@ MonoBehaviour:
     spawnTimeSec: 498.41
     spawnIndex: 82
     spawnPointId: BOTTOM_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 42
   - stageId: Stage01
     waveId: WAVE_50
@@ -15327,7 +15327,7 @@ MonoBehaviour:
     spawnTimeSec: 502.15
     spawnIndex: 14
     spawnPointId: TOP_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 44
   - stageId: Stage01
     waveId: WAVE_51
@@ -15425,7 +15425,7 @@ MonoBehaviour:
     spawnTimeSec: 503.39
     spawnIndex: 28
     spawnPointId: BOTTOM_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 43
   - stageId: Stage01
     waveId: WAVE_51
@@ -15516,7 +15516,7 @@ MonoBehaviour:
     spawnTimeSec: 504.55
     spawnIndex: 41
     spawnPointId: LEFT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 43
   - stageId: Stage01
     waveId: WAVE_51
@@ -15614,7 +15614,7 @@ MonoBehaviour:
     spawnTimeSec: 505.79
     spawnIndex: 55
     spawnPointId: RIGHT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 44
   - stageId: Stage01
     waveId: WAVE_51
@@ -15705,7 +15705,7 @@ MonoBehaviour:
     spawnTimeSec: 506.94
     spawnIndex: 68
     spawnPointId: BOTTOM_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 44
   - stageId: Stage01
     waveId: WAVE_51
@@ -15803,7 +15803,7 @@ MonoBehaviour:
     spawnTimeSec: 508.18
     spawnIndex: 82
     spawnPointId: TOP_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 44
   - stageId: Stage01
     waveId: WAVE_51
@@ -15901,7 +15901,7 @@ MonoBehaviour:
     spawnTimeSec: 509.42
     spawnIndex: 96
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 44
   - stageId: Stage01
     waveId: WAVE_51
@@ -16013,7 +16013,7 @@ MonoBehaviour:
     spawnTimeSec: 512.12
     spawnIndex: 14
     spawnPointId: RIGHT_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 44
   - stageId: Stage01
     waveId: WAVE_52
@@ -16111,7 +16111,7 @@ MonoBehaviour:
     spawnTimeSec: 513.32
     spawnIndex: 28
     spawnPointId: LEFT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_52
@@ -16209,7 +16209,7 @@ MonoBehaviour:
     spawnTimeSec: 514.53
     spawnIndex: 42
     spawnPointId: RIGHT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_52
@@ -16307,7 +16307,7 @@ MonoBehaviour:
     spawnTimeSec: 515.73
     spawnIndex: 56
     spawnPointId: LEFT_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_52
@@ -16398,7 +16398,7 @@ MonoBehaviour:
     spawnTimeSec: 516.85
     spawnIndex: 69
     spawnPointId: TOP_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_52
@@ -16496,7 +16496,7 @@ MonoBehaviour:
     spawnTimeSec: 518.05
     spawnIndex: 83
     spawnPointId: BOTTOM_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_52
@@ -16594,7 +16594,7 @@ MonoBehaviour:
     spawnTimeSec: 519.26
     spawnIndex: 97
     spawnPointId: TOP_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_52
@@ -16720,7 +16720,7 @@ MonoBehaviour:
     spawnTimeSec: 522.09
     spawnIndex: 14
     spawnPointId: RIGHT_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_53
@@ -16818,7 +16818,7 @@ MonoBehaviour:
     spawnTimeSec: 523.25
     spawnIndex: 28
     spawnPointId: LEFT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_53
@@ -16909,7 +16909,7 @@ MonoBehaviour:
     spawnTimeSec: 524.34
     spawnIndex: 41
     spawnPointId: TOP_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_53
@@ -17007,7 +17007,7 @@ MonoBehaviour:
     spawnTimeSec: 525.51
     spawnIndex: 55
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_53
@@ -17105,7 +17105,7 @@ MonoBehaviour:
     spawnTimeSec: 526.68
     spawnIndex: 69
     spawnPointId: TOP_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_53
@@ -17203,7 +17203,7 @@ MonoBehaviour:
     spawnTimeSec: 527.85
     spawnIndex: 83
     spawnPointId: BOTTOM_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_53
@@ -17301,7 +17301,7 @@ MonoBehaviour:
     spawnTimeSec: 529.02
     spawnIndex: 97
     spawnPointId: TOP_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_53
@@ -17448,7 +17448,7 @@ MonoBehaviour:
     spawnTimeSec: 532.05
     spawnIndex: 14
     spawnPointId: TOP_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_54
@@ -17546,7 +17546,7 @@ MonoBehaviour:
     spawnTimeSec: 533.19
     spawnIndex: 28
     spawnPointId: BOTTOM_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_54
@@ -17644,7 +17644,7 @@ MonoBehaviour:
     spawnTimeSec: 534.33
     spawnIndex: 42
     spawnPointId: TOP_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_54
@@ -17742,7 +17742,7 @@ MonoBehaviour:
     spawnTimeSec: 535.46
     spawnIndex: 56
     spawnPointId: BOTTOM_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 45
   - stageId: Stage01
     waveId: WAVE_54
@@ -17840,7 +17840,7 @@ MonoBehaviour:
     spawnTimeSec: 536.6
     spawnIndex: 70
     spawnPointId: TOP_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_54
@@ -17938,7 +17938,7 @@ MonoBehaviour:
     spawnTimeSec: 537.73
     spawnIndex: 84
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_54
@@ -18036,7 +18036,7 @@ MonoBehaviour:
     spawnTimeSec: 538.87
     spawnIndex: 98
     spawnPointId: TOP_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_54
@@ -18197,7 +18197,7 @@ MonoBehaviour:
     spawnTimeSec: 542.04
     spawnIndex: 14
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 47
   - stageId: Stage01
     waveId: WAVE_55
@@ -18295,7 +18295,7 @@ MonoBehaviour:
     spawnTimeSec: 543.15
     spawnIndex: 28
     spawnPointId: TOP_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_55
@@ -18393,7 +18393,7 @@ MonoBehaviour:
     spawnTimeSec: 544.26
     spawnIndex: 42
     spawnPointId: BOTTOM_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 47
   - stageId: Stage01
     waveId: WAVE_55
@@ -18491,7 +18491,7 @@ MonoBehaviour:
     spawnTimeSec: 545.38
     spawnIndex: 56
     spawnPointId: TOP_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 47
   - stageId: Stage01
     waveId: WAVE_55
@@ -18589,7 +18589,7 @@ MonoBehaviour:
     spawnTimeSec: 546.49
     spawnIndex: 70
     spawnPointId: BOTTOM_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 46
   - stageId: Stage01
     waveId: WAVE_55
@@ -18687,7 +18687,7 @@ MonoBehaviour:
     spawnTimeSec: 547.61
     spawnIndex: 84
     spawnPointId: TOP_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 47
   - stageId: Stage01
     waveId: WAVE_55
@@ -18785,7 +18785,7 @@ MonoBehaviour:
     spawnTimeSec: 548.72
     spawnIndex: 98
     spawnPointId: BOTTOM_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 47
   - stageId: Stage01
     waveId: WAVE_55
@@ -18960,7 +18960,7 @@ MonoBehaviour:
     spawnTimeSec: 552.01
     spawnIndex: 14
     spawnPointId: BOTTOM_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 48
   - stageId: Stage01
     waveId: WAVE_56
@@ -19058,7 +19058,7 @@ MonoBehaviour:
     spawnTimeSec: 553.09
     spawnIndex: 28
     spawnPointId: TOP_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 48
   - stageId: Stage01
     waveId: WAVE_56
@@ -19156,7 +19156,7 @@ MonoBehaviour:
     spawnTimeSec: 554.18
     spawnIndex: 42
     spawnPointId: BOTTOM_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 47
   - stageId: Stage01
     waveId: WAVE_56
@@ -19254,7 +19254,7 @@ MonoBehaviour:
     spawnTimeSec: 555.26
     spawnIndex: 56
     spawnPointId: TOP_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 47
   - stageId: Stage01
     waveId: WAVE_56
@@ -19359,7 +19359,7 @@ MonoBehaviour:
     spawnTimeSec: 556.42
     spawnIndex: 71
     spawnPointId: LEFT_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 47
   - stageId: Stage01
     waveId: WAVE_56
@@ -19457,7 +19457,7 @@ MonoBehaviour:
     spawnTimeSec: 557.51
     spawnIndex: 85
     spawnPointId: RIGHT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 48
   - stageId: Stage01
     waveId: WAVE_56
@@ -19555,7 +19555,7 @@ MonoBehaviour:
     spawnTimeSec: 558.59
     spawnIndex: 99
     spawnPointId: LEFT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 48
   - stageId: Stage01
     waveId: WAVE_56
@@ -19744,7 +19744,7 @@ MonoBehaviour:
     spawnTimeSec: 561.98
     spawnIndex: 14
     spawnPointId: RIGHT_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 49
   - stageId: Stage01
     waveId: WAVE_57
@@ -19842,7 +19842,7 @@ MonoBehaviour:
     spawnTimeSec: 563.04
     spawnIndex: 28
     spawnPointId: LEFT_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 49
   - stageId: Stage01
     waveId: WAVE_57
@@ -19947,7 +19947,7 @@ MonoBehaviour:
     spawnTimeSec: 564.17
     spawnIndex: 43
     spawnPointId: BOTTOM_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 49
   - stageId: Stage01
     waveId: WAVE_57
@@ -20045,7 +20045,7 @@ MonoBehaviour:
     spawnTimeSec: 565.22
     spawnIndex: 57
     spawnPointId: TOP_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 49
   - stageId: Stage01
     waveId: WAVE_57
@@ -20143,7 +20143,7 @@ MonoBehaviour:
     spawnTimeSec: 566.28
     spawnIndex: 71
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 49
   - stageId: Stage01
     waveId: WAVE_57
@@ -20248,7 +20248,7 @@ MonoBehaviour:
     spawnTimeSec: 567.41
     spawnIndex: 86
     spawnPointId: RIGHT_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 49
   - stageId: Stage01
     waveId: WAVE_57
@@ -20346,7 +20346,7 @@ MonoBehaviour:
     spawnTimeSec: 568.47
     spawnIndex: 100
     spawnPointId: LEFT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 49
   - stageId: Stage01
     waveId: WAVE_57
@@ -20451,7 +20451,7 @@ MonoBehaviour:
     spawnTimeSec: 569.6
     spawnIndex: 115
     spawnPointId: BOTTOM_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 49
   - stageId: Stage01
     waveId: WAVE_58
@@ -20549,7 +20549,7 @@ MonoBehaviour:
     spawnTimeSec: 571.96
     spawnIndex: 14
     spawnPointId: LEFT_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 50
   - stageId: Stage01
     waveId: WAVE_58
@@ -20647,7 +20647,7 @@ MonoBehaviour:
     spawnTimeSec: 572.98
     spawnIndex: 28
     spawnPointId: RIGHT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 50
   - stageId: Stage01
     waveId: WAVE_58
@@ -20745,7 +20745,7 @@ MonoBehaviour:
     spawnTimeSec: 574.01
     spawnIndex: 42
     spawnPointId: LEFT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 50
   - stageId: Stage01
     waveId: WAVE_58
@@ -20850,7 +20850,7 @@ MonoBehaviour:
     spawnTimeSec: 575.12
     spawnIndex: 57
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 50
   - stageId: Stage01
     waveId: WAVE_58
@@ -20948,7 +20948,7 @@ MonoBehaviour:
     spawnTimeSec: 576.15
     spawnIndex: 71
     spawnPointId: TOP_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 50
   - stageId: Stage01
     waveId: WAVE_58
@@ -21046,7 +21046,7 @@ MonoBehaviour:
     spawnTimeSec: 577.17
     spawnIndex: 85
     spawnPointId: BOTTOM_01
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 50
   - stageId: Stage01
     waveId: WAVE_58
@@ -21144,7 +21144,7 @@ MonoBehaviour:
     spawnTimeSec: 578.2
     spawnIndex: 99
     spawnPointId: TOP_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 50
   - stageId: Stage01
     waveId: WAVE_58
@@ -21249,7 +21249,7 @@ MonoBehaviour:
     spawnTimeSec: 579.31
     spawnIndex: 114
     spawnPointId: LEFT_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 50
   - stageId: Stage01
     waveId: WAVE_58
@@ -21375,7 +21375,7 @@ MonoBehaviour:
     spawnTimeSec: 581.93
     spawnIndex: 14
     spawnPointId: TOP_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 51
   - stageId: Stage01
     waveId: WAVE_59
@@ -21473,7 +21473,7 @@ MonoBehaviour:
     spawnTimeSec: 582.93
     spawnIndex: 28
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 51
   - stageId: Stage01
     waveId: WAVE_59
@@ -21578,7 +21578,7 @@ MonoBehaviour:
     spawnTimeSec: 584.01
     spawnIndex: 43
     spawnPointId: RIGHT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 51
   - stageId: Stage01
     waveId: WAVE_59
@@ -21676,7 +21676,7 @@ MonoBehaviour:
     spawnTimeSec: 585.01
     spawnIndex: 57
     spawnPointId: LEFT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 51
   - stageId: Stage01
     waveId: WAVE_59
@@ -21781,7 +21781,7 @@ MonoBehaviour:
     spawnTimeSec: 586.09
     spawnIndex: 72
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 51
   - stageId: Stage01
     waveId: WAVE_59
@@ -21879,7 +21879,7 @@ MonoBehaviour:
     spawnTimeSec: 587.09
     spawnIndex: 86
     spawnPointId: TOP_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 51
   - stageId: Stage01
     waveId: WAVE_59
@@ -21984,7 +21984,7 @@ MonoBehaviour:
     spawnTimeSec: 588.17
     spawnIndex: 101
     spawnPointId: LEFT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 51
   - stageId: Stage01
     waveId: WAVE_59
@@ -22082,7 +22082,7 @@ MonoBehaviour:
     spawnTimeSec: 589.17
     spawnIndex: 115
     spawnPointId: RIGHT_04
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 51
   - stageId: Stage01
     waveId: WAVE_59
@@ -22222,7 +22222,7 @@ MonoBehaviour:
     spawnTimeSec: 591.91
     spawnIndex: 14
     spawnPointId: TOP_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60
@@ -22320,7 +22320,7 @@ MonoBehaviour:
     spawnTimeSec: 592.89
     spawnIndex: 28
     spawnPointId: BOTTOM_08
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60
@@ -22425,7 +22425,7 @@ MonoBehaviour:
     spawnTimeSec: 593.94
     spawnIndex: 43
     spawnPointId: RIGHT_03
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60
@@ -22460,7 +22460,7 @@ MonoBehaviour:
     spawnTimeSec: 594.29
     spawnIndex: 48
     spawnPointId: BOTTOM_01
-    enemyId: GoblinBoss
+    enemyId: SkeletonBoss
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60
@@ -22530,7 +22530,7 @@ MonoBehaviour:
     spawnTimeSec: 594.99
     spawnIndex: 58
     spawnPointId: TOP_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60
@@ -22628,7 +22628,7 @@ MonoBehaviour:
     spawnTimeSec: 595.96
     spawnIndex: 72
     spawnPointId: BOTTOM_07
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60
@@ -22733,7 +22733,7 @@ MonoBehaviour:
     spawnTimeSec: 597.01
     spawnIndex: 87
     spawnPointId: RIGHT_02
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60
@@ -22838,7 +22838,7 @@ MonoBehaviour:
     spawnTimeSec: 598.06
     spawnIndex: 102
     spawnPointId: TOP_05
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60
@@ -22936,7 +22936,7 @@ MonoBehaviour:
     spawnTimeSec: 599.04
     spawnIndex: 116
     spawnPointId: BOTTOM_06
-    enemyId: GoblinMelee
+    enemyId: FlyingEye
     enemyLevel: 52
   - stageId: Stage01
     waveId: WAVE_60

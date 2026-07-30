@@ -8,6 +8,7 @@ namespace SimpleGame
         public const string MotionParameter = "Motion";
         public const string FaceLeftParameter = "FaceLeft";
         public const string AttackParameter = "Attack";
+        public const string Attack2Parameter = "Attack2";
         public const string HurtParameter = "Hurt";
         public const string DeathParameter = "Death";
 
@@ -15,6 +16,8 @@ namespace SimpleGame
         private static readonly int FaceLeftId =
             Animator.StringToHash(FaceLeftParameter);
         private static readonly int AttackId = Animator.StringToHash(AttackParameter);
+        private static readonly int Attack2Id =
+            Animator.StringToHash(Attack2Parameter);
         private static readonly int HurtId = Animator.StringToHash(HurtParameter);
         private static readonly int DeathId = Animator.StringToHash(DeathParameter);
         private const float MinimumDeathDuration = 0.55f;
@@ -25,6 +28,8 @@ namespace SimpleGame
         [SerializeField] private Color pulseTint = Color.white;
         [SerializeField, Min(0f)] private float tintPulseSpeed;
         private float deathDuration = MinimumDeathDuration;
+        private int motionState = int.MinValue;
+        private int faceLeftState = -1;
 
         public bool IsConfigured =>
             animator != null &&
@@ -37,6 +42,8 @@ namespace SimpleGame
         {
             animator = targetAnimator;
             spriteRenderer = targetRenderer;
+            motionState = int.MinValue;
+            faceLeftState = -1;
             CacheDeathDuration();
         }
 
@@ -44,6 +51,7 @@ namespace SimpleGame
         {
             pulseTint = color;
             tintPulseSpeed = Mathf.Max(0f, speed);
+            enabled = tintPulseSpeed > 0f;
             ApplyTint(0f);
         }
 
@@ -71,13 +79,43 @@ namespace SimpleGame
                 return;
             }
 
-            animator?.SetBool(FaceLeftId, direction.x < 0f);
+            int requestedFaceLeft = direction.x < 0f ? 1 : 0;
+            if (animator == null ||
+                faceLeftState == requestedFaceLeft)
+            {
+                return;
+            }
+
+            animator.SetBool(
+                FaceLeftId,
+                requestedFaceLeft == 1);
+            faceLeftState = requestedFaceLeft;
         }
 
         public void PlayAttack(Vector2 direction)
         {
+            PlayAttack(direction, 1);
+        }
+
+        public void PlayAttack(
+            Vector2 direction,
+            int animationVariant)
+        {
             Face(direction);
-            animator?.SetTrigger(AttackId);
+            if (animator == null)
+            {
+                return;
+            }
+
+            if (animationVariant == 2)
+            {
+                animator.ResetTrigger(AttackId);
+                animator.SetTrigger(Attack2Id);
+                return;
+            }
+
+            animator.ResetTrigger(Attack2Id);
+            animator.SetTrigger(AttackId);
         }
 
         public void PlayHurt(Vector2 direction)
@@ -93,6 +131,7 @@ namespace SimpleGame
             if (animator != null)
             {
                 animator.ResetTrigger(AttackId);
+                animator.ResetTrigger(Attack2Id);
                 animator.ResetTrigger(HurtId);
                 animator.SetTrigger(DeathId);
             }
@@ -130,16 +169,21 @@ namespace SimpleGame
 
         public void Revive()
         {
+            motionState = int.MinValue;
+            faceLeftState = -1;
             if (animator == null)
             {
                 return;
             }
 
             animator.ResetTrigger(AttackId);
+            animator.ResetTrigger(Attack2Id);
             animator.ResetTrigger(HurtId);
             animator.ResetTrigger(DeathId);
             animator.SetInteger(MotionId, 0);
             animator.SetBool(FaceLeftId, false);
+            motionState = 0;
+            faceLeftState = 0;
             animator.Play("Base Layer.Idle", 0, 0f);
             animator.Update(0f);
         }
@@ -156,12 +200,19 @@ namespace SimpleGame
                 spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
             }
 
+            enabled = tintPulseSpeed > 0f;
             CacheDeathDuration();
         }
 
         private void SetMotion(int state)
         {
-            animator?.SetInteger(MotionId, state);
+            if (animator == null || motionState == state)
+            {
+                return;
+            }
+
+            animator.SetInteger(MotionId, state);
+            motionState = state;
         }
 
         private void CacheDeathDuration()

@@ -553,7 +553,13 @@ WorldGrid
    └─ TilemapRenderer
 
 PrototypeSystems
-└─ EnemyWorldRecycler
+├─ EnemyWorldRecycler
+├─ HealthPickupSpawner
+└─ PoisonCloudSpawner
+
+Entities
+├─ HealthPickups
+└─ PoisonClouds
 ```
 
 - `CameraFollowController`가 Player 실제 월드 좌표를 추적한다.
@@ -563,6 +569,10 @@ PrototypeSystems
 - 지형 원본은 현재 4종 Tile을 사용하며 활성 인스턴스 수와 원본 종류 수를 구분한다.
 - `PlayerWorldArea`는 카메라보다 큰 Spawn 경계와 그보다 큰 재배치 경계를 계산한다.
 - `EnemyWorldRecycler`는 `GameSession`에 등록된 일반 Enemy만 검사하고 청크와 독립된 `EnemyRoot` 안에서 반대편 Spawn 경계로 재배치한다.
+- `HealthPickupSpawner`는 `GameSession.ElapsedTime`을 기준으로 20초마다 `PlayerWorldArea` 안의 무작위 위치를 선택한다. 생성 개수는 3개로 제한하고 각 `HealthPickup`이 45초 수명을 직접 관리한다.
+- `HealthPickup`은 Trigger 체류 중 `HealthComponent.Heal(5)`가 실제로 1 이상 회복했을 때만 자신을 제거한다.
+- `PoisonCloudSpawner`는 MushroomBoss 사망 좌표를 값으로 복사해 Enemy Pool 회수와 분리한다. 1초 지연 뒤 독립된 `MushroomPoisonCloud` 인스턴스를 생성한다.
+- `MushroomPoisonCloud`는 Player와의 거리로 반경 진입을 검사하고 연속 노출 시간을 0.5초 단위로 소비하므로 별도 물리 Layer나 Enemy Collider에 의존하지 않는다.
 - Tag 문자열은 보조 필터로만 사용할 수 있으며 청크·Enemy 재배치 책임은 명시적인 컴포넌트가 소유한다.
 
 이어하기 처리 흐름:
@@ -572,9 +582,25 @@ GameSession
   ↓ Continue 승인
 PlayerRoot.RestoreAfterContinue(MaxHP)
   ↓
-EnemyWorldRecycler.RepositionAllNormalEnemies()
+EnemyWorldRecycler.PushAwayAllNormalEnemies()
+  ↓
+일반 Enemy 현재 HP 50% 피해 + Hurt
+  ↓
+0.4초 동안 현재 방향 바깥쪽 Spawn 경계로 밀어내기
+  (Boss 제외, 매 프레임 Enemy 분리 유지)
   ↓
 Playing 복귀
+```
+
+Boss 사망 보상 흐름:
+
+```text
+EnemyBase.BeginDeath()
+  ↓
+PrototypeGameSession.OnEnemyDefeated()
+  ├─ 점수·EXP 지급
+  ├─ Boss: 공유 리롤 +1(최대 3) + 카드 선택 1회 Queue
+  └─ MushroomBoss: 사망 좌표를 PoisonCloudSpawner에 전달
 ```
 
 ## 10. 이벤트와 직접 호출 기준
@@ -859,7 +885,7 @@ PrototypeScene
 
 `Assets/Game/Data/Generated` 아래 에셋은 Excel 값의 Unity 런타임 표현이다.
 
-- `EnemyBalanceTable`: EnemyId별 전투 수치, 보상과 Archetype
+- `EnemyBalanceTable`: EnemyId별 전투 수치, 보상과 Archetype. 현재 GoblinMelee, GoblinRanged, ShieldSkeleton, GoblinBoss, MushroomBoss 5종
 - `StageSpawnSchedule`: StageId, WaveId, 시간, 순번, SpawnPointId, EnemyId, 레벨
 - `PlayerLevelExperience`: 플레이어 레벨별 다음 레벨 필요 EXP
 - `AccountLevelExperience`: 계정 레벨별 다음 레벨 필요 EXP
@@ -1011,6 +1037,10 @@ GameObject와 시간 흐름이 필요한 규칙:
 - 3×3 Tilemap 청크 재배치
 - 일반 Enemy 반대편 Spawn 경계 재배치
 - 보스 3초 공격 주기
+- 레벨업 HP 2 회복과 필드 회복 오브젝트 HP 5 회복
+- 회복 오브젝트 20초 생성·3개 상한·45초 만료
+- Boss 카드 선택 1회와 리롤 1회 충전
+- MushroomBoss 사망 1초 지연·5초 독구름·0.5초당 피해 1
 - Object Pool 재사용
 - UI enum 자동 바인딩과 Listener 중복 방지
 - Enemy HP Slider와 현재/최대 숫자 갱신
@@ -1085,3 +1115,121 @@ GameObject와 시간 흐름이 필요한 규칙:
 - UI Button 이벤트는 `Bind(enumId, callback)` 형태로 등록한다.
 - 반복 UI는 enum이 아니라 배열 또는 리스트로 관리한다.
 - 실행 흐름을 숨기는 전역 EventBus, UniRx와 과도한 추상화는 초기 단계에서 사용하지 않는다.
+
+## 23. 3차 콘텐츠 아키텍처 결정
+
+### 23.1 기능 속성 기반 Enemy 예외
+
+- Flying Eye를 위해 새 `EnemyArchetype`이나 물리 Layer를 추가하지 않는다.
+- `EnemyDefinition.AllowsEnemyOverlap`은 EnemyId에서 파생되는 읽기 전용 기능 속성이다.
+- `EnemyWorldService`는 새로 들어오는 Enemy와 기존 Enemy 양쪽의 속성을 확인한다. 어느 한쪽이라도 겹침 허용이면 생성 위치 회피와 수동 분리를 생략한다.
+- `PrototypeEnemyFactory.Spawn`, `EnemyBase.Reposition`, 이어하기 밀치기는 같은 정책 인자를 전달한다.
+- 공격 경로·근접 검색·범위 수집은 이 속성을 보지 않으므로 비행형도 정상 피격 대상이다.
+
+### 23.2 데이터 기반 보스 패턴
+
+```text
+BossEnemy
+  └─ BossAttackModule
+       ├─ BossAttackPatterns.Get(enemyId, sequence)
+       ├─ BossAttackPattern(variant, shape, length, width)
+       ├─ lockedOrigin / lockedDirection
+       └─ CharacterSpriteAnimator.PlayAttack(direction, variant)
+```
+
+- 네 보스의 별도 파생 클래스를 만들지 않고 `EnemyDefinition.EnemyId`로 두 패턴의 데이터만 선택한다.
+- `BossAttackShape`은 `ForwardBox`와 `CenteredBox` 두 종류이며, `GetCenter`, 회전, `Contains`가 경고와 실제 판정의 단일 기준이다.
+- `nextPatternSequence`는 실제 공격이 발동될 때만 증가한다. Windup 취소는 현재 패턴을 재시도하고 Pool의 `Configure`는 Attack1로 초기화한다.
+- Animator Controller는 기존 `Attack`과 별도 `Attack2` Trigger/State를 가진다. `CharacterAssetBuilder.EnsureControllerStates`가 기존 Controller에도 파라미터·클립·전이를 보강한다.
+
+### 23.3 방패 기능 분리
+
+- `SkeletonBoss`는 `EnemyArchetype.Boss`를 유지한다.
+- `EnemyDefinition.BlocksFrontAttacks`가 `ShieldSkeleton`과 `SkeletonBoss`의 전면 방어 공통 기능을 표현한다.
+- `CombatResolver`, 관통 판정, 반동과 방패 우회는 이 기능 속성을 사용한다.
+- Shield 전용 접근 대기·방향 잠금·표시 범위는 계속 `EnemyArchetype.Shield`만 사용한다.
+
+### 23.4 오물 투척 수명주기
+
+```text
+PlayerCombatAbilities.Update
+  └─ CalculateFilthThrowCount(level) = clamp(level, 1, 5)
+       └─ 같은 프레임에 레벨 수만큼 독립 목표 계산·Spawn
+            └─ FilthProjectile
+                 ├─ Throw 0.45초
+                 └─ Field 3초
+                      └─ 0.5초마다 FillEnemiesInRadius(reused List)
+                           └─ PlayerRoot.ApplySkillHit
+```
+
+- 별도 Scene 시스템이나 Spawner를 추가하지 않는다. 자동 발동 주기와 카드 레벨은 기존 `PlayerCombatAbilities`가 소유한다.
+- `PlayerRoot.Configure`가 이미 받은 World Camera를 전달하므로 `Camera.main` 전역 검색에 의존하지 않는다.
+- 투사체 하나가 포물선 비행과 장판 상태를 모두 담당하며 장판은 매 틱 현재 Enemy 목록을 다시 수집한다. 같은 쿨다운에 생성된 구체는 목표와 장판을 서로 독립적으로 소유한다.
+- 모든 범위 대상을 공격하는 장판에는 거리 정렬이 필요 없다. `FilthProjectile`이 보유한 List를 `EnemyWorldService.FillEnemiesInRadius`에 넘겨 비우고 다시 채워 틱마다 후보·결과 List를 생성하거나 정렬하지 않는다.
+- 목표 위치, 포물선, 레벨별 투척 수·피해·반경·재사용, 틱 수는 순수 정적 함수로 분리해 EditMode에서 검증한다.
+
+## 24. 4차 모바일 조작 아키텍처 결정
+
+### 24.1 입력 흐름과 명령 스냅샷
+
+```text
+AimJoystickControl(pointerId)
+  ├─ PointerDown → PlayerController.BeginAim
+  │                  └─ 기존 명령과 독립된 조준 상태 시작
+  ├─ Drag → SetAimInput
+  │           └─ 방향·크기 → Viewport 기반 AimDestination
+  └─ PointerUp → EndAim
+                  └─ 가이드만 해제
+
+AttackCommandButton.PointerDown
+  └─ PrototypeHUDView / PrototypeHUDPresenter
+       └─ PlayerController.ExecuteAimedCommand
+            └─ AimDestination 스냅샷
+                 └─ TryIssueCommand
+```
+
+- `AimJoystickControl`은 최초 PointerId 하나만 소유하고 다른 Pointer의 Drag·PointerUp을 무시한다. 공격 버튼은 다른 Pointer로 동시에 사용할 수 있다.
+- 앱 포커스를 잃거나 모바일 앱이 일시정지되면 PointerUp 누락에 대비해 조이스틱 소유권·입력·가이드를 즉시 해제한다.
+- `BeginAim`과 `SetAimInput`은 조준 상태와 표시만 갱신하며 기존 명령을 취소하거나 이동·공격 API를 호출하지 않는다.
+- `ExecuteAimedCommand`는 입력 크기 `0.01` 이상일 때 현재 끝점을 지역 값으로 스냅샷한 뒤 기존 `TryIssueCommand`에 전달한다. 따라서 조준 입력과 월드 직접 터치는 동일한 이동·타깃·공격 파이프라인을 공유한다.
+- 공격 버튼과 월드 직접 터치는 `EndAim`을 호출하지 않는다. 이후 조이스틱을 움직이면 다음 명령의 조준점만 바뀌고 현재 명령의 목적지는 유지된다.
+- `EndAim`은 입력과 끝점을 Player 위치로 초기화하고 Renderer를 숨기지만 `CancelCommand`를 호출하지 않는다.
+
+### 24.2 화면 좌표와 월드 가이드
+
+- 패드 로컬 오프셋을 반경으로 나누고 벡터 길이를 1로 Clamp해 360도 정규화 입력을 만든다.
+- `PlayerController.CalculateMaximumAimDistance`는 현재 Player 좌표에서 카메라 직교 Viewport 경계와 조준 방향의 교점을 구한다. 가로·세로 반경은 각각 0.5 월드 단위 줄인 안전 경계를 사용한다.
+- 끝점은 `playerPosition + normalizedInput × maximumDistance`로 계산하므로 입력 크기와 레이 길이가 선형이다.
+- `CharacterAssetBuilder`가 Player Prefab에 하늘색 `AimRay`와 45도 회전한 `AimEndpoint` SpriteRenderer를 저장한다. `PlayerController`는 위치·회전·길이·Pulse와 표시 여부만 변경한다.
+
+### 24.3 HUD 구성과 책임
+
+- `PrototypeSceneBuilder`는 `1080×1920` 기준 `CommandControls` 아래 좌하단 `AimJoystickControl`과 우하단 `AttackCommandButton`을 생성한다.
+- `PrototypeHUDView`는 두 Control 참조를 보관하고 Player를 조이스틱에 연결한다.
+- `PrototypeHUDPresenter`는 `HudButtonId.Attack`을 `PlayerRoot.ExecuteAimedCommand`에 바인딩한다.
+- 공격 버튼은 Unity `Button.onClick` 완료 시점 대신 `AttackCommandButton.IPointerDownHandler`를 사용한다. View의 기존 Callback 저장·교체 규칙을 유지해 중복 발행을 막는다.
+- `PauseDetailsPanel.prefab`의 `ControlPadToggle`은 `PrototypeHUDView.SetCommandControlsEnabled`에 한 번 연결된다. OFF는 조이스틱을 먼저 비활성화해 `OnDisable → EndAim`을 보장한 다음 공격 버튼을 숨기고, ON은 두 Control을 복구한다. 기본 ON인 실행 중 상태만 보관하며 `PlayerPrefs` 영구 저장은 하지 않는다.
+- 기존 `PlayerController`의 월드 직접 터치 경로는 삭제하지 않는다. `Touchscreen.touches`의 신규 Press를 모두 순회하므로 첫 손가락이 조이스틱을 점유한 동안 두 번째 손가락의 월드 터치도 처리한다. 새 Pointer를 읽은 프레임에는 `IsPointerOverGameObject`의 갱신 순서에 의존하지 않고 현재 화면 좌표로 `EventSystem.RaycastAll`을 즉시 실행해 `GraphicRaycaster` UI 입력을 월드 명령에서 차단한다.
+
+### 24.4 검증 경계
+
+- EditMode에서는 패드 입력 정규화·Clamp, 입력 크기별 거리, Viewport 0.5 여백, 중립 입력 거부, Pointer Down Callback 단일 발행과 동일 프레임 UI Graphic 차단을 검증한다.
+- 에셋 검증에서는 Player Prefab의 비활성 `AimRay`·`AimEndpoint`, HUD의 좌우 Control, Pause 설정 Toggle, `PrototypeHUDView` 참조와 기준 위치를 확인한다.
+- PlayMode에서는 조준 시작·드래그 중 기존 명령 유지, 드래그만으로 새 이동·공격 미발생, 명령 스냅샷, 해제 후 명령 유지, 두 손가락 Pointer 소유권과 기존 월드 터치 회귀를 확인한다.
+- Toggle OFF/ON 시 좌·우 Control 상태와 View 상태가 일치하고 OFF 전 조준이 해제되는지 확인한다.
+
+## 25. 성능 최적화 경계
+
+### 25.1 즉시 적용한 저위험 최적화
+
+- `EnemyBase.CollisionRadius`가 `CircleCollider2D` 참조를 캐시한다. `EnemyWorldService`의 경로·분리·검색에서 반복 `GetComponent`를 피하되 Transform Scale을 반영한 실제 반경 계산은 매 요청마다 유지한다.
+- 오물 장판은 호출자가 소유한 List를 채우는 무정렬 반경 쿼리를 사용한다. 레벨 5의 `5개 장판 × 장판당 6틱`에서도 쿼리용 List 할당과 전체 거리 정렬을 만들지 않는다.
+- `CharacterSpriteAnimator`는 마지막 Motion·FaceLeft 값을 기억해 값이 바뀔 때만 Animator 파라미터를 기록한다. `tintPulseSpeed=0`이면 해당 Adapter의 `LateUpdate`를 비활성화하며 공격·피격·사망처럼 외부에서 직접 호출되는 메서드는 계속 동작한다.
+
+### 25.2 프로파일링 후 적용할 구조 개선
+
+- 지상 Enemy 분리는 현재 각 이동 Enemy가 전체 Enemy를 두 번 순회하는 O(N²) 구조다. `EnemyWorldService` 외부 API를 유지하고 내부에 Uniform Spatial Hash를 추가해 현재 셀과 인접 셀만 검사하는 것이 최우선 후속 작업이다.
+- 일반 Enemy의 World Space Canvas·Slider·TMP 체력바는 피격 직후 제한 시간만 표시하거나 SpriteRenderer 기반 바로 바꾸고, Animator Culling을 검토한다.
+- `SlashTrailEffect.ShowStaticArc`, 오물 투사체, 이동 참격 순으로 Pool을 적용하되 재사용 시 타이머·Alpha·타격 이력을 반드시 초기화한다.
+- `PlayerCombatAbilities`, `FlyingSwordController`, `PrototypeGameSession`은 런타임 Update 수를 늘리지 않는 일반 C# 하위 모듈로 책임을 나눈다. `EnemyWorldService`는 외부 Facade를 유지하면서 Registry·SpatialIndex·Query로 내부를 분리한다.
+- 활성 Enemy 100/300/500마리에서 60초씩 CPU Timeline, `GC.Alloc`, `Physics2D.Simulate`, `Animator.Update`, `Canvas.BuildBatch`의 median·p95를 비교한다. Spatial Hash나 Physics2D 제거는 이 기준 측정 후에만 적용한다.

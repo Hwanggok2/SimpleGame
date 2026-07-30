@@ -152,15 +152,14 @@ MonoBehaviour:
     nameKey: CARD_MOVING_SLASH_NAME
     displayName: "\uCC38\uACA9"
     description: "\uC774\uB3D9 \uC2DC \uCD08\uC2B9\uB2EC \uAC80\uAE30\uB97C \uC0DD\uC131\uD569\uB2C8\uB2E4.
-      \uAC80\uAE30\uB294 \uD604\uC7AC \uC774\uB3D9 \uC18D\uB3C4\uC758 3\uBC30\uB85C
-      \uB0A0\uC544\uAC00\uBA70 \uAC19\uC740 \uD130\uCE58 \uAC70\uB9AC\uB97C 0.15\uCD08\uC5D0
-      \uC774\uB3D9\uD558\uB294 \uCD5C\uB300 \uC18D\uB3C4\uB97C \uB118\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.
-      \uB808\uBCA8\uB9C8\uB2E4 \uD655\uB960 3%, \uAD00\uD1B5 1\uBA85, \uD06C\uAE30
-      10%\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+      \uB808\uBCA8\uB9C8\uB2E4 \uD53C\uD574\xB7\uD06C\uAE30\xB7\uC0AC\uAC70\uB9AC\xB7\uCD5C\uB300
+      \uD0C0\uACA9 \uC218\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4. 1~5\uB808\uBCA8:
+      \uD53C\uD574 1.8/2.15/2.5/2.85/3.2\uBC30, \uD06C\uAE30 100/115/130/145/160%,
+      \uC0AC\uAC70\uB9AC 6/7.5/9/10.5/12, \uCD5C\uB300 \uD0C0\uACA9 2/3/4/5/6."
     effectType: 1
     targetStat: 8
     operation: 0
-    value: 1.5
+    value: 1.8
     maxStack: 5
     selectionWeight: 65
     minPlayerLevel: 3
@@ -220,4 +219,26 @@ MonoBehaviour:
     requiredCardId: FLYING_SWORD_COUNT
     rarity: "\uD76C\uADC0"
     iconId: ICON_FLYING_SWORD_HITS
+    enabled: 1
+  - cardId: FILTH_THROW
+    nameKey: CARD_FILTH_THROW_NAME
+    displayName: "\uC624\uBB3C \uD22C\uCC99"
+    description: "\uD654\uBA74 \uC548 \uBB34\uC791\uC704 \uC704\uCE58\uB85C \uC624\uBB3C
+      \uAD6C\uCCB4\uB97C \uB3D9\uC2DC\uC5D0 \uB358\uC9D1\uB2C8\uB2E4. \uCC29\uD0C4
+      \uC9C0\uC810\uC740 3\uCD08 \uB3D9\uC548 0.5\uCD08\uB9C8\uB2E4 \uD53C\uD574\uB97C
+      \uC8FC\uBA70, \uB808\uBCA8\uB9C8\uB2E4 \uD22C\uCC99 \uC218\xB7\uD2F1 \uD53C\uD574\xB7\uBC94\uC704\uAC00
+      \uC99D\uAC00\uD558\uACE0 \uC7AC\uC0AC\uC6A9 \uB300\uAE30\uC2DC\uAC04\uC774
+      \uAC10\uC18C\uD569\uB2C8\uB2E4. 1~5\uB808\uBCA8: \uD22C\uCC99 \uC218 1/2/3/4/5,
+      \uD53C\uD574 0.35/0.45/0.55/0.65/0.75\uBC30, \uBC18\uACBD 1.2/1.35/1.5/1.65/1.8,
+      \uC7AC\uC0AC\uC6A9 6/5.5/5/4.5/4\uCD08."
+    effectType: 1
+    targetStat: 12
+    operation: 0
+    value: 0.35
+    maxStack: 5
+    selectionWeight: 60
+    minPlayerLevel: 3
+    requiredCardId: 
+    rarity: "\uD76C\uADC0"
+    iconId: ICON_FILTH_THROW
     enabled: 1

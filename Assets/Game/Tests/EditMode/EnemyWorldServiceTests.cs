@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -120,6 +121,59 @@ namespace SimpleGame.Tests
                 DestroyEnemy(farBehind);
                 DestroyEnemy(nearBehind);
                 DestroyEnemy(primary);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void FillEnemiesInRadius_ClearsAndReusesCallerBuffer()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            EnemyBase nearEnemy = null;
+            EnemyBase edgeEnemy = null;
+            EnemyBase outsideEnemy = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                nearEnemy = CreateLiveEnemy(
+                    "NearEnemy",
+                    new Vector2(0.5f, 0f));
+                edgeEnemy = CreateLiveEnemy(
+                    "EdgeEnemy",
+                    new Vector2(1.5f, 0f));
+                outsideEnemy = CreateLiveEnemy(
+                    "OutsideEnemy",
+                    new Vector2(1.51f, 0f));
+                service.Register(outsideEnemy);
+                service.Register(edgeEnemy);
+                service.Register(nearEnemy);
+                var buffer = new List<EnemyBase>
+                {
+                    outsideEnemy
+                };
+
+                service.FillEnemiesInRadius(
+                    Vector2.zero,
+                    1.5f,
+                    buffer);
+
+                Assert.That(
+                    buffer,
+                    Is.EquivalentTo(new[]
+                    {
+                        nearEnemy,
+                        edgeEnemy
+                    }));
+                Assert.That(
+                    buffer.Contains(outsideEnemy),
+                    Is.False);
+            }
+            finally
+            {
+                DestroyEnemy(outsideEnemy);
+                DestroyEnemy(edgeEnemy);
+                DestroyEnemy(nearEnemy);
                 Object.DestroyImmediate(serviceObject);
             }
         }

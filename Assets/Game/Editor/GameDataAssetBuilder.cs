@@ -127,11 +127,31 @@ namespace SimpleGameEditor
                 CreateOrLoad<EnemyBalanceTable>(
                     EnemyBalancePath,
                     out bool enemyBalanceCreated);
-            if (enemyBalanceCreated || enemyBalance.Definitions.Count == 0)
+            EnemyDefinition[] requiredEnemyDefinitions =
+                CreateRequiredEnemyDefinitions();
+            if (enemyBalanceCreated ||
+                enemyBalance.Definitions.Count == 0)
             {
-                enemyBalance.Configure(Enum.GetValues(typeof(EnemyArchetype))
-                    .Cast<EnemyArchetype>()
-                    .Select(PrototypeEnemyDefinitions.Create));
+                enemyBalance.Configure(requiredEnemyDefinitions);
+            }
+            else
+            {
+                var definitions = new List<EnemyDefinition>(
+                    enemyBalance.Definitions);
+                foreach (EnemyDefinition required in
+                         requiredEnemyDefinitions)
+                {
+                    if (!definitions.Any(existing =>
+                            string.Equals(
+                                existing.EnemyId,
+                                required.EnemyId,
+                                StringComparison.Ordinal)))
+                    {
+                        definitions.Add(required);
+                    }
+                }
+
+                enemyBalance.Configure(definitions);
             }
 
             StageSpawnSchedule spawnSchedule =
@@ -211,23 +231,27 @@ namespace SimpleGameEditor
                 CreateOrLoad<EnemyAssetCatalog>(
                     EnemyCatalogPath,
                     out bool enemyCatalogCreated);
+            EnemyAssetEntry[] requiredEnemyAssets =
+                CreateRequiredEnemyAssetEntries();
             if (enemyCatalogCreated || enemyCatalog.Entries.Count == 0)
             {
-                enemyCatalog.Configure(new[]
+                enemyCatalog.Configure(requiredEnemyAssets);
+            }
+            else
+            {
+                var entries = new List<EnemyAssetEntry>(
+                    enemyCatalog.Entries);
+                foreach (EnemyAssetEntry required in requiredEnemyAssets)
                 {
-                    CreateEnemyAssetEntry(
-                        EnemyArchetype.Melee,
-                        CharacterAssetBuilder.MeleePrefabPath),
-                    CreateEnemyAssetEntry(
-                        EnemyArchetype.Ranged,
-                        CharacterAssetBuilder.RangedPrefabPath),
-                    CreateEnemyAssetEntry(
-                        EnemyArchetype.Shield,
-                        CharacterAssetBuilder.ShieldPrefabPath),
-                    CreateEnemyAssetEntry(
-                        EnemyArchetype.Boss,
-                        CharacterAssetBuilder.BossPrefabPath)
-                });
+                    if (!enemyCatalog.TryGetPrefab(
+                            required.EnemyId,
+                            out _))
+                    {
+                        entries.Add(required);
+                    }
+                }
+
+                enemyCatalog.Configure(entries);
             }
 
             CombatFeedbackProfile feedback =
@@ -358,6 +382,58 @@ namespace SimpleGameEditor
                 "spawn points wired.");
         }
 
+        private static EnemyDefinition[]
+            CreateRequiredEnemyDefinitions()
+        {
+            return new[]
+            {
+                PrototypeEnemyDefinitions.Create(
+                    EnemyArchetype.Melee),
+                PrototypeEnemyDefinitions.Create(
+                    EnemyArchetype.Ranged),
+                PrototypeEnemyDefinitions.Create(
+                    EnemyArchetype.Shield),
+                PrototypeEnemyDefinitions.Create(
+                    EnemyArchetype.Boss),
+                PrototypeEnemyDefinitions.CreateMushroomBoss(),
+                PrototypeEnemyDefinitions.CreateFlyingEye(),
+                PrototypeEnemyDefinitions.CreateFlyingEyeBoss(),
+                PrototypeEnemyDefinitions.CreateSkeletonBoss()
+            };
+        }
+
+        private static EnemyAssetEntry[]
+            CreateRequiredEnemyAssetEntries()
+        {
+            return new[]
+            {
+                CreateEnemyAssetEntry(
+                    EnemyArchetype.Melee,
+                    CharacterAssetBuilder.MeleePrefabPath),
+                CreateEnemyAssetEntry(
+                    EnemyArchetype.Ranged,
+                    CharacterAssetBuilder.RangedPrefabPath),
+                CreateEnemyAssetEntry(
+                    EnemyArchetype.Shield,
+                    CharacterAssetBuilder.ShieldPrefabPath),
+                CreateEnemyAssetEntry(
+                    EnemyArchetype.Boss,
+                    CharacterAssetBuilder.BossPrefabPath),
+                CreateEnemyAssetEntry(
+                    PrototypeEnemyDefinitions.MushroomBossId,
+                    CharacterAssetBuilder.MushroomBossPrefabPath),
+                CreateEnemyAssetEntry(
+                    PrototypeEnemyDefinitions.FlyingEyeId,
+                    CharacterAssetBuilder.FlyingEyePrefabPath),
+                CreateEnemyAssetEntry(
+                    PrototypeEnemyDefinitions.FlyingEyeBossId,
+                    CharacterAssetBuilder.FlyingEyeBossPrefabPath),
+                CreateEnemyAssetEntry(
+                    PrototypeEnemyDefinitions.SkeletonBossId,
+                    CharacterAssetBuilder.SkeletonBossPrefabPath)
+            };
+        }
+
         private static List<StageSpawnEntry> CreatePrototypeSpawnRows()
         {
             var result = new List<StageSpawnEntry>();
@@ -410,6 +486,14 @@ namespace SimpleGameEditor
                 "TOP_03",
                 "GoblinBoss",
                 5));
+            result.Add(new StageSpawnEntry(
+                "Stage01",
+                "WAVE_24",
+                234.34f,
+                15,
+                "BOTTOM_05",
+                PrototypeEnemyDefinitions.MushroomBossId,
+                20));
             return result;
         }
 
@@ -542,7 +626,7 @@ namespace SimpleGameEditor
                     StatOperation.Add,
                     2f,
                     3,
-                    55,
+                    60,
                     4,
                     string.Empty,
                     "희귀",
@@ -568,17 +652,35 @@ namespace SimpleGameEditor
                     "MOVING_SLASH",
                     "CARD_MOVING_SLASH_NAME",
                     "참격",
-                    "이동 시 초승달 검기를 생성합니다. 검기는 현재 이동 속도의 3배로 날아가며 같은 터치 거리를 0.15초에 이동하는 최대 속도를 넘지 않습니다. 레벨마다 확률 3%, 관통 1명, 크기 10%가 증가합니다.",
+                    "이동 시 초승달 검기를 생성합니다. 레벨마다 피해·크기·사거리·최대 타격 수가 증가합니다. 1~5레벨: 피해 1.8/2.15/2.5/2.85/3.2배, 크기 100/115/130/145/160%, 사거리 6/7.5/9/10.5/12, 최대 타격 2/3/4/5/6.",
                     LevelUpCardEffectType.UpgradeRank,
                     PlayerStatId.MovingSlash,
                     StatOperation.Add,
-                    1.5f,
+                    1.8f,
                     5,
                     65,
                     3,
                     string.Empty,
                     "희귀",
                     "ICON_MOVING_SLASH",
+                    true),
+                new LevelUpCardDefinition(
+                    "FILTH_THROW",
+                    "CARD_FILTH_THROW_NAME",
+                    "오물 투척",
+                    "화면 안 무작위 위치로 오물 구체를 던집니다. 착탄 지점은 3초 동안 0.5초마다 피해를 주며, 레벨마다 투척 수·피해·범위가 증가하고 재사용 대기시간이 감소합니다. 1~5레벨 투척 수: 1/2/3/4/5.",
+                    LevelUpCardEffectType.UpgradeRank,
+                    PlayerStatId.FilthThrow,
+                    StatOperation.Add,
+                    PlayerCombatAbilities
+                        .FilthThrowBaseDamageMultiplier,
+                    PlayerCombatAbilities
+                        .FilthThrowMaximumLevel,
+                    55,
+                    3,
+                    string.Empty,
+                    "희귀",
+                    "ICON_FILTH_THROW",
                     true),
                 new LevelUpCardDefinition(
                     "SHIELD_BYPASS",
@@ -635,6 +737,15 @@ namespace SimpleGameEditor
             EnemyArchetype archetype,
             string prefabPath)
         {
+            return CreateEnemyAssetEntry(
+                PrototypeEnemyDefinitions.GetEnemyId(archetype),
+                prefabPath);
+        }
+
+        private static EnemyAssetEntry CreateEnemyAssetEntry(
+            string enemyId,
+            string prefabPath)
+        {
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                 prefabPath);
             EnemyBase enemy = prefab != null
@@ -647,7 +758,7 @@ namespace SimpleGameEditor
             }
 
             return new EnemyAssetEntry(
-                PrototypeEnemyDefinitions.GetEnemyId(archetype),
+                enemyId,
                 enemy);
         }
 

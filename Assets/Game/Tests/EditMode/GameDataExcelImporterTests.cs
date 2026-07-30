@@ -5,6 +5,7 @@ using TMPro;
 using NUnit.Framework;
 using SimpleGameEditor;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -22,7 +23,7 @@ namespace SimpleGame.Tests
 
             GameDataExcelModel model = GameDataExcelParser.Parse(path);
 
-            Assert.That(model.EnemyDefinitions, Has.Count.EqualTo(4));
+            Assert.That(model.EnemyDefinitions, Has.Count.EqualTo(8));
             Assert.That(model.SpawnEntries, Has.Count.EqualTo(3283));
             Assert.That(
                 model.SpawnEntries.Max(entry => entry.EnemyLevel),
@@ -58,7 +59,7 @@ namespace SimpleGame.Tests
             Assert.That(model.PlayerLevels, Has.Count.EqualTo(50));
             Assert.That(model.AccountLevels, Has.Count.EqualTo(4));
             Assert.That(model.PlayerDefinitions, Has.Count.EqualTo(1));
-            Assert.That(model.LevelUpCards, Has.Count.EqualTo(12));
+            Assert.That(model.LevelUpCards, Has.Count.EqualTo(13));
             Assert.That(model.AccountExperienceScoreUnit, Is.EqualTo(5));
             Assert.That(model.CriticalChancePerCard, Is.EqualTo(0.05f));
             Assert.That(model.MaximumCriticalChance, Is.EqualTo(0.5f));
@@ -73,6 +74,70 @@ namespace SimpleGame.Tests
                 model.PlayerDefinitions[0]
                     .PostKillEscapeSpeedMultiplier,
                 Is.EqualTo(1.2f));
+
+            EnemyDefinition goblinBoss =
+                model.EnemyDefinitions.Single(
+                    enemy => enemy.EnemyId ==
+                        PrototypeEnemyDefinitions.GoblinBossId);
+            EnemyDefinition mushroomBoss =
+                model.EnemyDefinitions.Single(
+                    enemy => enemy.EnemyId ==
+                        PrototypeEnemyDefinitions.MushroomBossId);
+            EnemyDefinition flyingEye =
+                model.EnemyDefinitions.Single(
+                    enemy => enemy.EnemyId ==
+                        PrototypeEnemyDefinitions.FlyingEyeId);
+            EnemyDefinition flyingEyeBoss =
+                model.EnemyDefinitions.Single(
+                    enemy => enemy.EnemyId ==
+                        PrototypeEnemyDefinitions.FlyingEyeBossId);
+            EnemyDefinition skeletonBoss =
+                model.EnemyDefinitions.Single(
+                    enemy => enemy.EnemyId ==
+                        PrototypeEnemyDefinitions.SkeletonBossId);
+            Assert.That(goblinBoss.MoveSpeed, Is.EqualTo(0.75f));
+            Assert.That(mushroomBoss.Archetype, Is.EqualTo(
+                EnemyArchetype.Boss));
+            Assert.That(mushroomBoss.MoveSpeed, Is.EqualTo(0.72f));
+            Assert.That(flyingEye.AllowsEnemyOverlap, Is.True);
+            Assert.That(
+                flyingEyeBoss.Archetype,
+                Is.EqualTo(EnemyArchetype.Boss));
+            Assert.That(flyingEyeBoss.AllowsEnemyOverlap, Is.True);
+            Assert.That(skeletonBoss.BlocksFrontAttacks, Is.True);
+            Assert.That(
+                model.SpawnEntries.Count(entry =>
+                    entry.EnemyId ==
+                        PrototypeEnemyDefinitions.FlyingEyeId),
+                Is.EqualTo(186));
+            Assert.That(
+                model.SpawnEntries.Single(entry =>
+                    entry.WaveNumber == 24 &&
+                    entry.EnemyId ==
+                        PrototypeEnemyDefinitions.MushroomBossId),
+                Is.Not.Null);
+            string[] bossOrder = model.SpawnEntries
+                .Where(entry =>
+                    entry.EnemyId ==
+                        PrototypeEnemyDefinitions.GoblinBossId ||
+                    entry.EnemyId ==
+                        PrototypeEnemyDefinitions.MushroomBossId ||
+                    entry.EnemyId ==
+                        PrototypeEnemyDefinitions.FlyingEyeBossId ||
+                    entry.EnemyId ==
+                        PrototypeEnemyDefinitions.SkeletonBossId)
+                .OrderBy(entry => entry.SpawnTimeSec)
+                .Select(entry => entry.EnemyId)
+                .ToArray();
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    PrototypeEnemyDefinitions.GoblinBossId,
+                    PrototypeEnemyDefinitions.MushroomBossId,
+                    PrototypeEnemyDefinitions.FlyingEyeBossId,
+                    PrototypeEnemyDefinitions.SkeletonBossId
+                },
+                bossOrder);
 
             LevelUpCardDefinition speedCard = model.LevelUpCards.Find(
                 card => card.CardId == "MOVE_SPEED_UP");
@@ -94,11 +159,12 @@ namespace SimpleGame.Tests
                 "초승달 검기",
                 movingSlashCard.Description);
             StringAssert.Contains(
-                "현재 이동 속도의 3배",
+                "피해·크기·사거리·최대 타격 수",
                 movingSlashCard.Description);
             StringAssert.Contains(
-                "0.15초",
+                "최대 타격 2/3/4/5/6",
                 movingSlashCard.Description);
+            Assert.That(movingSlashCard.Value, Is.EqualTo(1.8f));
 
             LevelUpCardDefinition severCard = model.LevelUpCards.Find(
                 card => card.CardId == "SEVER_TRAIL");
@@ -157,6 +223,23 @@ namespace SimpleGame.Tests
             Assert.That(
                 flyingSwordHitCountCard.RequiredCardId,
                 Is.EqualTo("FLYING_SWORD_COUNT"));
+
+            LevelUpCardDefinition filthThrowCard =
+                model.LevelUpCards.Find(
+                    card => card.CardId == "FILTH_THROW");
+            Assert.That(filthThrowCard, Is.Not.Null);
+            Assert.That(
+                filthThrowCard.TargetStat,
+                Is.EqualTo(PlayerStatId.FilthThrow));
+            Assert.That(filthThrowCard.Value, Is.EqualTo(0.35f));
+            Assert.That(filthThrowCard.MaxStack, Is.EqualTo(5));
+            Assert.That(filthThrowCard.SelectionWeight, Is.EqualTo(60));
+            StringAssert.Contains(
+                "투척 수 1/2/3/4/5",
+                filthThrowCard.Description);
+            StringAssert.Contains(
+                "3초 동안 0.5초마다",
+                filthThrowCard.Description);
         }
 
         [Test]
@@ -168,7 +251,7 @@ namespace SimpleGame.Tests
                     "LevelUpCardTable.asset");
 
             Assert.That(table, Is.Not.Null);
-            Assert.That(table.Definitions, Has.Count.EqualTo(12));
+            Assert.That(table.Definitions, Has.Count.EqualTo(13));
 
             LevelUpCardDefinition countCard =
                 table.Definitions.Single(
@@ -203,11 +286,12 @@ namespace SimpleGame.Tests
                 "초승달 검기",
                 movingSlashCard.Description);
             StringAssert.Contains(
-                "현재 이동 속도의 3배",
+                "피해·크기·사거리·최대 타격 수",
                 movingSlashCard.Description);
             StringAssert.Contains(
-                "0.15초",
+                "최대 타격 2/3/4/5/6",
                 movingSlashCard.Description);
+            Assert.That(movingSlashCard.Value, Is.EqualTo(1.8f));
 
             LevelUpCardDefinition severCard =
                 table.Definitions.Single(
@@ -225,6 +309,18 @@ namespace SimpleGame.Tests
             StringAssert.Contains(
                 "적을 처치할 때마다",
                 hitHealCard.Description);
+
+            LevelUpCardDefinition filthThrowCard =
+                table.Definitions.Single(
+                    card => card.CardId == "FILTH_THROW");
+            Assert.That(
+                filthThrowCard.TargetStat,
+                Is.EqualTo(PlayerStatId.FilthThrow));
+            Assert.That(filthThrowCard.Value, Is.EqualTo(0.35f));
+            Assert.That(filthThrowCard.MaxStack, Is.EqualTo(5));
+            StringAssert.Contains(
+                "투척 수 1/2/3/4/5",
+                filthThrowCard.Description);
         }
 
         [Test]
@@ -398,6 +494,222 @@ namespace SimpleGame.Tests
             Assert.That(
                 movingSlashPrefab.GetComponent<LineRenderer>(),
                 Is.Null);
+
+            FilthProjectile filthProjectilePrefab =
+                serializedAbilities
+                    .FindProperty("filthProjectilePrefab")
+                    .objectReferenceValue as FilthProjectile;
+            Assert.That(filthProjectilePrefab, Is.Not.Null);
+            Assert.That(
+                AssetDatabase.GetAssetPath(filthProjectilePrefab),
+                Is.EqualTo(
+                    CharacterAssetBuilder
+                        .FilthProjectilePrefabPath));
+            var serializedFilth =
+                new SerializedObject(filthProjectilePrefab);
+            Assert.That(
+                serializedFilth
+                    .FindProperty("orbRenderer")
+                    .objectReferenceValue,
+                Is.Not.Null);
+            Assert.That(
+                serializedFilth
+                    .FindProperty("fieldVisual")
+                    .objectReferenceValue,
+                Is.Not.Null);
+
+            PlayerController playerController =
+                prefab.GetComponent<PlayerController>();
+            Assert.That(playerController, Is.Not.Null);
+            var serializedPlayerController =
+                new SerializedObject(playerController);
+            SpriteRenderer aimRay =
+                serializedPlayerController
+                    .FindProperty("aimRayRenderer")
+                    .objectReferenceValue as SpriteRenderer;
+            SpriteRenderer aimEndpoint =
+                serializedPlayerController
+                    .FindProperty("aimEndpointRenderer")
+                    .objectReferenceValue as SpriteRenderer;
+            Assert.That(aimRay, Is.Not.Null);
+            Assert.That(aimRay.name, Is.EqualTo("AimRay"));
+            Assert.That(aimRay.enabled, Is.False);
+            Assert.That(aimEndpoint, Is.Not.Null);
+            Assert.That(
+                aimEndpoint.name,
+                Is.EqualTo("AimEndpoint"));
+            Assert.That(aimEndpoint.enabled, Is.False);
+        }
+
+        [Test]
+        public void WorldRewardAndMushroomPrefabs_AreConfigured()
+        {
+            GameObject pickupPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    CharacterAssetBuilder.HealthPickupPrefabPath);
+            GameObject cloudPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    CharacterAssetBuilder.PoisonCloudPrefabPath);
+            GameObject mushroomPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    CharacterAssetBuilder.MushroomBossPrefabPath);
+            GameObject flyingEyePrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    CharacterAssetBuilder.FlyingEyePrefabPath);
+            GameObject flyingEyeBossPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    CharacterAssetBuilder.FlyingEyeBossPrefabPath);
+            GameObject skeletonBossPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    CharacterAssetBuilder.SkeletonBossPrefabPath);
+            GameObject filthPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    CharacterAssetBuilder.FilthProjectilePrefabPath);
+            EnemyAssetCatalog catalog =
+                AssetDatabase.LoadAssetAtPath<EnemyAssetCatalog>(
+                    "Assets/Game/Data/Catalogs/EnemyAssetCatalog.asset");
+
+            Assert.That(pickupPrefab, Is.Not.Null);
+            Assert.That(
+                pickupPrefab.GetComponent<HealthPickup>(),
+                Is.Not.Null);
+            CircleCollider2D pickupCollider =
+                pickupPrefab.GetComponent<CircleCollider2D>();
+            Assert.That(pickupCollider, Is.Not.Null);
+            Assert.That(pickupCollider.isTrigger, Is.True);
+            Assert.That(
+                pickupPrefab.GetComponentsInChildren<SpriteRenderer>(),
+                Has.Length.GreaterThanOrEqualTo(3));
+
+            Assert.That(cloudPrefab, Is.Not.Null);
+            Assert.That(
+                cloudPrefab.GetComponent<MushroomPoisonCloud>(),
+                Is.Not.Null);
+
+            Assert.That(mushroomPrefab, Is.Not.Null);
+            BossEnemy mushroomBoss =
+                mushroomPrefab.GetComponent<BossEnemy>();
+            Assert.That(mushroomBoss, Is.Not.Null);
+            Assert.That(
+                mushroomPrefab.GetComponent<Animator>(),
+                Is.Not.Null);
+            Assert.That(catalog, Is.Not.Null);
+            Assert.That(
+                catalog.TryGetPrefab(
+                    PrototypeEnemyDefinitions.MushroomBossId,
+                    out EnemyBase mappedPrefab),
+                Is.True);
+            Assert.That(mappedPrefab, Is.SameAs(mushroomBoss));
+            Assert.That(flyingEyePrefab, Is.Not.Null);
+            Assert.That(
+                flyingEyePrefab.GetComponent<MeleeEnemy>(),
+                Is.Not.Null);
+            Assert.That(flyingEyeBossPrefab, Is.Not.Null);
+            Assert.That(
+                flyingEyeBossPrefab.GetComponent<BossEnemy>(),
+                Is.Not.Null);
+            Assert.That(skeletonBossPrefab, Is.Not.Null);
+            Assert.That(
+                skeletonBossPrefab.GetComponent<BossEnemy>(),
+                Is.Not.Null);
+            Assert.That(filthPrefab, Is.Not.Null);
+            Assert.That(
+                filthPrefab.GetComponent<FilthProjectile>(),
+                Is.Not.Null);
+            Assert.That(
+                catalog.TryGetPrefab(
+                    PrototypeEnemyDefinitions.FlyingEyeId,
+                    out _),
+                Is.True);
+            Assert.That(
+                catalog.TryGetPrefab(
+                    PrototypeEnemyDefinitions.FlyingEyeBossId,
+                    out _),
+                Is.True);
+            Assert.That(
+                catalog.TryGetPrefab(
+                    PrototypeEnemyDefinitions.SkeletonBossId,
+                    out _),
+                Is.True);
+        }
+
+        [Test]
+        public void BossPrefabs_HaveAttack2ControllersAndBossModules()
+        {
+            (string prefabPath, string controllerPath)[] bossAssets =
+            {
+                (
+                    CharacterAssetBuilder.BossPrefabPath,
+                    CharacterAssetBuilder.RootPath +
+                    "/Animators/Goblin.controller"),
+                (
+                    CharacterAssetBuilder.MushroomBossPrefabPath,
+                    CharacterAssetBuilder.RootPath +
+                    "/Animators/Mushroom.controller"),
+                (
+                    CharacterAssetBuilder.FlyingEyeBossPrefabPath,
+                    CharacterAssetBuilder.RootPath +
+                    "/Animators/FlyingEye.controller"),
+                (
+                    CharacterAssetBuilder.SkeletonBossPrefabPath,
+                    CharacterAssetBuilder.RootPath +
+                    "/Animators/Skeleton.controller")
+            };
+
+            foreach (
+                (string prefabPath, string controllerPath) in
+                bossAssets)
+            {
+                GameObject prefab =
+                    AssetDatabase.LoadAssetAtPath<GameObject>(
+                        prefabPath);
+                Assert.That(
+                    prefab,
+                    Is.Not.Null,
+                    $"Missing boss prefab: {prefabPath}");
+                Assert.That(
+                    prefab.GetComponent<BossEnemy>(),
+                    Is.Not.Null,
+                    prefabPath);
+                Assert.That(
+                    prefab.GetComponent<BossAttackModule>(),
+                    Is.Not.Null,
+                    prefabPath);
+
+                Animator animator = prefab.GetComponent<Animator>();
+                Assert.That(animator, Is.Not.Null, prefabPath);
+                Assert.That(
+                    AssetDatabase.GetAssetPath(
+                        animator.runtimeAnimatorController),
+                    Is.EqualTo(controllerPath),
+                    prefabPath);
+
+                AnimatorController controller =
+                    AssetDatabase.LoadAssetAtPath<AnimatorController>(
+                        controllerPath);
+                Assert.That(
+                    controller,
+                    Is.Not.Null,
+                    $"Missing boss animator: {controllerPath}");
+                Assert.That(
+                    controller.parameters.Any(parameter =>
+                        parameter.name ==
+                            CharacterSpriteAnimator.Attack2Parameter &&
+                        parameter.type ==
+                            AnimatorControllerParameterType.Trigger),
+                    Is.True,
+                    controllerPath);
+
+                AnimatorState attack2 = controller.layers[0]
+                    .stateMachine.states
+                    .Select(child => child.state)
+                    .SingleOrDefault(state => state.name == "Attack2");
+                Assert.That(attack2, Is.Not.Null, controllerPath);
+                Assert.That(
+                    attack2.motion,
+                    Is.Not.Null,
+                    controllerPath);
+            }
         }
 
         [Test]
@@ -463,7 +775,21 @@ namespace SimpleGame.Tests
             Assert.That(pause, Is.Not.Null);
             Assert.That(gameOver, Is.Not.Null);
             Assert.That(hud.transform.Find("TopPanel"), Is.Not.Null);
-            Assert.That(hud.transform.Find("HintPanel"), Is.Not.Null);
+            Transform hintPanel = hud.transform.Find("HintPanel");
+            Assert.That(hintPanel, Is.Not.Null);
+            Assert.That(
+                hintPanel.GetComponent<Image>().raycastTarget,
+                Is.False);
+            Transform commandControls =
+                hud.transform.Find("CommandControls");
+            Assert.That(commandControls, Is.Not.Null);
+            Transform joystick =
+                commandControls.Find("AimJoystick");
+            Transform attack =
+                commandControls.Find(
+                    HudButtonId.Attack.ToString());
+            Assert.That(joystick, Is.Not.Null);
+            Assert.That(attack, Is.Not.Null);
             Assert.That(hud.transform.Find("ModalRoot"), Is.Not.Null);
             Transform settings = hud.transform.Find(
                 HudButtonId.Settings.ToString());
@@ -485,6 +811,38 @@ namespace SimpleGame.Tests
             Assert.That(
                 view.SettingsButton,
                 Is.EqualTo(settings.GetComponent<Button>()));
+            Assert.That(
+                view.AimJoystick,
+                Is.EqualTo(
+                    joystick.GetComponent<
+                        AimJoystickControl>()));
+            Assert.That(
+                view.AttackButton,
+                Is.EqualTo(attack.GetComponent<Button>()));
+            Assert.That(
+                attack.GetComponent<AttackCommandButton>(),
+                Is.Not.Null);
+            Assert.That(
+                joystick.GetComponent<Image>().raycastTarget,
+                Is.True);
+            Assert.That(
+                joystick.Find("Knob")
+                    .GetComponent<Image>()
+                    .raycastTarget,
+                Is.False);
+            RectTransform joystickRect =
+                joystick.GetComponent<RectTransform>();
+            RectTransform attackRect =
+                attack.GetComponent<RectTransform>();
+            Assert.That(
+                joystickRect.anchorMin,
+                Is.EqualTo(Vector2.zero));
+            Assert.That(
+                attackRect.anchorMin,
+                Is.EqualTo(new Vector2(1f, 0f)));
+            Assert.That(
+                attack.GetComponent<Image>().raycastTarget,
+                Is.True);
             Assert.That(
                 AssetDatabase.GetAssetPath(
                     view.CardSelectionPanelPrefab),
@@ -516,6 +874,19 @@ namespace SimpleGame.Tests
             Assert.That(
                 pause.transform.Find("PauseDetails"),
                 Is.Not.Null);
+            Transform controlPadToggle =
+                pause.transform.Find("ControlPadToggle");
+            Assert.That(controlPadToggle, Is.Not.Null);
+            Toggle toggle =
+                controlPadToggle.GetComponent<Toggle>();
+            Assert.That(toggle, Is.Not.Null);
+            Assert.That(toggle.isOn, Is.True);
+            Assert.That(toggle.graphic, Is.Not.Null);
+            Assert.That(
+                controlPadToggle.Find("Label")
+                    .GetComponent<TMP_Text>()
+                    .text,
+                Is.EqualTo("조작 패드 표시"));
             Assert.That(
                 gameOver.transform.Find("GameOverTitle"),
                 Is.Not.Null);
@@ -538,6 +909,7 @@ namespace SimpleGame.Tests
                     hud.GetComponent<PrototypeHUDView>();
                 int settingsClicks = 0;
                 int rerollClicks = 0;
+                int attackPresses = 0;
                 view.Initialize();
                 view.Bind(
                     HudButtonId.Settings,
@@ -545,9 +917,41 @@ namespace SimpleGame.Tests
                 view.Bind(
                     HudButtonId.CardReroll0,
                     () => rerollClicks++);
+                view.Bind(
+                    HudButtonId.Attack,
+                    () => attackPresses++);
                 view.ShowCardSelection(true);
                 view.SetCardRerollState(2, true);
                 view.SetCardChoicesInteractable(true);
+                view.ShowPauseDetails(true);
+
+                Transform controlPadToggle =
+                    hud.transform.Find(
+                        "ModalRoot/PauseDetailsPanel/" +
+                        "ControlPadToggle");
+                Assert.That(controlPadToggle, Is.Not.Null);
+                Toggle toggle =
+                    controlPadToggle.GetComponent<Toggle>();
+                Assert.That(toggle.isOn, Is.True);
+                Assert.That(view.CommandControlsEnabled, Is.True);
+
+                toggle.isOn = false;
+                Assert.That(view.CommandControlsEnabled, Is.False);
+                Assert.That(
+                    view.AimJoystick.gameObject.activeSelf,
+                    Is.False);
+                Assert.That(
+                    view.AttackButton.gameObject.activeSelf,
+                    Is.False);
+
+                toggle.isOn = true;
+                Assert.That(view.CommandControlsEnabled, Is.True);
+                Assert.That(
+                    view.AimJoystick.gameObject.activeSelf,
+                    Is.True);
+                Assert.That(
+                    view.AttackButton.gameObject.activeSelf,
+                    Is.True);
 
                 Transform panel = hud.transform.Find(
                     "ModalRoot/CardSelectionPanel");
@@ -568,8 +972,13 @@ namespace SimpleGame.Tests
 
                 cards[0].RerollButton.onClick.Invoke();
                 view.SettingsButton.onClick.Invoke();
+                view.AttackButton
+                    .GetComponent<AttackCommandButton>()
+                    .OnPointerDown(null);
+                view.AttackButton.onClick.Invoke();
                 Assert.That(rerollClicks, Is.EqualTo(1));
                 Assert.That(settingsClicks, Is.EqualTo(1));
+                Assert.That(attackPresses, Is.EqualTo(1));
 
                 view.SetCardRerollState(0, true);
                 foreach (LevelUpCardView card in cards)

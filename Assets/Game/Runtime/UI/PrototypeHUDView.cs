@@ -16,6 +16,7 @@ namespace SimpleGame
         CardReroll2,
         Settings,
         ContinueAd,
+        Attack,
         Count
     }
 
@@ -36,6 +37,8 @@ namespace SimpleGame
         [SerializeField] private Slider experienceSlider;
         [SerializeField] private TMP_Text experienceLabel;
         [SerializeField] private Button settingsButton;
+        [SerializeField] private Button attackButton;
+        [SerializeField] private AimJoystickControl aimJoystick;
         [Header("Transient UI")]
         [SerializeField] private Transform modalRoot;
         [SerializeField] private GameObject cardSelectionPanelPrefab;
@@ -51,6 +54,7 @@ namespace SimpleGame
         private GameObject cardSelectionPanel;
         private GameObject pauseDetailsPanel;
         private TMP_Text pauseDetailsLabel;
+        private Toggle commandControlsToggle;
         private GameObject gameOverPanel;
         private TMP_Text gameOverTitle;
         private Button continueButton;
@@ -59,6 +63,7 @@ namespace SimpleGame
         private int remainingCardRerolls;
         private string pauseDetails = string.Empty;
         private string gameOverDetails = string.Empty;
+        private bool commandControlsEnabled = true;
 
         public GameObject CardSelectionPanelPrefab =>
             cardSelectionPanelPrefab;
@@ -67,6 +72,10 @@ namespace SimpleGame
         public GameObject GameOverPanelPrefab =>
             gameOverPanelPrefab;
         public Button SettingsButton => settingsButton;
+        public Button AttackButton => attackButton;
+        public AimJoystickControl AimJoystick => aimJoystick;
+        public bool CommandControlsEnabled =>
+            commandControlsEnabled;
 
         public void Configure(
             TMP_Text configuredTimeLabel,
@@ -75,6 +84,8 @@ namespace SimpleGame
             Slider configuredExperienceSlider,
             TMP_Text configuredExperienceLabel,
             Button configuredSettingsButton,
+            Button configuredAttackButton,
+            AimJoystickControl configuredAimJoystick,
             Transform configuredModalRoot,
             GameObject configuredCardSelectionPanelPrefab,
             GameObject configuredPauseDetailsPanelPrefab,
@@ -86,6 +97,8 @@ namespace SimpleGame
             experienceSlider = configuredExperienceSlider;
             experienceLabel = configuredExperienceLabel;
             settingsButton = configuredSettingsButton;
+            attackButton = configuredAttackButton;
+            aimJoystick = configuredAimJoystick;
             modalRoot = configuredModalRoot;
             cardSelectionPanelPrefab =
                 configuredCardSelectionPanelPrefab;
@@ -102,6 +115,31 @@ namespace SimpleGame
             {
                 settingsButton.transform.SetAsLastSibling();
             }
+
+            SetCommandControlsEnabled(commandControlsEnabled);
+        }
+
+        public void InitializeAimControls(PlayerRoot player)
+        {
+            aimJoystick?.Initialize(player);
+        }
+
+        public void SetCommandControlsEnabled(bool enabled)
+        {
+            commandControlsEnabled = enabled;
+            if (aimJoystick != null &&
+                aimJoystick.gameObject.activeSelf != enabled)
+            {
+                aimJoystick.gameObject.SetActive(enabled);
+            }
+
+            if (attackButton != null &&
+                attackButton.gameObject.activeSelf != enabled)
+            {
+                attackButton.gameObject.SetActive(enabled);
+            }
+
+            commandControlsToggle?.SetIsOnWithoutNotify(enabled);
         }
 
         public void Bind(HudButtonId id, Action callback)
@@ -345,6 +383,26 @@ namespace SimpleGame
                     "Pause prefab is missing PauseDetails text.",
                     pauseDetailsPanel);
             }
+
+            Transform toggle =
+                pauseDetailsPanel.transform.Find(
+                    "ControlPadToggle");
+            commandControlsToggle =
+                toggle != null
+                    ? toggle.GetComponent<Toggle>()
+                    : null;
+            if (commandControlsToggle == null)
+            {
+                Debug.LogError(
+                    "Pause prefab is missing ControlPadToggle.",
+                    pauseDetailsPanel);
+                return;
+            }
+
+            commandControlsToggle.SetIsOnWithoutNotify(
+                commandControlsEnabled);
+            commandControlsToggle.onValueChanged.AddListener(
+                SetCommandControlsEnabled);
         }
 
         private void EnsureGameOverPanel()
@@ -419,6 +477,17 @@ namespace SimpleGame
                 return;
             }
 
+            if (id == HudButtonId.Attack)
+            {
+                AttackCommandButton commandButton =
+                    attackButton != null
+                        ? attackButton.GetComponent<
+                            AttackCommandButton>()
+                        : null;
+                commandButton?.Bind(buttonCallbacks[index]);
+                return;
+            }
+
             if (id == HudButtonId.ContinueAd)
             {
                 BindButton(continueButton, buttonCallbacks[index]);
@@ -472,6 +541,9 @@ namespace SimpleGame
                 experienceSlider == null ||
                 experienceLabel == null ||
                 settingsButton == null ||
+                attackButton == null ||
+                attackButton.GetComponent<AttackCommandButton>() == null ||
+                aimJoystick == null ||
                 modalRoot == null ||
                 cardSelectionPanelPrefab == null ||
                 pauseDetailsPanelPrefab == null ||

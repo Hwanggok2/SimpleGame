@@ -219,6 +219,35 @@ namespace SimpleGame
             return result;
         }
 
+        public void FillEnemiesInRadius(
+            Vector2 center,
+            float radius,
+            List<EnemyBase> results)
+        {
+            if (results == null)
+            {
+                return;
+            }
+
+            results.Clear();
+            float safeRadius = Mathf.Max(0f, radius);
+            float radiusSquared = safeRadius * safeRadius;
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy == null || !enemy.IsAlive)
+                {
+                    continue;
+                }
+
+                float distanceSquared = Vector2.SqrMagnitude(
+                    (Vector2)enemy.transform.position - center);
+                if (distanceSquared <= radiusSquared)
+                {
+                    results.Add(enemy);
+                }
+            }
+        }
+
         public List<EnemyBase> CollectEnemiesAlongSegment(
             Vector2 start,
             Vector2 end,
@@ -249,8 +278,14 @@ namespace SimpleGame
         public Vector2 FindOpenEnemyPosition(
             Vector2 requestedPosition,
             float radius,
-            EnemyBase ignoredEnemy = null)
+            EnemyBase ignoredEnemy = null,
+            bool incomingAllowsEnemyOverlap = false)
         {
+            if (incomingAllowsEnemyOverlap)
+            {
+                return requestedPosition;
+            }
+
             float safeRadius = Mathf.Max(0.1f, radius);
             for (int attempt = 0;
                  attempt < SpawnPositionAttemptCount;
@@ -281,7 +316,9 @@ namespace SimpleGame
 
         public void SeparateEnemy(EnemyBase mover)
         {
-            if (mover == null || !mover.IsAlive)
+            if (mover == null ||
+                !mover.IsAlive ||
+                mover.AllowsEnemyOverlap)
             {
                 return;
             }
@@ -294,7 +331,8 @@ namespace SimpleGame
                 {
                     if (other == null ||
                         other == mover ||
-                        !other.IsAlive)
+                        !other.IsAlive ||
+                        other.AllowsEnemyOverlap)
                     {
                         continue;
                     }
@@ -320,6 +358,11 @@ namespace SimpleGame
 
         public static float GetColliderRadius(Component owner)
         {
+            if (owner is EnemyBase enemy)
+            {
+                return enemy.CollisionRadius;
+            }
+
             CircleCollider2D circle = owner != null
                 ? owner.GetComponent<CircleCollider2D>()
                 : null;
@@ -342,7 +385,8 @@ namespace SimpleGame
             {
                 if (enemy == null ||
                     enemy == ignoredEnemy ||
-                    !enemy.IsAlive)
+                    !enemy.IsAlive ||
+                    enemy.AllowsEnemyOverlap)
                 {
                     continue;
                 }

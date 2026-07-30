@@ -113,14 +113,14 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 |---|---|---|---|---|---|---|---|---|---|---|
 | PH-001 | Player 피격 | Enemy 공격 판정과 Player가 겹침 | Player 생존, 피격 가능 | Enemy 공격력만큼 HP 감소 | HP 갱신 또는 사망 | 기본 최대 HP는 10이며 일반 피격 무적 시간은 미정 | HUD HP, 피격 Flash, 흔들림 | `HealthComponent`, `PlayerRoot`, `EnemyAttackModule` | 공격 판정 밖에서는 HP가 감소하지 않고 HUD 수치가 실제 HP와 일치해야 함 | P0/구현 |
 | PH-002 | Player 사망 및 게임 오버 | Player HP가 0 이하 | Player 생존 상태 | 입력·이동·공격을 차단하고 Death 상태로 전환한 뒤 GameSession에 게임 오버를 전달 | Player 사망 연출과 GameOver UI 표시, Enemy·스폰·게임 시간 정지 | 자동 부활은 사용하지 않음 | Death 모션, GameOver UI | `PlayerRoot`, `HealthComponent`, `GameSession` | Player HP가 0이 된 프레임에 GameOver 상태가 한 번만 발생해야 함 | P0/구현 |
-| PH-003 | 광고 이어하기 Player 부활 | 광고 이어하기 보상 성공 | GameOver 상태, 이어하기 사용 횟수 2회 미만 | 현재 Player 위치에서 최대 HP로 부활시키고 일반 Enemy를 Spawn 경계로 재배치 | Player 생존·입력·게임 시간 재개 | Boss 재배치 여부와 부활 직후 무적 시간은 미정 | 부활 연출 | `PlayerRoot`, `GameSession`, `EnemyWorldRecycler` | 이어하기 후 Player HP가 최대치이고 일반 Enemy가 카메라 밖 Spawn 경계에 있어야 함 | P1/부분 구현 |
+| PH-003 | 광고 이어하기 Player 부활 | 광고 이어하기 보상 성공 | GameOver 상태, 이어하기 사용 횟수 2회 미만 | 현재 Player 위치에서 최대 HP로 부활시킨다. 살아 있는 일반 Enemy는 현재 HP의 50% 피해를 받고 Hurt 모션을 재생하며, 현재 위치에서 바깥쪽 Spawn 경계까지 0.4초 동안 밀려난다. | Player 생존·입력·게임 시간 재개, 일반 Enemy는 절반 HP로 같은 방향의 외곽에서 추적 재개 | Boss는 피해·밀어내기 대상에서 제외한다. 이미 Spawn 경계 바깥인 Enemy를 Player 쪽으로 당기지 않는다. 부활 직후 무적 시간은 미정 | 부활 연출, Enemy Hurt·밀어내기 | `PlayerRoot`, `GameSession`, `EnemyWorldRecycler`, `EnemyMovement` | 이어하기 후 Player HP가 최대치이고 일반 Enemy HP가 직전 값의 절반이며 0.4초 동안 순간이동 없이 바깥쪽으로 밀려나야 함 | P1/구현 |
 
 ## 8. 일반 Enemy 공통 기능
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | EN-001 | Enemy 생성 및 초기화 | StageSpawner 생성 요청 | EnemyDefinition, 레벨, SpawnPoint 준비 | Prefab 인스턴스에 상태와 타깃을 초기화하고 `BaseMaxHp × HpGrowthMultiplier^(유효 레벨-1)`로 현재/최대 HP를 설정 | Enemy가 Spawn 상태로 활성화 | 필수 Definition 또는 Prefab 누락 시 생성 실패를 기록 | Spawn 연출, HP Bar | `PrototypeEnemyFactory`, `EnemyBase`, `EnemyHealth` | 생성 레벨과 난이도 보정값에 맞는 최대 HP가 설정되고 이전 상태가 남지 않아야 함 | P0/구현 |
-| EN-002 | Player 추적 이동 | Enemy Spawn 또는 공격 종료 | Player 생존, Enemy 이동 가능 | Player의 현재 위치를 목표로 이동하고 진행 방향을 갱신 | 공격 범위 진입 시 공격 준비 상태 전환 | 이동속도, 회피 및 Enemy 간 충돌 정책은 데이터 미정 | 이동 애니메이션 | `EnemyMovement`, `EnemyStateMachine` | 방해가 없으면 모든 Enemy가 Player 방향으로 이동해야 함 | P0/구현 |
+| EN-002 | Player 추적 이동 | Enemy Spawn 또는 공격 종료 | Player 생존, Enemy 이동 가능 | Player의 현재 위치를 목표로 이동하고 진행 방향을 갱신한다. 레벨 `L`의 이동 속도는 `V(L)=V_base×min(1.6, 1+0.0125×(max(1,L)-1))`을 적용한다. | 공격 범위 진입 시 공격 준비 상태 전환, 고레벨 Enemy는 기본값보다 점진적으로 빠르게 추적 | 레벨당 1.25% 증가하며 기본 속도의 160%에서 상한을 둔다. 회피 및 Enemy 간 충돌 정책은 EN-010을 따른다. | 이동 애니메이션 | `EnemyDefinition`, `ProgressionCurve`, `EnemyMovement`, `EnemyStateMachine` | L1은 기본 속도, L25는 130%, L49 이상은 160% 속도이며 방해가 없으면 Player 방향으로 이동해야 함 | P0/구현 |
 | EN-003 | 좌우 방향 지연 전환 | Player 추적 중 Player가 Enemy 반대편으로 이동 | Enemy 생존, 방향 잠금 상태 아님 | 반대편 상태가 0.5초 유지될 때만 좌우 방향을 변경하고, 그 전에 복귀하면 예약 전환을 취소 | 추적 이동은 계속되며 바라보는 방향만 지연 갱신 | 상하 이동은 마지막 유효 좌우 방향 유지 | 방향 전환 애니메이션 | `EnemyFacing`, `EnemyStateMachine` | 좌우 변경 후 0.49초에는 기존 방향, 0.5초 이후에는 새 방향이어야 함 | P0/구현 |
 | EN-004 | 공격 방향 잠금과 해제 | 일반 근거리 Enemy 공격 예고 시작 및 실제 판정 종료 | 공격 대상이 Player, Enemy 공격 가능 | 예고 시작 방향을 실제 공격 판정까지 고정하고 판정 종료 후 Player 방향 갱신을 허용 | 공격 중 방향 흔들림 방지, 종료 후 추적 복귀 | 원거리 Enemy는 RA-001의 조준 규칙을 사용 | 공격 예고, 방향 고정 | `EnemyAttackModule`, `EnemyFacing`, `EnemyStateMachine` | 예고 중 Player가 반대편으로 가도 방향이 유지되고 판정 후에는 전환 가능해야 함 | P0/구현 |
 | EN-005 | 화면 밖 일반 Enemy 재배치 | 일반 Enemy가 PlayerWorldArea의 재배치 경계를 벗어남 | Enemy 생존, Boss 아님 | 공격·이동 상태를 취소하고 Player 기준 반대 방향의 더 작은 Spawn 경계로 이동한 뒤 추적 상태를 초기화 | Enemy 종류·레벨·누적 피해를 유지한 채 전투에 복귀 | 사망 중, 화면 안, Boss는 제외. Spawn 경계는 재배치 경계보다 작아야 함 | 화면 밖 처리로 별도 연출 없음 | `PlayerWorldArea`, `EnemyWorldRecycler`, `EnemyBase` | 재배치 직후 Enemy가 다시 재배치 조건에 걸리지 않고 원래 반대편에서 Player를 추적해야 함 | P0/구현 |
@@ -156,7 +156,9 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 | BO-002 | Boss Player 목표 유지 | Boss가 생성되거나 Player 공격을 받음 | Boss 생존, Player 생존 | 피해와 무관하게 이동 목표를 Player로 유지 | Player 방향 이동 지속 | 공격 행동은 Player 공격으로 취소되지 않음 | 피격 연출 | `BossEnemy`, `EnemyStateMachine` | 반복 피격 후에도 Boss 기본 목표가 Player여야 함 | P1/구현 |
 | BO-003 | Boss 공격 주기 | Player가 Boss 공격 범위 안이고 새 주기 시작 가능 | Boss 생존 | 0~1.5초 Player 방향 이동·붉은 영역 표시, 1.5~2.0초 정지·공격, 2.0~3.0초 Player 추적 이동 | 3초마다 조건부 공격 반복 | 영역 모양·크기와 예고 중 Player 이탈 처리 미정 | 붉은 영역, 공격 모션 | `BossAttack`, `BossStateMachine` | 구간별 이동/정지와 공격 판정 시간이 정의와 일치해야 함 | P1/부분 구현 |
 | BO-004 | Boss 피해 처리 | Player가 Boss 공격 | Player 공격력, Boss 최대 HP, 방향과 치명타 결과 | Boss 기본 HP 15와 레벨별 1.7배 성장식을 사용하고 정면 1배, 후면 3배, 치명타 추가 3배 피해를 적용 | HP 0 이하에서 Boss 사망 | Boss 행동은 피격으로 취소하지 않으며 일격 처치 예외 없음 | Boss HP Slider·현재/최대 숫자, 피격 VFX | `BossEnemy`, `EnemyHealth`, `CombatResolver` | 동일 레벨 기준 정면 일반 15회 또는 후면 일반 5회에 처치돼야 함 | P1/구현 |
-| BO-005 | Boss 이어하기 처리 | 광고 이어하기 성공 | Boss 생존 | 현재는 Boss 위치를 유지하고 Player만 부활 | Boss 전투 상태 유지 | Boss 재배치·거리 보정 규칙은 미정 | 필요 시 별도 연출 | `GameSession`, `BossEnemy` | 일반 Enemy 거리 재배치에 Boss가 포함되지 않아야 함 | P1/미정 |
+| BO-005 | Boss 이어하기 처리 | 광고 이어하기 성공 | Boss 생존 | Boss는 현재 위치와 HP를 유지하고 Player만 부활시킨다. 일반 Enemy에 적용하는 현재 HP 50% 피해와 0.4초 밀어내기에서 제외한다. | Boss 전투 상태 유지 | Boss는 이어하기 및 거리 기반 자동 재배치 대상이 아니다. Player 부활 직후 무적 시간은 미정 | 별도 Boss 연출 없음 | `GameSession`, `BossEnemy`, `EnemyWorldRecycler` | 이어하기 전후 Boss 위치와 HP가 같고 일반 Enemy만 피해·밀어내기를 받아야 함 | P1/구현 |
+| BO-006 | Boss 처치 카드·리롤 보상 | Archetype이 `Boss`인 Enemy 사망 | 중복 사망 보상 아님 | 기존 카드 선택 흐름에 선택 1회를 추가하고 공유 리롤을 1회 충전한다. 카드 UI에는 서로 다른 후보 3장을 표시하며 그중 1장을 고른다. | 보스 보상 카드 1장 획득, 리롤 잔여 횟수 갱신 | 리롤은 한 판 최대 3회를 넘지 않는다. 보스 EXP로 동시에 레벨업하면 두 선택 횟수를 모두 누적한다. | `보스 처치 보상` 카드 선택 안내, 교체 횟수 갱신 | `PrototypeGameSession`, `LevelUpCardTable`, `PrototypeHUDView` | 리롤 2회 상태에서 Boss 처치 후 3회가 되고 카드 선택 1회가 열리며, 3회 상태에서는 상한을 유지해야 함 | P0/구현 |
+| BO-007 | Mushroom Boss 전용 사망 독구름 | `MushroomBoss` 사망 | 사망 위치 저장, Player 생존 | 사망 위치에서 1초를 기다린 뒤 반경 1.6의 독구름을 5초간 생성한다. Player가 연속으로 내부에 머문 시간 0.5초마다 피해 1을 적용한다. | 사망 후에도 독구름 위험 지역 유지 | Mushroom은 일반 Enemy로 Spawn하지 않고 WAVE_24 Boss로만 1회 등장한다. 구름 밖으로 나가면 노출 누적을 초기화한다. | 반투명 녹색 독구름 | `PoisonCloudSpawner`, `MushroomPoisonCloud`, `HealthComponent` | 사망 후 0.99초에는 구름이 없고 1초 뒤 생성되며, 내부 5초 체류 시 최대 10회의 피해 판정이 발생해야 함 | P0/구현 |
 
 ### 11.1 Boss 공격 시간표
 
@@ -179,8 +181,8 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| PR-001 | 인게임 경험치 획득 | Enemy 사망 | 보상 지급 가능한 Enemy 사망 | `EnemyDefinition.KillExperience`를 Player에 추가 | 경험치 갱신, 필요량 도달 시 레벨업 | 현재 GoblinMelee/Ranged 2, Shield 0, Boss 5이며 레벨과 독립 | 경험치 획득 피드백 | `PrototypeGameSession`, `PlayerProgression`, `EnemyDefinition` | 현재 데이터에서 GoblinMelee 처치 시 EXP 2가 증가해야 함 | P0/구현 |
-| PR-002 | 인게임 레벨업 | 누적 EXP가 현재 레벨 요구량 이상 | `PlayerLevelExperience`의 현재 레벨 행 | 필요 EXP를 차감하고 Player 레벨을 1 올린 뒤 현재 HP를 최대 HP까지 회복하고 카드 선택을 요청 | HP 완전 회복, 레벨업 카드 UI 표시 | 현재 프로토타입 요구량은 `R(L)=6+2L`이며 1~50레벨까지 정의. 50레벨 행의 0은 상한을 뜻하고, 초과 EXP는 유지한다. 연속 레벨업은 각 레벨업 이벤트마다 회복과 카드 선택 요청을 1회씩 처리한다. | 레벨업 연출과 HP HUD 즉시 갱신 | `PlayerProgression`, `LevelExperienceTable`, `PrototypeGameSession`, `HealthComponent` | HP가 감소한 상태에서 1레벨 EXP 8 도달 시 2레벨, `CurrentHP=MaxHP`, 카드 선택 1회가 함께 성립해야 함 | P0/구현 |
+| PR-001 | 인게임 경험치 획득 | Enemy 사망 | 보상 지급 가능한 Enemy 사망 | `EnemyDefinition.KillExperience`를 Player에 추가 | 경험치 갱신, 필요량 도달 시 레벨업 | 현재 GoblinMelee/Ranged 1, ShieldSkeleton 2, GoblinBoss 8, MushroomBoss 10이며 레벨과 독립 | 경험치 획득 피드백 | `PrototypeGameSession`, `PlayerProgression`, `EnemyDefinition` | 현재 데이터에서 GoblinMelee 처치 시 EXP 1이 증가해야 함 | P0/구현 |
+| PR-002 | 인게임 레벨업 | 누적 EXP가 현재 레벨 요구량 이상 | `PlayerLevelExperience`의 현재 레벨 행 | 필요 EXP를 차감하고 Player 레벨을 1 올린 뒤 현재 HP를 2 회복하고 카드 선택을 요청 | HP 2 회복, 레벨업 카드 UI 표시 | 최대 HP를 넘지 않으며 완전 회복하지 않는다. 요구량은 `R(L)=6+2L+floor(0.025(L-1)^2)`이고 50레벨 행의 0은 상한을 뜻한다. 연속 레벨업은 각 이벤트마다 HP 2 회복과 카드 선택 요청을 1회씩 처리한다. | 레벨업 연출과 HP HUD 즉시 갱신 | `PlayerProgression`, `LevelExperienceTable`, `PrototypeGameSession`, `HealthComponent` | HP 3/10 상태에서 레벨업하면 HP 5/10이 되고 카드 선택 1회가 함께 성립해야 함 | P0/구현 |
 | PR-003 | 능력 카드 3개 추첨 | Player 레벨업 또는 계정 시작 보너스 | `LevelUpCardTable`, 현재 레벨과 카드별 중첩 수 | Enabled·최소 레벨·최대 중첩 조건을 통과한 후보에서 가중치 추첨하며 한 목록 안에서는 같은 카드를 제거해 중복 없이 3개를 구성 | Player가 카드 1개 선택 가능 | 최대 중첩에 도달한 카드는 후보 제외. 계정 시작 보너스는 계정 레벨을 잠금 해제 기준에 반영 | 카드 3개와 현재 중첩 수 | `LevelUpCardTable`, `PrototypeGameSession`, `PrototypeHUDView` | 현재 데이터 기준 레벨업마다 서로 다른 선택지 3개가 표시되고 추가한 카드도 최소 레벨 이후 등장해야 함 | P0/구현 |
 | PR-004 | 치명타 강화 카드 | `CRIT_CHANCE_UP` 선택 | 현재 중첩 5 미만 | 치명타 확률을 5%p 증가시키고 최대 50%로 제한 | 치명타 확률 즉시 갱신 | 최대 5중첩, 최소 레벨 1, 가중치 100 | 카드 이름·설명·현재 레벨 | `CriticalSystem`, `PlayerRoot`, `LevelUpCardTable` | 5회 선택 후 치명타 확률이 25%p 증가하고 추가 후보에서 제외돼야 함 | P0/구현 |
 | PR-005 | 체력 강화 카드 | `MAX_HP_UP` 선택 | 현재 중첩 5 미만 | 최대 HP와 현재 HP를 각각 5 증가 | 생존 여유 증가, HUD HP 즉시 갱신 | 최대 5중첩, 최소 레벨 1, 가중치 100 | HP 증가 표시 | `HealthComponent`, `PlayerRoot`, `LevelUpCardTable` | 피해 상태에서 선택해도 최대/현재 HP가 각각 정확히 5 증가해야 함 | P0/구현 |
@@ -190,15 +192,16 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 | PR-009 | 절단 카드 | `SEVER_TRAIL` 선택 | 관통 카드 1레벨 이상, Player 레벨 3 이상, 절단 미보유 | 실제 관통 시작 위치 `p₀`를 저장하고 0.3초 뒤 Player 현재 위치 `P(t+0.3)`까지 Player 프리팹의 `cutting` 형태로 검은 선분을 생성한다. 선분과 겹친 모든 Enemy에게 `2×A_side` 피해를 준다. | 일반 공격 피해와 절단 피해가 함께 적용 | 발동 예약 간격 0.1초. 예약된 절단은 각각 0.3초 뒤 독립적으로 활성화된다. 최대 1레벨, 가중치 45 | 완성된 검은 선분이 즉시 나타나 0.1초간 선형 페이드 | `PlayerCombatAbilities`, `SlashTrailEffect`, `CombatGeometry` | 0.1초 간격으로 예약된 각 절단이 0.3초 뒤 독립적으로 활성화되고, 선분의 모든 겹친 Enemy가 2배 피해를 받아야 함 | P0/구현 |
 | PR-010 | 흡혈 카드 | `HIT_HEAL` 선택 | Player 레벨 4 이상, 현재 중첩 3 미만 | Player 공격으로 Enemy를 처치할 때마다 5% 확률로 `V(L)=2L`만큼 HP를 회복한다. 카드를 다시 선택할 때마다 `L`이 1 증가한다. | L1/L2/L3 성공 회복량 2/4/6, 처치당 기대 회복량 `E[V]=0.05×2L=0.1L` | 확률은 레벨과 무관하게 5% 고정. 최대 HP를 초과하지 않음. 직접·관통·절단·정전기·참격·이기어검으로 처치한 Enemy마다 한 번 판정. 최대 3레벨, 가중치 55 | 회복 수치 또는 효과 | `PlayerCombatAbilities`, `HealthComponent`, `LevelUpCardTable` | 비처치 타격에는 발동하지 않고 L1/L2/L3 처치 성공 시 각각 HP 2/4/6을 회복하며, 카드 레벨이 달라도 판정 확률은 5%여야 함 | P0/구현 |
 | PR-011 | 정전기 카드 | `STATIC_CHARGE` 선택 | Player 레벨 4 이상, 현재 중첩 5 미만 | 주 대상은 기본 방향 피해 `A_side`에 `0.75A_side`를 추가한다. 주변 `N(L)=2L+1`명은 각각 `0.75A_side` 피해를 받는다. | L1~L5 주변 대상 수 3/5/7/9/11 | 탐색 반경 3.2 안의 가까운 Enemy, 직접 공격·관통 대상은 주변 목록에서 제외. 최대 5레벨, 가중치 60 | 주 대상에서 주변으로 이어지는 폭 0.035의 얇은 하늘색 선 | `PlayerCombatAbilities`, `SlashTrailEffect`, `PrototypeGameSession` | L5에서 주 대상 총 피해가 `1.75A_side`, 주변 최대 11명이 각각 `0.75A_side` 피해를 받아야 함 | P0/구현 |
-| PR-012 | 참격 카드 | `MOVING_SLASH` 선택 | Player 레벨 3 이상, 현재 중첩 5 미만, 이동 명령 발생 | 이동 방향으로 참격 투사체를 생성한다. 확률 `p(L)=10%+3%(L-1)`, 최대 적중 `H(L)=L`, 크기 `S(L)=1+0.1(L-1)`, 피해 `1.5A_side`를 적용한다. 명령 거리 `d`의 최대 속도 `v_cap=d/0.15`이며, 비최대 상태의 현재 기본 이동 속도 스탯을 `v_stat`이라 할 때 `v_slash=min(3v_stat,v_cap)`을 사용한다. 이동 속도 최대 레벨에서는 `v_slash=v_cap`을 사용하며 접근·이탈 상태 배율은 참격 산식에 중복 적용하지 않는다. | L1~L5 확률 10/13/16/19/22%, 최대 적중 1~5, 크기 100~140%. 이동 속도 최대 레벨에서는 참격도 같은 명령 거리의 `v_cap`으로 이동 | 같은 Enemy는 투사체당 한 번만 피해. 최대 적중 수를 소진한 뒤에는 추가 피해 없이 0.1초 선형 페이드 후 제거한다. 후면 공격 배율 적용 시 `4.5A`. 최대 5레벨, 가중치 65 | 이동 진행률에 맞춰 재생되고 적중 한도 또는 사거리 도달 뒤 페이드하는 흰색·청색 6프레임 초승달 검기 | `PlayerCombatAbilities`, `MovingSlashProjectile` | L1은 첫 Enemy 명중 후 추가 피해 없이 0.1초 안에 사라지고, L5는 최대 5명까지 관통하며 후면 피해가 4.5배여야 한다. 비최대 이동은 기본 이동 속도 스탯의 3배, 최대 이동은 같은 명령 거리의 Player 상한 속도를 넘지 않아야 함 | P0/구현 |
+| PR-012 | 참격 카드 | `MOVING_SLASH` 선택 | Player 레벨 3 이상, 현재 중첩 5 미만, 이동 명령 발생 | 이동 방향으로 참격 투사체를 생성한다. 확률 `p(L)=10%+3%(L-1)`, 최대 적중 `H(L)=L+1`, 크기 `S(L)=1+0.15(L-1)`, 사거리 `D(L)=6+1.5(L-1)`, 피해 배율 `M(L)=1.8+0.35(L-1)`을 적용한다. 비최대 이동 속도에서는 현재 기본 이동 속도 스탯 `v_stat`에 대해 `v_slash=3v_stat`, 이동 속도 최대 레벨에서는 `v_slash=D(L)/0.15`를 사용하며 접근·이탈 상태 배율은 중복 적용하지 않는다. | L1~L5 확률 10/13/16/19/22%, 최대 적중 2/3/4/5/6, 크기 100/115/130/145/160%, 사거리 6/7.5/9/10.5/12, 피해 1.8/2.15/2.5/2.85/3.2배 | 같은 Enemy는 투사체당 한 번만 피해. 최대 적중 수 소진, 사거리 도달 또는 1.5초 보호시간 만료 시 추가 피해를 중단하고 0.1초 선형 페이드 후 제거한다. 최대 5레벨, 가중치 65 | 사거리 진행률에 맞춰 재생되고 종료 조건 뒤 페이드하는 흰색·청색 6프레임 초승달 검기 | `PlayerCombatAbilities`, `MovingSlashProjectile` | L1/L5가 각각 최대 2/6명을 타격하고 피해·크기·사거리가 표의 값과 일치해야 한다. 짧은 이동 입력에서도 투사체가 멈춰 남지 않고 사거리 도달 또는 보호시간 뒤 제거돼야 함 | P0/구현 |
 | PR-013 | 방패 우회 카드 | `SHIELD_BYPASS` 선택 | Player 레벨 3 이상, 현재 중첩 3 미만 | 방패병 정면 공격의 반동이 발생할 때 확률 `p(L)=min(30%,10%×L)`을 판정해 성공 시 넉백과 0.5초 조작 불가를 모두 무시한다. | L1/L2/L3 우회 확률 10/20/30% | ShieldEnemy 정면 반동에만 적용. 일반 Enemy와 Boss에는 우회 판정 자체를 하지 않음. 가중치 55 | 우회 성공 안내 | `PlayerCombatAbilities`, `PlayerController` | 같은 난수 조건에서 L1/L2/L3의 성공 경계가 0.1/0.2/0.3이고 우회 시 입력 잠금이 없어야 함 | P0/구현 |
+| PR-014 | 필드 체력 회복 오브젝트 | 플레이 시간이 다음 20초 생성 시점에 도달 | 게임 상태 `Playing`, Player·월드 경계·프리팹 준비 | Player 주변 재사용 월드의 Spawn 경계 안에서 Player와 2.5 이상 떨어진 무작위 위치를 최대 8회 탐색해 생성한다. 접촉 중 HP가 부족하면 5 회복하고 소비한다. | HP가 최대치까지 5 회복되고 오브젝트 제거 | 첫 생성과 반복 간격 20초, 동시 최대 3개, 미획득 시 45초 후 만료. 최대 HP일 때는 소비하지 않는다. Pause·카드 선택·GameOver 중 생성 타이머가 진행되지 않는다. | 붉은 오브와 흰색 십자 표시 | `HealthPickupSpawner`, `HealthPickup`, `PlayerWorldArea`, `HealthComponent` | HP 3/10에서 획득하면 8/10, HP 8/10이면 10/10, 10/10이면 남아 있어야 함 | P0/구현 |
 
 ## 14. 점수 및 계정 성장 기능
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | SC-001 | 일반 Enemy 처치 점수 | 일반 Enemy 사망 | 중복 보상 아님 | `EnemyDefinition.Score`만큼 점수 추가 | 현재 점수 갱신 | 현재 GoblinMelee/Ranged 5, Shield 0이며 레벨과 독립 | 점수 증가 표시 | `PrototypeGameSession`, `EnemyDefinition` | GoblinMelee 처치 시 현재 데이터 기준 5점 증가해야 함 | P0/구현 |
-| SC-002 | Boss 처치 점수 | Boss 사망 | 중복 보상 아님 | `EnemyDefinition.Score`만큼 점수 추가 | 현재 점수 갱신 | 현재 GoblinBoss 25 | 보스 점수 표시 | `PrototypeGameSession`, `EnemyDefinition` | GoblinBoss 처치 시 현재 데이터 기준 25점 증가해야 함 | P1/구현 |
+| SC-002 | Boss 처치 점수 | Boss 사망 | 중복 보상 아님 | `EnemyDefinition.Score`만큼 점수 추가 | 현재 점수 갱신 | 현재 GoblinBoss 50, MushroomBoss 70 | 보스 점수 표시 | `PrototypeGameSession`, `EnemyDefinition` | GoblinBoss와 MushroomBoss 처치 시 각각 50점과 70점이 증가해야 함 | P1/구현 |
 | SC-003 | 생존 점수 | 생존 시간 증가 또는 게임 종료 | Player 생존 시간 | 정의된 수식에 따라 시간 점수 계산 | 최종 점수에 합산 | 1분 3, 2분 5, 3분 7 예시만 존재하며 수식·누적 방식 미정 | HUD 또는 결과 화면 | `ScoreSystem`, `GameSession` | 수식 확정 전 구현 보류 | P1/미정 |
 | AC-001 | 계정 경험치 변환 | 최종 결과 확정 | 최종 점수 | `floor(최종 점수÷5)` 계산, 나머지 점수 폐기 | 계정 EXP 증가 | 음수 점수 없음 | 결과 화면 획득 EXP | `AccountProgression` | 19점은 EXP 3, 20점은 EXP 4가 돼야 함 | P1/확정 |
 | AC-002 | 계정 레벨업 | 계정 EXP가 요구량 도달 | 계정 레벨별 요구 EXP | 요구 EXP를 차감하고 계정 레벨 증가 | 다음 게임 시작 레벨 성장에 사용 | 5레벨 이후 요구량, 최대 레벨과 시작 레벨 변환 규칙 미정 | 계정 레벨업 표시 | `AccountProgression`, `SaveService` | 1레벨 EXP 40 도달 시 2레벨이 돼야 함 | P1/부분 확정 |
@@ -227,17 +230,18 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 | UI-009 | UI 프리팹 생명주기 | 씬 로드 및 UI 표시 이벤트 | HUD·CardSelection·PauseDetails·GameOver 프리팹 | 상시 HUD 프리팹 1개만 씬에 배치하고 일시 UI는 첫 표시 요청 시 생성한 뒤 비활성 상태로 재사용한다. 씬에서 `DebugButtons`, 미사용 상시 Text와 일시 패널을 제거한다. | 씬 계층 단순화와 UI별 독립 편집 | Popup 프리팹 참조 누락 시 View가 명시적 오류를 출력한다 | `PrototypeHUD/ModalRoot` | `PrototypeHUDView`, `PrototypeSceneBuilder` | 씬 YAML에 DebugButtons와 일시 패널 이름이 없고 Play Mode에서 세 일시 UI가 각각 필요 시 생성돼야 함 | P0/구현 |
 | UI-010 | 설정 버튼 Pause 토글 | 우측 상단 설정 버튼 클릭 | `PrototypeHUD`의 Canvas 직속 마지막 자식 `SettingsButton` | PC ESC 입력과 같은 `PrototypeGameSession.TogglePause`를 호출한다. Pause 패널 위에서도 버튼이 입력되며 해제 시 이전 Playing·CardSelection·GameOver 상태와 TimeScale로 복귀한다. | 모바일에서도 ESC와 동일한 Pause 상세 화면을 열고 닫음 | 카드 선택으로 복귀할 때 TimeScale은 0, 그 외 상태는 1 | 우측 상단 설정 버튼 | `PrototypeHUDView`, `PrototypeHUDPresenter`, `PrototypeGameSession` | 각 게임 상태에서 버튼을 두 번 누르면 `상태→Paused→원래 상태`가 되고 Pause 패널이 닫혀야 함 | P0/구현 |
 | UI-011 | 카드 개별 리로드 | 카드 선택 화면에서 카드 우측 상단 `교체 N` 클릭 | 선택 입력 잠금 해제, 남은 공유 리로드 1회 이상, 현재 카드 외 적격 후보 존재 | 현재 표시된 세 CardId를 모두 제외해 누른 슬롯 하나만 다른 카드로 다시 추첨하고 성공한 경우에만 한 판 공유 예산을 차감한다. 시작 카드와 레벨업 카드가 같은 3회 예산을 사용한다. | 다른 두 슬롯은 유지되고 세 버튼의 잔여 횟수가 함께 갱신됨 | 한 판 최대 3회. 후보 없음·입력 잠금·0회이면 차감 없이 비활성화 | 각 카드 우측 상단 `교체 3→2→1→0` | `PrototypeGameSession`, `LevelUpCardTable`, `LevelUpCardView`, `PrototypeHUDView` | 세 번의 성공 교체 후 예산이 0이고 세 버튼이 모두 비활성화되며, 어느 교체에서도 현재 세 카드 간 중복이 없어야 함 | P0/구현 |
+| UI-012 | 조작 패드 표시 설정 | Pause 상세 화면의 `조작 패드 표시` 토글 변경 | `PrototypeHUD`와 `PauseDetailsPanel` 생성 완료 | 토글을 끄면 좌측 `AimJoystickControl`을 먼저 비활성화해 조준 입력·Pointer·가이드를 해제하고 우측 공격 버튼도 숨긴다. 켜면 두 Control을 다시 활성화한다. | 모바일 조작 패드 표시 상태 변경 | 기본값은 켜짐이며 실행 중인 한 판에만 유지한다. 이미 발행된 이동·공격 명령과 기존 월드 직접 터치는 유지한다. | Pause 하단 토글, 좌·우 Control 표시/숨김 | `PrototypeHUDView`, `AimJoystickControl`, `PauseDetailsPanel.prefab` | OFF에서 두 Control이 비활성이고 조준이 해제되며, ON에서 둘 다 복구되고 Toggle 상태와 View 상태가 일치해야 함 | P0/구현 |
 
 ## 16. 데이터 및 Spawn 기능
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| DA-001 | Enemy 밸런스 로드 | GameSession 초기화 | `GameDataManifest`, `EnemyBalanceTable`, `EnemyAssetCatalog` | EnemyId로 수치 Definition과 Prefab을 각각 조회하고 Archetype 일치 여부 검증 | EnemyFactory가 동일 ID의 수치와 Prefab으로 Enemy 생성 가능 | 중복·누락 ID, Prefab 누락, Archetype 불일치는 실행 전 오류 처리 | 없음 | `GameDataManifest`, `EnemyBalanceTable`, `EnemyAssetCatalog`, `EnemyFactory` | 4종 EnemyId 조회 성공, 잘못된 ID와 잘못된 Prefab 매핑은 검증에서 거부돼야 함 | P0/구현 |
-| DA-002 | 10분 스폰 일정 로드 | Stage 시작 | Excel 변환 결과인 `StageSpawnSchedule` | StageId 행을 시간, WaveId, SpawnIndex 순으로 정렬해 60개 Wave·2,578개 Spawn을 준비한다. 마지막 생성 시점은 599.6초다. | 10분 전체 게임 시간 기반 Spawn 준비 완료 | 동일 Stage·Wave·SpawnIndex 중복 불가, 필수 문자열과 음수 시간은 importer에서 거부 | 없음 | `GameDataManifest`, `StageSpawnSchedule`, `StageSpawnController` | 첫 2분 누적 250마리, 전체 2,578마리이며 마지막 행 시간이 599.6초여야 함 | P0/구현 |
-| DA-003 | Player·레벨·카드 밸런스 로드 | Player 초기화, 레벨업 또는 점수 정산 | Player/Account EXP, GlobalBalance, PlayerBalance, LevelUpCardTable | Player 기본 HP·공격력·성장률·기본 이동 속도·접근/이탈 배율·도착 허용 거리·사거리와 PR-004~013 카드 규칙을 Manifest에서 전달 | Player 전투·이동·카드와 계정 EXP가 데이터값을 사용 | 없는 PlayerId, 비연속 EXP 레벨, 잘못된 카드 Stat/중첩/가중치·선행 카드 참조는 importer에서 거부 | 없음 | `GameDataManifest`, `PlayerBalanceTable`, `LevelUpCardTable`, `PlayerProgression` | 기본 속도 10, 접근 1.1배, 이탈 1.2배와 10종 카드의 값·최대 레벨·선행 조건이 로드돼야 함 | P0/구현 |
+| DA-001 | Enemy 밸런스 로드 | GameSession 초기화 | `GameDataManifest`, `EnemyBalanceTable`, `EnemyAssetCatalog` | EnemyId로 수치 Definition과 Prefab을 각각 조회하고 Archetype 일치 여부 검증 | EnemyFactory가 동일 ID의 수치와 Prefab으로 Enemy 생성 가능 | 중복·누락 ID, Prefab 누락, Archetype 불일치는 실행 전 오류 처리 | 없음 | `GameDataManifest`, `EnemyBalanceTable`, `EnemyAssetCatalog`, `EnemyFactory` | GoblinMelee, GoblinRanged, ShieldSkeleton, GoblinBoss, MushroomBoss 5종 조회가 성공해야 함 | P0/구현 |
+| DA-002 | 10분 스폰 일정 로드 | Stage 시작 | Excel 변환 결과인 `StageSpawnSchedule` | StageId 행을 시간, WaveId, SpawnIndex 순으로 정렬해 60개 Wave·3,283개 Spawn을 준비한다. 마지막 생성 시점은 594.29초다. | 10분 전체 게임 시간 기반 Spawn 준비 완료 | 동일 Stage·Wave·SpawnIndex 중복 불가, 필수 문자열과 음수 시간은 importer에서 거부 | 없음 | `GameDataManifest`, `StageSpawnSchedule`, `StageSpawnController` | 전체 3,283마리이며 WAVE_24 Boss 행이 MushroomBoss이고 마지막 행 시간이 600초 미만이어야 함 | P0/구현 |
+| DA-003 | Player·레벨·카드 밸런스 로드 | Player 초기화, 레벨업 또는 점수 정산 | Player/Account EXP, GlobalBalance, PlayerBalance, LevelUpCardTable | Player 기본 HP·공격력·성장률·기본 이동 속도·접근/이탈 배율·도착 허용 거리·사거리와 PR-004~013 카드 규칙을 Manifest에서 전달 | Player 전투·이동·카드와 계정 EXP가 데이터값을 사용 | 없는 PlayerId, 비연속 EXP 레벨, 잘못된 카드 Stat/중첩/가중치·선행 카드 참조는 importer에서 거부 | 없음 | `GameDataManifest`, `PlayerBalanceTable`, `LevelUpCardTable`, `PlayerProgression` | 기본 속도 10, 접근 1.1배, 이탈 1.2배와 12종 카드의 값·최대 레벨·선행 조건이 로드돼야 함 | P0/구현 |
 | DA-004 | Excel→Generated SO 가져오기 | `Planning/GameData_10min_Balance.xlsx` 저장 후 `SimpleGame > 데이터 > 엑셀 불러오기` 실행 | `EnemyBalance`, `StageSpawn`, `PlayerLevelExp`, `AccountLevelExp`, `GlobalBalance`, `PlayerBalance`, `LevelUpCard` 시트 | 열 이름·숫자 범위·ID 참조·중복·레벨 연속성·Unity Prefab 및 활성 Scene SpawnPoint 참조를 전부 검증한 뒤 `Assets/Game/Data/Generated` 에셋을 일괄 갱신 | 검증된 10분 데이터가 기존 Manifest 참조를 통해 다음 실행부터 즉시 반영 | `.xlsx`만 지원하고 수식 셀은 허용하지 않음. 오류가 하나라도 있으면 기존 정상 SO를 변경하지 않음 | Editor 완료/실패 Dialog와 Console 로그 | `GameDataExcelImporter`, `OpenXmlWorkbookReader`, `GameDataAssetBuilder` | 정상 파일은 7개 필수 시트와 2,578개 Spawn을 같은 SO에 반영하고 오류 파일은 기존 SO를 보존해야 함 | P0/구현 |
 | SP-001 | 시간 기반 Enemy Spawn | 게임 시간이 Spawn 행의 생성 시점에 도달 | `StageSpawnSchedule`, Player 기준 32개 SpawnPoint, `EnemyFactory` | SpawnPointId를 Player 주변 경계 Transform으로 변환하고 지정 EnemyId·레벨로 생성 요청한 뒤 EN-010으로 열린 위치를 찾는다. | 지정 Enemy가 현재 Player 주변의 지정 방향에 한 번 생성 | SpawnPoint 또는 EnemyId 누락 시 오류를 기록하고 해당 행만 건너뜀 | Spawn 연출 선택 | `StageSpawnController`, `SpawnPointRegistry`, `PrototypeEnemyFactory` | Player가 원점에서 멀어진 뒤에도 현재 Player 주변에 생성되고 같은 위치에 겹쳐 생성되지 않아야 함 | P0/구현 |
-| SP-002 | 시간 증가형 몬스터 밀도 | Wave 13 이후 각 Wave 시작 | Wave 번호 `w`, 10초 Wave 간격 | 1~12 Wave의 기존 250마리를 유지하고 이후 Wave 수를 `N(w)=40+ceil((w-12)/3)`로 증가시킨다. 근접·원거리·방패 비율과 보스 Wave는 유지하되 Enemy 레벨 상승폭은 기존 곡선의 80%로 완화한다. | 1분별 Spawn 수 69/181/249/261/273/285/297/309/321/333 | 보스는 12 Wave 간격, SpawnPoint는 같은 위치 연속 사용을 피하고 32개를 순환 | 후반으로 갈수록 높은 화면 밀도를 유지하면서 레벨 격차를 완화 | `GameData_10min_Balance.xlsx`, `StageSpawnSchedule` | W60은 56마리이고 전체 2,578마리, 평균 레벨 차이 최대 1.5 이하여야 함 | P0/구현 |
+| SP-002 | 시간 증가형 몬스터 밀도 | Wave 13 이후 각 Wave 시작 | Wave 번호 `w`, 10초 Wave 간격 | Wave별 4마리에서 124마리까지 점진 증가시키고 근접·원거리·방패 비율과 Boss Wave를 유지한다. | 1분별 Spawn 수 43/92/141/197/263/335/414/501/598/699 | Boss는 12 Wave 간격, SpawnPoint는 같은 위치 연속 사용을 피하고 32개를 순환 | 후반으로 갈수록 높은 화면 밀도를 유지하면서 평균 레벨 격차를 2.0 이하로 유지 | `GameData_10min_Balance.xlsx`, `StageSpawnSchedule` | W60은 124마리이고 전체 3,283마리, 평균 레벨 차이 최대 2.0이어야 함 | P0/구현 |
 | PL-001 | Enemy Pool 재사용 | Enemy 생성 또는 사망 애니메이션 종료 | Source Prefab별 비활성 Stack과 인스턴스 매핑 | 요청 시 같은 Source Prefab의 비활성 인스턴스를 우선 획득하고, 없을 때만 생성한다. 반환 시 World 등록을 해제하고 HP·Collider·이동·공격·Boss 주기·방패·방향·Animator 상태를 초기화한다. 재사용 때 `SpawnGeneration`을 증가시켜 장기 참조가 이전 생명과 새 생명을 구분한다. | 반복 Instantiate/Destroy 감소와 동일 Prefab 인스턴스 재사용 | Source Prefab마다 비활성 64개까지 보관하고 초과분만 파괴한다. 다른 Prefab의 인스턴스는 절대 교차 재사용하지 않는다. | 없음 | `PrototypeEnemyFactory`, `EnemyBase` | 근접·원거리·방패·Boss가 같은 인스턴스로 재생성되고 전체 상태와 세대가 초기화되며, 장기 생존 공격·이동 명령이 새 세대 Enemy를 이전 대상으로 오인하지 않아야 함 | P0/구현 |
 
 ## 17. 저장 기능
@@ -271,7 +275,7 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 
 | 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AD-001 | 광고 이어하기 요청 | ContinueAd 버튼 클릭 | Player 사망 GameOver, 사용 횟수 2회 미만, 앱인토스 광고 지원 환경 | `AIT.LoadFullScreenAd()`의 `loaded` 이후 `AIT.ShowFullScreenAd()`를 호출하고 `userEarnedReward` 이벤트만 GameSession에 전달 | 보상 이벤트 수신 시 Player 최대 HP 부활과 일반 Enemy 재배치 실행 | 표시·노출·닫힘만으로 보상하지 않음. 실패, 취소, No Fill과 중복 콜백 정책은 구현 전 확정 | 광고 로딩/실패 UI | 앱인토스 `AdService`, `ContinuePresenter` | `userEarnedReward` 수신 전에는 Player가 부활하지 않고, 한 요청에서 보상이 한 번만 지급되어야 함 | P1/부분 확정 |
+| AD-001 | 광고 이어하기 요청 | ContinueAd 버튼 클릭 | Player 사망 GameOver, 사용 횟수 2회 미만, 앱인토스 광고 지원 환경 | `AIT.LoadFullScreenAd()`의 `loaded` 이후 `AIT.ShowFullScreenAd()`를 호출하고 `userEarnedReward` 이벤트만 GameSession에 전달 | 보상 이벤트 수신 시 Player를 최대 HP로 부활시키고, 살아 있는 일반 Enemy에 현재 HP 50% 피해와 Hurt를 적용한 뒤 0.4초 동안 바깥쪽 Spawn 경계로 밀어낸다. | Boss는 피해·밀어내기에서 제외한다. 표시·노출·닫힘만으로 보상하지 않으며 실패, 취소, No Fill과 중복 콜백 정책은 구현 전 확정 | 광고 로딩/실패 UI, Enemy Hurt·밀어내기 | 앱인토스 `AdService`, `ContinuePresenter`, `EnemyWorldRecycler` | `userEarnedReward` 수신 전에는 Player가 부활하지 않고, 보상 후 일반 Enemy HP가 절반이며 순간이동 없이 밀려나고 한 요청에서 보상이 한 번만 지급되어야 함 | P1/부분 확정 |
 | AD-002 | 경험치 2배 광고 | 결과 화면 또는 정의된 시점 | 광고 시청 가능 | 광고 성공 시 대상 경험치를 2배 적용 | 경험치 보상 증가 | 인게임/계정 EXP 중 대상, 사용 시점과 횟수 미정 | 보상 광고 UI | `AdService`, `AccountProgression` 또는 `ExperienceSystem` | 규칙 확정 전 구현 보류 | P2/미정 |
 
 ### 20.1 앱인토스 출시 기능
@@ -323,7 +327,7 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 - 절단: 실제 관통 후 `t+0.3`에 선분 `[p₀, P(t+0.3)]` 생성, 예약 간격 0.1초, 각 예약은 독립적으로 활성화, 겹친 Enemy 피해 `2A_side`
 - 흡혈: `L∈[1,3]`, 성공 회복량 `V(L)=2L`, 성공 확률 5% 고정, 처치당 기대 회복량 `E[V]=0.05×2L=0.1L HP`
 - 정전기: 주 대상 `1.75A_side`, 주변 `N(L)=2L+1`명에게 각각 `0.75A_side`
-- 이동 참격: `p(L)=0.10+0.03(L-1)`, `H(L)=L`, `S(L)=1+0.1(L-1)`, 비최대 시 `v_slash=min(3v_stat,d/0.15)`, 최대 시 `v_slash=d/0.15`, 피해 `1.5A_side`
+- 이동 참격: `p(L)=0.10+0.03(L-1)`, `H(L)=L+1`, `S(L)=1+0.15(L-1)`, `D(L)=6+1.5(L-1)`, `M(L)=1.8+0.35(L-1)`, 비최대 시 `v_slash=3v_stat`, 최대 시 `v_slash=D(L)/0.15`, 피해 `M(L)A_side`
 - 방패 우회: `p(L)=min(0.30,0.10L)`, ShieldEnemy 정면 반동에만 적용
 
 ## 23. 현재 미정으로 남은 핵심 항목
@@ -331,11 +335,11 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 다음 항목은 기능 구조는 정의됐지만 최종 동작 또는 수치가 필요하다.
 
 1. 광고 이어하기 직후 Player 무적 시간
-2. 일반 Enemy별 최종 이동속도, 공격력, 범위와 예고 수치
+2. 일반 Enemy별 최종 공격력, 범위와 예고 수치
 3. 하늘색 접근 범위와 최종 터치 보정 반경
 4. Boss 등장 WARNING 시간
 5. Boss 공격 영역 모양·크기와 예고 중 Player 이탈 처리
-6. 최종 Boss 레벨과 거리 제한·재배치 여부
+6. 최종 Boss 레벨과 거리 제한 규칙
 7. 생존 점수 수식과 누적 방식
 8. 50레벨 이후 Player 레벨 상한 확장 여부와 다중 레벨업 처리
 9. 계정 5레벨 이후 요구 EXP와 최대 레벨
@@ -350,8 +354,7 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 18. Player 반동 넉백 거리와 이동 시간
 19. 일반 타격, 치명타와 정면 반동별 최종 화면 흔들림 수치
 20. 4종 맵 원본의 최종 장식·장애물 구성과 연결 규칙
-21. 일반 Enemy 재배치 시 누적 피해 유지의 최종 밸런스
-22. 후반 2,578마리 밀도에서 동시 활성 Enemy 상한과 풀링 확장 정책
+21. 후반 2,578마리 밀도에서 동시 활성 Enemy 상한과 풀링 확장 정책
 
 ## 24. 기능 완료 조건
 
@@ -365,3 +368,25 @@ Enemy 종류와 레벨 기반의 과거 우선순위 목록은 현재 직접 조
 - 미정 수치를 임의로 확정값처럼 구현하지 않는다.
 - UI 기능은 enum 바인딩 누락과 Listener 중복을 검증한다.
 - 전투 계산 기능은 기획 타격 횟수 표와 일치하는 Edit Mode 테스트를 가진다.
+
+## 25. 3차 전투 콘텐츠 확정 기능
+
+| 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| EN-008 | Flying Eye 겹침 허용 | `FlyingEye` 또는 `FlyingEyeBoss` Spawn·이동·이어하기 밀치기 | Enemy Definition 로드 완료 | 생성 위치 탐색과 이동 분리에서 Flying Eye가 포함된 쌍을 양방향으로 제외한다. | 지상 Enemy·다른 Flying Eye와 같은 위치를 점유할 수 있다. | 공격 대상 검색과 피격 판정에서는 제외하지 않는다. 지상 Enemy끼리의 기존 분리는 유지한다. | Flight 이동 모션 | `EnemyDefinition.AllowsEnemyOverlap`, `EnemyWorldService`, `PrototypeEnemyFactory`, `EnemyBase` | 생성 순서가 어느 쪽이든 Flying Eye 쌍은 겹치고 지상 Enemy 쌍은 분리돼야 한다. | P0/구현 |
+| BO-008 | 4종 보스 순서 | 지정 Wave Spawn | Stage01 진행 중 | WAVE_12 `GoblinBoss`, WAVE_24 `MushroomBoss`, WAVE_36 `FlyingEyeBoss`, WAVE_60 `SkeletonBoss`를 각각 한 번 생성한다. | 총 4회의 보스전이 정해진 순서로 진행된다. | 기존 WAVE_48 보스 행은 일반 `FlyingEye`로 교체한다. 총 스폰 수는 3,283을 유지한다. | 보스 HP Bar와 레벨 표시 | `StageSpawn`, `EnemyAssetCatalog`, `EnemyBalance` | 보스 ID가 정확히 네 번, 지정 순서로만 나타나야 한다. | P0/구현 |
+| BO-009 | 보스 2패턴 교대 | 보스가 다음 공격 범위에 진입 | 보스 생존, Player 생존 | EnemyId별 Attack1/Attack2 범위를 선택하고 실제 발동 때마다 1→2→1 순서로 전진한다. 시작 위치와 방향을 고정해 같은 Transform으로 경고와 실제 판정을 계산한다. | 네 보스 모두 서로 다른 두 공격 모션과 범위를 사용한다. | Windup 중 취소되면 같은 패턴을 재시도하고, Pool 재사용 시 Attack1부터 초기화한다. 피해는 공통 Enemy Definition 값을 사용한다. | 붉은 ForwardBox 또는 CenteredBox, Attack/Attack2 애니메이션 | `BossAttackModule`, `BossAttackPattern`, `CharacterSpriteAnimator` | 네 ID가 서로 다른 두 패턴을 반환하고 경고 영역과 판정 결과가 일치해야 한다. | P0/구현 |
+| BO-010 | SkeletonBoss 정면 방패 | `SkeletonBoss`가 Player 공격을 정면에서 받음 | Boss AI 유지, 정면/후면 판정 완료 | Archetype은 `Boss`로 유지하고 `BlocksFrontAttacks` 기능 판정만 일반 ShieldSkeleton과 공유한다. | 생존 가능한 정면 일반 타격은 반동·관통 차단, 후면과 치명타는 정상 처리된다. | Shield 전용 접근 대기 AI와 접근 범위 표시는 사용하지 않는다. 방패 우회 카드 확률은 적용한다. | 정면 반동 또는 방패 우회 안내 | `EnemyDefinition`, `CombatResolver`, `PlayerCombatAbilities`, `PlayerController` | 정면 비치명타만 반동·관통 차단이 발생하고 `SkeletonBoss.Archetype`은 Boss여야 한다. | P0/구현 |
+| PR-015 | 오물 투척 카드 | `FILTH_THROW` 보유 중 자동 재사용 시점 도달 | Player 레벨 3 이상, 현재 중첩 5 미만, Playing | 한 번의 재사용에 현재 레벨과 같은 수의 구체를 서로 독립된 화면 안 무작위 안전 위치로 동시에 던진다. 각 구체는 0.45초 포물선 이동 후 3초 장판을 만들고 0.5초마다 범위 안 모든 Enemy를 다시 검색해 피해를 준다. | 레벨별 동시 투척 수 1/2/3/4/5, 틱 피해 배율 0.35/0.45/0.55/0.65/0.75, 반경 1.2/1.35/1.5/1.65/1.8, 재사용 6/5.5/5/4.5/4초 | 장판당 총 6틱이며 서로 겹쳐 피해가 중첩될 수 있다. 카메라 경계에서 반경+0.25만큼 안쪽을 목표로 선택한다. Pause·카드 선택 중에는 시간이 진행되지 않는다. | 갈색 구체 여러 개, 올리브·갈색 반투명 장판 | `PlayerCombatAbilities`, `FilthProjectile`, `EnemyWorldService`, `LevelUpCardTable` | L1~L5 투척 수·수치, 3초=6틱, 포물선 시작·정점·종료, 목표 위치의 화면 내 포함과 비할당 반경 수집을 검증해야 한다. | P0/구현 |
+
+## 26. 4차 모바일 조작 확정 기능
+
+| 기능 ID | 기능명 | 사용 시점/Trigger | 선행조건/입력 | 처리 방식 | 결과/출력 | 예외/제약 | UI/연출 | 담당 시스템/데이터 | 검증 기준 | 우선순위/상태 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| IN-003 | 조준 모드 진입 | 좌측 조이스틱 Pointer Down | `Playing`, Player 생존·입력 가능 | 진행 중인 이동·공격 명령에는 개입하지 않고 PointerId를 소유한 뒤 독립된 조준 상태로 진입한다. | 기존 명령 유지, 조준 입력 시작 | 조이스틱을 누른 손가락 외 Pointer는 드래그·해제를 변경하지 못한다. | 좌측 원형 패드와 Knob | `AimJoystickControl`, `PlayerController` | 조준 시작·드래그만으로 기존 명령이 취소되거나 새 이동·공격이 발생하지 않아야 한다. | P0/구현 |
+| IN-004 | 조준 방향·거리 갱신 | 소유 Pointer의 조이스틱 드래그 | 패드 중심 기준 정규화 입력 `0..1` | 입력 방향을 레이 방향으로, 입력 크기를 최대 레이 거리의 선형 비율로 변환한다. 최대 거리는 현재 카메라 Viewport의 해당 방향 가장자리에서 0.5 월드 단위 안쪽까지다. | 현재 조준 끝점 갱신 | 입력 크기는 1로 Clamp한다. 카메라와 Player의 현재 위치를 매번 반영한다. | 폭 0.08 하늘색 월드 레이, 0.42 크기 마름모 끝점 | `AimJoystickControl`, `PlayerController`, `CharacterAssetBuilder` | 50% 입력은 해당 방향 최대 거리의 50%, 최대 입력은 Viewport 여백 0.5에 도달해야 한다. | P0/구현 |
+| IN-005 | 조준 공격 명령 | 우측 공격 버튼 Pointer Down | 조이스틱 조준 중, 입력 크기 0.01 이상 | 현재 끝점의 스냅샷을 `PlayerController.TryIssueCommand`에 전달한다. 기존 월드 터치와 같은 이동·타깃 선택·공격 경로를 사용한다. | 스냅샷 위치로 이동 및 공격 | 클릭 완료를 기다리지 않는다. 공격 버튼과 월드 직접 터치는 저장된 조준 입력·끝점을 초기화하지 않는다. | 우측 하단 원형 공격 버튼 | `AttackCommandButton`, `PrototypeHUDView`, `PrototypeHUDPresenter`, `PlayerController` | Pointer Down 한 번에 명령 한 번만 발행되고 이후 조이스틱 이동이 이미 발행된 목적지를 바꾸지 않아야 한다. | P0/구현 |
+| IN-006 | 조준 해제 | 조이스틱 소유 Pointer Up 또는 Control 비활성화 | 조준 진행 중 | Pointer 소유권과 입력을 해제하고 끝점을 현재 Player 위치로 되돌린 뒤 가이드를 숨긴다. | 중립 조준 상태 | 해제만으로 이미 발행된 이동·공격 명령을 취소하지 않는다. | 레이·끝점 숨김, Knob 중앙 복귀 | `AimJoystickControl`, `PlayerController` | 공격 명령 직후 조이스틱을 놓아도 명령이 계속되고 가이드만 사라져야 한다. | P0/구현 |
+| IN-007 | 두 손가락 동시 조작과 직접 터치 호환 | 한 손으로 조준 중 다른 손 입력 | 서로 다른 PointerId | 조이스틱은 최초 Pointer만 처리하고 공격 버튼은 별도 Pointer Down을 독립 처리한다. 기존 월드 직접 터치 입력도 유지한다. | 조준을 유지한 채 공격 가능, 기존 직접 터치 조작 병행 | UI Pointer는 월드 터치 명령으로 중복 처리하지 않는다. 중립·근중립 조준 공격은 무시한다. | 좌하단 조준 패드, 우하단 공격 버튼 | `AimJoystickControl`, `AttackCommandButton`, `PlayerController` | 두 Pointer가 서로의 상태를 해제하지 않고 기존 직접 터치 회귀 테스트가 통과해야 한다. | P0/구현 |
+
+기준 HUD는 `1080×1920` 세로 화면이다. 조준 패드는 좌하단 `(178, 315)`에 `280×280`, 공격 버튼은 우하단 `(-168, 315)`에 `224×224`로 배치한다. `PrototypeSceneBuilder`가 두 UI와 `PrototypeHUDView` 참조를 만들고, `CharacterAssetBuilder`가 Player Prefab의 월드 가이드 Renderer를 구성한다. 본 묶음은 밸런스와 Excel 원본을 변경하지 않는다.

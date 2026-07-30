@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":301,"method":"tools/call","params":{"name":"execute_code","arguments":{"action":"execute","compiler":"auto","safety_checks":true,"code":"SimpleGameEditor.GameDataExcelImporter.ImportDefaultWorkbook(); return \"Reimported Planning/GameData_10min_Balance.xlsx\";"}}}

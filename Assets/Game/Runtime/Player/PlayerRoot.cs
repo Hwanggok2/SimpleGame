@@ -49,6 +49,12 @@ namespace SimpleGame
             stats.PostKillEscapeSpeedMultiplier;
         public float MoveArrivalTolerance =>
             stats.MoveArrivalTolerance;
+        public Vector2 AimDestination =>
+            controller != null
+                ? controller.AimDestination
+                : (Vector2)transform.position;
+        public bool IsAiming =>
+            controller != null && controller.IsAiming;
         public Transform TargetTransform => transform;
         public bool IsAlive => health != null && health.IsAlive;
         public bool IsInputLocked { get; private set; }
@@ -110,7 +116,11 @@ namespace SimpleGame
                 globalBalance.CriticalChancePerCard,
                 globalBalance.MaximumCriticalChance);
             critical.Add(definition.BaseCriticalChance);
-            combatAbilities.Configure(this, enemyWorld, spawnPoints);
+            combatAbilities.Configure(
+                this,
+                enemyWorld,
+                spawnPoints,
+                worldCamera);
             moveSpeedCardLevel = 0;
             movement.SetMaximumSpeedActive(false);
             BuildVisual();
@@ -164,6 +174,7 @@ namespace SimpleGame
                 case PlayerStatId.ShieldBypass:
                 case PlayerStatId.FlyingSwordCount:
                 case PlayerStatId.FlyingSwordHitCount:
+                case PlayerStatId.FilthThrow:
                     return combatAbilities.ApplyCard(card);
                 default:
                     return false;
@@ -197,6 +208,28 @@ namespace SimpleGame
             combatAbilities.TrySpawnMovingSlash(movementDirection);
         }
 
+        public bool BeginAim()
+        {
+            return controller != null &&
+                controller.BeginAim();
+        }
+
+        public void SetAimInput(Vector2 normalizedInput)
+        {
+            controller?.SetAimInput(normalizedInput);
+        }
+
+        public void EndAim()
+        {
+            controller?.EndAim();
+        }
+
+        public bool ExecuteAimedCommand()
+        {
+            return controller != null &&
+                controller.ExecuteAimedCommand();
+        }
+
         public void ReceiveDamage(int amount)
         {
             if (!health.ApplyDamage(amount))
@@ -211,6 +244,7 @@ namespace SimpleGame
             }
 
             controller.CancelCommand();
+            controller.EndAim();
             movement.StopKnockback();
             IsInputLocked = true;
             characterAnimation.PlayDeath(Vector2.zero);
@@ -228,6 +262,7 @@ namespace SimpleGame
             health.RestoreFull();
             movement.StopKnockback();
             controller.CancelCommand();
+            controller.EndAim();
             if (inputLockRoutine != null)
             {
                 StopCoroutine(inputLockRoutine);

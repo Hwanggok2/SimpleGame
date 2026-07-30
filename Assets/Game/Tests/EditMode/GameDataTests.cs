@@ -175,6 +175,22 @@ namespace SimpleGame.Tests
             Assert.That(
                 PrototypeGameSession.MaximumCardRerollsPerRun,
                 Is.EqualTo(3));
+            Assert.That(
+                PrototypeGameSession.BossRerollReward,
+                Is.EqualTo(1));
+        }
+
+        [TestCase(0, 1)]
+        [TestCase(2, 3)]
+        [TestCase(3, 3)]
+        public void BossReward_AddsOneRerollWithoutExceedingBudget(
+            int currentRerolls,
+            int expectedRerolls)
+        {
+            Assert.That(
+                PrototypeGameSession.CalculateBossRewardRerolls(
+                    currentRerolls),
+                Is.EqualTo(expectedRerolls));
         }
 
         [Test]
@@ -526,13 +542,20 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expectedAlpha).Within(0.0001f));
         }
 
-        [TestCase(1, 0.1f, 1, 1f)]
-        [TestCase(5, 0.22f, 5, 1.4f)]
+        [TestCase(0, 0f, 0, 0f, 0f, 0f)]
+        [TestCase(1, 0.1f, 2, 1f, 6f, 1.8f)]
+        [TestCase(2, 0.13f, 3, 1.15f, 7.5f, 2.15f)]
+        [TestCase(3, 0.16f, 4, 1.3f, 9f, 2.5f)]
+        [TestCase(4, 0.19f, 5, 1.45f, 10.5f, 2.85f)]
+        [TestCase(5, 0.22f, 6, 1.6f, 12f, 3.2f)]
+        [TestCase(6, 0.22f, 6, 1.6f, 12f, 3.2f)]
         public void MovingSlash_UpgradeMathMatchesDesign(
             int level,
             float expectedChance,
             int expectedHits,
-            float expectedSize)
+            float expectedSize,
+            float expectedDistance,
+            float expectedDamage)
         {
             Assert.That(
                 PlayerCombatAbilities.CalculateMovingSlashChance(level),
@@ -544,40 +567,70 @@ namespace SimpleGame.Tests
             Assert.That(
                 PlayerCombatAbilities.CalculateMovingSlashSize(level),
                 Is.EqualTo(expectedSize).Within(0.0001f));
+            Assert.That(
+                PlayerCombatAbilities
+                    .CalculateMovingSlashTravelDistance(level),
+                Is.EqualTo(expectedDistance).Within(0.0001f));
+            Assert.That(
+                PlayerCombatAbilities
+                    .CalculateMovingSlashDamageMultiplier(level),
+                Is.EqualTo(expectedDamage).Within(0.0001f));
         }
 
-        [TestCase(10f, 10f, false, 30f)]
-        [TestCase(14f, 1f, false, 6.666667f)]
-        [TestCase(15f, 10f, false, 45f)]
-        [TestCase(15f, 1f, true, 6.666667f)]
-        [TestCase(15f, 10f, true, 66.66667f)]
-        public void MovingSlash_SpeedIsTriplePlayerSpeedWithMaximumCap(
+        [TestCase(10f, 6f, false, 30f)]
+        [TestCase(15f, 12f, false, 45f)]
+        [TestCase(15f, 6f, true, 40f)]
+        [TestCase(15f, 12f, true, 80f)]
+        public void MovingSlash_SpeedUsesItsOwnTravelDistance(
             float playerMoveSpeed,
-            float commandDistance,
+            float travelDistance,
             bool maximumSpeedActive,
             float expectedSpeed)
         {
             Assert.That(
                 MovingSlashProjectile.CalculateTravelSpeed(
                     playerMoveSpeed,
-                    commandDistance,
+                    travelDistance,
                     maximumSpeedActive),
                 Is.EqualTo(expectedSpeed).Within(0.0001f));
         }
 
-        [TestCase(0f, 0)]
-        [TestCase(1.16f, 0)]
-        [TestCase(1.17f, 1)]
-        [TestCase(5.84f, 5)]
-        [TestCase(7f, 5)]
+        [TestCase(0f, 6f, 0)]
+        [TestCase(0.99f, 6f, 0)]
+        [TestCase(1f, 6f, 1)]
+        [TestCase(5.99f, 6f, 5)]
+        [TestCase(6f, 6f, 5)]
+        [TestCase(12f, 12f, 5)]
         public void MovingSlash_AnimationTracksTravelProgress(
             float distanceTravelled,
+            float travelDistance,
             int expectedFrame)
         {
             Assert.That(
                 MovingSlashProjectile.CalculateAnimationFrameIndex(
-                    distanceTravelled),
+                    distanceTravelled,
+                    travelDistance),
                 Is.EqualTo(expectedFrame));
+        }
+
+        [TestCase(1, 5f, 6f, 0.5f, false)]
+        [TestCase(0, 1f, 6f, 0.1f, true)]
+        [TestCase(1, 6f, 6f, 0.1f, true)]
+        [TestCase(1, 1f, 6f, 1.5f, true)]
+        public void MovingSlash_FadeHasAForcedLifetimeLimit(
+            int remainingHits,
+            float distanceTravelled,
+            float travelDistance,
+            float activeElapsed,
+            bool expected)
+        {
+            Assert.That(
+                MovingSlashProjectile.ShouldBeginFade(
+                    remainingHits,
+                    distanceTravelled,
+                    travelDistance,
+                    activeElapsed),
+                Is.EqualTo(expected));
         }
 
         [TestCase(0f, 1f)]
@@ -1054,6 +1107,102 @@ namespace SimpleGame.Tests
         }
 
         [Test]
+        public void HealthPickup_HealsFiveAndIsNotSpentAtFullHealth()
+        {
+            var playerObject = new GameObject("PickupPlayer");
+            var pickupObject = new GameObject("HealthPickup");
+            try
+            {
+                HealthComponent health =
+                    playerObject.AddComponent<HealthComponent>();
+                PlayerRoot player =
+                    playerObject.AddComponent<PlayerRoot>();
+                SetPrivateField(player, "health", health);
+                health.Configure(10);
+
+                HealthPickup pickup =
+                    pickupObject.AddComponent<HealthPickup>();
+                pickup.Configure(null);
+                Assert.That(pickup.TryCollect(player), Is.False);
+                Assert.That(pickupObject != null, Is.True);
+
+                health.ApplyDamage(7);
+                Assert.That(pickup.TryCollect(player), Is.True);
+                Assert.That(health.CurrentHealth, Is.EqualTo(8));
+            }
+            finally
+            {
+                if (pickupObject != null)
+                {
+                    Object.DestroyImmediate(pickupObject);
+                }
+
+                Object.DestroyImmediate(playerObject);
+            }
+        }
+
+        [Test]
+        public void LevelUpAndWorldHealingAmountsMatchDesign()
+        {
+            Assert.That(
+                PrototypeGameSession.LevelUpHealAmount,
+                Is.EqualTo(2));
+            Assert.That(HealthPickup.HealAmount, Is.EqualTo(5));
+            Assert.That(HealthPickup.Lifetime, Is.EqualTo(45f));
+            Assert.That(HealthPickupSpawner.SpawnInterval, Is.EqualTo(20f));
+            Assert.That(
+                HealthPickupSpawner.MaximumActivePickups,
+                Is.EqualTo(3));
+        }
+
+        [TestCase(0f, 0f, -6f, -11f)]
+        [TestCase(0.5f, 0.5f, 0f, 0f)]
+        [TestCase(1f, 1f, 6f, 11f)]
+        public void HealthPickupSpawn_StaysInsidePaddedWorldArea(
+            float normalizedX,
+            float normalizedY,
+            float expectedX,
+            float expectedY)
+        {
+            Vector2 position =
+                HealthPickupSpawner.CalculateSpawnPosition(
+                    Vector2.zero,
+                    new Vector2(7f, 12f),
+                    1f,
+                    new Vector2(normalizedX, normalizedY));
+
+            Assert.That(
+                position.x,
+                Is.EqualTo(expectedX).Within(0.001f));
+            Assert.That(
+                position.y,
+                Is.EqualTo(expectedY).Within(0.001f));
+        }
+
+        [TestCase(0.49f, 0)]
+        [TestCase(0.5f, 1)]
+        [TestCase(1f, 2)]
+        [TestCase(5f, 10)]
+        public void MushroomPoison_TicksEveryHalfSecond(
+            float exposureDuration,
+            int expectedTicks)
+        {
+            Assert.That(
+                MushroomPoisonCloud.CalculateTickCount(
+                    exposureDuration),
+                Is.EqualTo(expectedTicks));
+            Assert.That(
+                MushroomPoisonCloud.DamagePerTick,
+                Is.EqualTo(1));
+            Assert.That(
+                MushroomPoisonCloud.Duration,
+                Is.EqualTo(5f));
+            Assert.That(
+                MushroomPoisonCloud.SpawnDelay,
+                Is.EqualTo(1f));
+        }
+
+        [Test]
         public void Health_RestoreFullFillsMissingHealth()
         {
             var owner = new GameObject("RestoreFullTest");
@@ -1099,6 +1248,57 @@ namespace SimpleGame.Tests
 
             Assert.That(result.x, Is.EqualTo(-7f).Within(0.001f));
             Assert.That(result.y, Is.EqualTo(0f).Within(0.001f));
+        }
+
+        [TestCase(10f, 5f)]
+        [TestCase(1.5f, 0.75f)]
+        [TestCase(-1f, 0f)]
+        public void Continue_DamagesHalfOfCurrentEnemyHealth(
+            float currentHealth,
+            float expectedDamage)
+        {
+            Assert.That(
+                EnemyWorldRecycler.CalculateContinueDamage(
+                    currentHealth),
+                Is.EqualTo(expectedDamage).Within(0.001f));
+        }
+
+        [TestCase(2f, 0f, 7f, 0f)]
+        [TestCase(-2f, 0f, -7f, 0f)]
+        [TestCase(0f, 2f, 0f, 12f)]
+        public void WorldArea_ContinuePushesTowardSameSideBoundary(
+            float currentX,
+            float currentY,
+            float expectedX,
+            float expectedY)
+        {
+            Vector2 result =
+                PlayerWorldArea.CalculateOutwardSpawnPosition(
+                    Vector2.zero,
+                    new Vector2(currentX, currentY),
+                    new Vector2(7f, 12f),
+                    0f);
+
+            Assert.That(
+                result.x,
+                Is.EqualTo(expectedX).Within(0.001f));
+            Assert.That(
+                result.y,
+                Is.EqualTo(expectedY).Within(0.001f));
+        }
+
+        [Test]
+        public void WorldArea_ContinueDoesNotPullDistantEnemyInward()
+        {
+            Vector2 current = new(20f, 0f);
+            Vector2 result =
+                PlayerWorldArea.CalculateOutwardSpawnPosition(
+                    Vector2.zero,
+                    current,
+                    new Vector2(7f, 12f),
+                    0f);
+
+            Assert.That(result, Is.EqualTo(current));
         }
 
         [Test]

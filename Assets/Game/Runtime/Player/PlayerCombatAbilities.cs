@@ -15,6 +15,20 @@ namespace SimpleGame
         public const float SeverReuseCooldown = 0.1f;
         public const float SeverTrailFadeDuration = 0.1f;
         public const float SeverHalfWidth = 0.17f;
+        public const int MovingSlashMaximumLevel = 5;
+        public const float MovingSlashBaseDamageMultiplier = 1.8f;
+        public const float MovingSlashDamageGrowthPerLevel = 0.35f;
+        public const float MovingSlashSizeGrowthPerLevel = 0.15f;
+        public const float MovingSlashBaseTravelDistance = 6f;
+        public const float MovingSlashTravelGrowthPerLevel = 1.5f;
+        public const int FilthThrowMaximumLevel = 5;
+        public const float FilthThrowBaseInterval = 6f;
+        public const float FilthThrowIntervalReductionPerLevel = 0.5f;
+        public const float FilthThrowInitialDelay = 0.25f;
+        public const float FilthThrowBaseDamageMultiplier = 0.35f;
+        public const float FilthThrowDamageGrowthPerLevel = 0.1f;
+        public const float FilthThrowBaseRadius = 1.2f;
+        public const float FilthThrowRadiusGrowthPerLevel = 0.15f;
 
         [SerializeField] private int piercingLevel;
         [SerializeField] private int severLevel;
@@ -24,13 +38,18 @@ namespace SimpleGame
         [SerializeField] private int shieldBypassLevel;
         [SerializeField] private int flyingSwordCountLevel;
         [SerializeField] private int flyingSwordHitCountLevel;
+        [SerializeField] private int filthThrowLevel;
         [SerializeField] private float severDamageMultiplier = 2f;
         [SerializeField] private int hitHealAmount = 2;
         [SerializeField] private float staticDamageMultiplier = 0.75f;
-        [SerializeField] private float movingSlashDamageMultiplier = 1.5f;
+        [SerializeField] private float movingSlashDamageMultiplier =
+            MovingSlashBaseDamageMultiplier;
+        [SerializeField] private float filthThrowBaseDamageMultiplier =
+            FilthThrowBaseDamageMultiplier;
         [SerializeField] private float shieldBypassChancePerLevel = 0.1f;
         [SerializeField] private SpriteRenderer severTrailVisual;
         [SerializeField] private MovingSlashProjectile movingSlashPrefab;
+        [SerializeField] private FilthProjectile filthProjectilePrefab;
 
         private readonly HashSet<EnemyBase> directTargets = new();
         private PlayerRoot owner;
@@ -39,7 +58,9 @@ namespace SimpleGame
         private int piercingTargetsConsumed;
         private bool canOpenPiercingWindowForCommand;
         private float nextSeverAvailableTime;
+        private float nextFilthThrowAt = float.PositiveInfinity;
         private FlyingSwordController flyingSwords;
+        private Camera worldCamera;
 
         public int PiercingLevel => piercingLevel;
         public int StaticChargeLevel => staticChargeLevel;
@@ -47,6 +68,7 @@ namespace SimpleGame
         public int ShieldBypassLevel => shieldBypassLevel;
         public int FlyingSwordCountLevel => flyingSwordCountLevel;
         public int FlyingSwordHitCountLevel => flyingSwordHitCountLevel;
+        public int FilthThrowLevel => filthThrowLevel;
         public float ShieldBypassChance =>
             CalculateShieldBypassChance(
                 shieldBypassLevel,
@@ -69,13 +91,21 @@ namespace SimpleGame
             movingSlashPrefab = configuredPrefab;
         }
 
+        public void ConfigureFilthProjectilePrefab(
+            FilthProjectile configuredPrefab)
+        {
+            filthProjectilePrefab = configuredPrefab;
+        }
+
         public void Configure(
             PlayerRoot configuredOwner,
             EnemyWorldService configuredEnemyWorld,
-            SpawnPointRegistry configuredSpawnPoints)
+            SpawnPointRegistry configuredSpawnPoints,
+            Camera configuredWorldCamera)
         {
             owner = configuredOwner;
             enemyWorld = configuredEnemyWorld;
+            worldCamera = configuredWorldCamera;
             piercingLevel = 0;
             severLevel = 0;
             hitHealLevel = 0;
@@ -84,15 +114,20 @@ namespace SimpleGame
             shieldBypassLevel = 0;
             flyingSwordCountLevel = 0;
             flyingSwordHitCountLevel = 0;
+            filthThrowLevel = 0;
             severDamageMultiplier = 2f;
             hitHealAmount = 2;
             staticDamageMultiplier = 0.75f;
-            movingSlashDamageMultiplier = 1.5f;
+            movingSlashDamageMultiplier =
+                MovingSlashBaseDamageMultiplier;
+            filthThrowBaseDamageMultiplier =
+                FilthThrowBaseDamageMultiplier;
             shieldBypassChancePerLevel = 0.1f;
             piercingWindowEndsAt = 0f;
             piercingTargetsConsumed = 0;
             canOpenPiercingWindowForCommand = false;
             nextSeverAvailableTime = 0f;
+            nextFilthThrowAt = float.PositiveInfinity;
             if (severTrailVisual == null)
             {
                 severTrailVisual =
@@ -165,7 +200,9 @@ namespace SimpleGame
                         card.MaxStack,
                         1f);
                     movingSlashDamageMultiplier =
-                        Mathf.Max(0f, card.Value);
+                        CalculateMovingSlashDamageMultiplier(
+                            movingSlashLevel,
+                            card.Value);
                     break;
                 case PlayerStatId.ShieldBypass:
                     shieldBypassLevel = AddLevel(
@@ -186,6 +223,22 @@ namespace SimpleGame
                         flyingSwordHitCountLevel,
                         card.MaxStack,
                         card.Value);
+                    break;
+                case PlayerStatId.FilthThrow:
+                    bool firstFilthThrowLevel =
+                        filthThrowLevel <= 0;
+                    filthThrowLevel = AddLevel(
+                        filthThrowLevel,
+                        card.MaxStack,
+                        1f);
+                    filthThrowBaseDamageMultiplier =
+                        Mathf.Max(0f, card.Value);
+                    if (firstFilthThrowLevel)
+                    {
+                        nextFilthThrowAt =
+                            Time.time + FilthThrowInitialDelay;
+                    }
+
                     break;
                 default:
                     return false;
@@ -218,7 +271,7 @@ namespace SimpleGame
                 true);
             bool piercingAllowed = allowPiercing &&
                 CombatResolver.CanPiercePastTarget(
-                    primary.Archetype,
+                    primary.Definition,
                     primarySide,
                     primaryPreview.Damage >=
                         primary.CurrentHealth);
@@ -376,6 +429,7 @@ namespace SimpleGame
                 movementDirection,
                 CalculateMovingSlashMaximumHits(movingSlashLevel),
                 CalculateMovingSlashSize(movingSlashLevel),
+                CalculateMovingSlashTravelDistance(movingSlashLevel),
                 movingSlashDamageMultiplier);
         }
 
@@ -388,19 +442,46 @@ namespace SimpleGame
         {
             return level <= 0
                 ? 0f
-                : Mathf.Clamp01(0.1f + 0.03f * (level - 1));
+                : Mathf.Clamp01(
+                    0.1f +
+                    0.03f * (ClampMovingSlashLevel(level) - 1));
         }
 
         public static int CalculateMovingSlashMaximumHits(int level)
         {
-            return Mathf.Max(0, level);
+            return level <= 0
+                ? 0
+                : ClampMovingSlashLevel(level) + 1;
         }
 
         public static float CalculateMovingSlashSize(int level)
         {
             return level <= 0
                 ? 0f
-                : 1f + 0.1f * (level - 1);
+                : 1f +
+                    MovingSlashSizeGrowthPerLevel *
+                    (ClampMovingSlashLevel(level) - 1);
+        }
+
+        public static float CalculateMovingSlashTravelDistance(int level)
+        {
+            return level <= 0
+                ? 0f
+                : MovingSlashBaseTravelDistance +
+                    MovingSlashTravelGrowthPerLevel *
+                    (ClampMovingSlashLevel(level) - 1);
+        }
+
+        public static float CalculateMovingSlashDamageMultiplier(
+            int level,
+            float baseDamageMultiplier =
+                MovingSlashBaseDamageMultiplier)
+        {
+            return level <= 0
+                ? 0f
+                : Mathf.Max(0f, baseDamageMultiplier) +
+                    MovingSlashDamageGrowthPerLevel *
+                    (ClampMovingSlashLevel(level) - 1);
         }
 
         public static float CalculateShieldBypassChance(
@@ -412,12 +493,114 @@ namespace SimpleGame
                 Mathf.Clamp01(chancePerLevel));
         }
 
+        public static float CalculateFilthThrowDamageMultiplier(
+            int level,
+            float baseDamageMultiplier =
+                FilthThrowBaseDamageMultiplier)
+        {
+            return level <= 0
+                ? 0f
+                : Mathf.Max(0f, baseDamageMultiplier) +
+                    FilthThrowDamageGrowthPerLevel *
+                    (ClampFilthThrowLevel(level) - 1);
+        }
+
+        public static float CalculateFilthThrowRadius(int level)
+        {
+            return level <= 0
+                ? 0f
+                : FilthThrowBaseRadius +
+                    FilthThrowRadiusGrowthPerLevel *
+                    (ClampFilthThrowLevel(level) - 1);
+        }
+
+        public static float CalculateFilthThrowInterval(int level)
+        {
+            return level <= 0
+                ? float.PositiveInfinity
+                : Mathf.Max(
+                    0.1f,
+                    FilthThrowBaseInterval -
+                    FilthThrowIntervalReductionPerLevel *
+                    (ClampFilthThrowLevel(level) - 1));
+        }
+
+        public static int CalculateFilthThrowCount(int level)
+        {
+            return level <= 0
+                ? 0
+                : ClampFilthThrowLevel(level);
+        }
+
         public static int CalculateHitHealAmount(
             int level,
             int amountPerLevel = 2)
         {
             return Mathf.Max(0, level) *
                 Mathf.Max(0, amountPerLevel);
+        }
+
+        private static int ClampMovingSlashLevel(int level)
+        {
+            return Mathf.Clamp(
+                level,
+                1,
+                MovingSlashMaximumLevel);
+        }
+
+        private static int ClampFilthThrowLevel(int level)
+        {
+            return Mathf.Clamp(
+                level,
+                1,
+                FilthThrowMaximumLevel);
+        }
+
+        private void Update()
+        {
+            if (filthThrowLevel <= 0 ||
+                owner == null ||
+                enemyWorld == null ||
+                worldCamera == null ||
+                !owner.IsAlive ||
+                Time.timeScale <= 0f ||
+                Time.time < nextFilthThrowAt)
+            {
+                return;
+            }
+
+            nextFilthThrowAt =
+                Time.time +
+                CalculateFilthThrowInterval(filthThrowLevel);
+            float damageRadius =
+                CalculateFilthThrowRadius(filthThrowLevel);
+            float damageMultiplier =
+                CalculateFilthThrowDamageMultiplier(
+                    filthThrowLevel,
+                    filthThrowBaseDamageMultiplier);
+            float halfHeight = worldCamera.orthographicSize;
+            Vector2 cameraCenter = worldCamera.transform.position;
+            Vector2 cameraHalfExtents = new(
+                halfHeight * worldCamera.aspect,
+                halfHeight);
+            int throwCount =
+                CalculateFilthThrowCount(filthThrowLevel);
+            for (int index = 0; index < throwCount; index++)
+            {
+                Vector2 target =
+                    FilthProjectile.CalculateTargetPosition(
+                        cameraCenter,
+                        cameraHalfExtents,
+                        damageRadius,
+                        new Vector2(Random.value, Random.value));
+                FilthProjectile.Spawn(
+                    filthProjectilePrefab,
+                    owner,
+                    enemyWorld,
+                    target,
+                    damageMultiplier,
+                    damageRadius);
+            }
         }
 
         public static bool CanTriggerHitHeal(
@@ -581,7 +764,7 @@ namespace SimpleGame
             float damage = baseResult.Damage + bonusDamage;
             PlayerAttackReaction reaction =
                 isPrimary &&
-                target.Archetype == EnemyArchetype.Shield &&
+                target.Definition.BlocksFrontAttacks &&
                 side == AttackSide.Front &&
                 damage >= target.CurrentHealth
                     ? PlayerAttackReaction.None

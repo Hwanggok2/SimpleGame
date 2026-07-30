@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace SimpleGame
 {
@@ -9,8 +11,15 @@ namespace SimpleGame
         public const float DefaultAttackRange = 0.72f;
         public const float EnemyPiercingHorizontalRadius = 1.5f;
         public const float EnemyPiercingVerticalRadius = 2f;
+        public const float AimViewportPadding = 0.5f;
+        public const float AimRayWidth = 0.08f;
+        public const float AimEndpointSize = 0.42f;
+        public const float MinimumCommandAimMagnitude = 0.01f;
         private const float EnemySelectionRadius =
             EnemyPiercingVerticalRadius;
+
+        [SerializeField] private SpriteRenderer aimRayRenderer;
+        [SerializeField] private SpriteRenderer aimEndpointRenderer;
 
         private PlayerRoot root;
         private PrototypeGameSession session;
@@ -26,6 +35,23 @@ namespace SimpleGame
         private bool postKillEscapeActive;
         private int pendingAttackCount;
         private float attackRange = DefaultAttackRange;
+        private Vector2 aimInput;
+        private Vector2 aimDestination;
+        private bool isAiming;
+        private readonly List<RaycastResult> uiRaycastResults = new();
+
+        public Vector2 AimInput => aimInput;
+        public Vector2 AimDestination => aimDestination;
+        public bool IsAiming => isAiming;
+
+        public void ConfigureAimVisuals(
+            SpriteRenderer configuredRayRenderer,
+            SpriteRenderer configuredEndpointRenderer)
+        {
+            aimRayRenderer = configuredRayRenderer;
+            aimEndpointRenderer = configuredEndpointRenderer;
+            SetAimVisualsVisible(false);
+        }
 
         public void Configure(
             PlayerRoot playerRoot,
@@ -39,6 +65,7 @@ namespace SimpleGame
             enemyWorld = configuredEnemyWorld;
             worldCamera = camera;
             SetAttackRange(configuredAttackRange);
+            EndAim();
         }
 
         public void SetAttackRange(float value)
@@ -61,39 +88,109 @@ namespace SimpleGame
             TickCommand();
         }
 
+        private void LateUpdate()
+        {
+            RefreshAimVisuals();
+        }
+
         private void ReadPointer()
         {
-            Vector2 screenPosition;
-            bool pressed;
-            int pointerId = -1;
-            if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
-            {
-                pressed = true;
-                screenPosition = Touchscreen.current.primaryTouch.position.ReadValue();
-                pointerId = Touchscreen.current.primaryTouch.touchId.ReadValue();
-            }
-            else
-            {
-                pressed = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
-                screenPosition = Mouse.current != null
-                    ? Mouse.current.position.ReadValue()
-                    : Vector2.zero;
-            }
-
-            if (!pressed || root.IsInputLocked)
+            if (root.IsInputLocked)
             {
                 return;
             }
 
-            if (EventSystem.current != null &&
-                EventSystem.current.IsPointerOverGameObject(pointerId))
+            bool touchPressed = false;
+            if (Touchscreen.current != null)
+            {
+                foreach (var touch in Touchscreen.current.touches)
+                {
+                    if (!touch.press.wasPressedThisFrame)
+                    {
+                        continue;
+                    }
+
+                    touchPressed = true;
+                    TryIssueScreenPointerCommand(
+                        touch.position.ReadValue(),
+                        touch.touchId.ReadValue());
+                }
+            }
+
+            if (touchPressed ||
+                Mouse.current == null ||
+                !Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                return;
+            }
+
+            TryIssueScreenPointerCommand(
+                Mouse.current.position.ReadValue(),
+                -1);
+        }
+
+        private void TryIssueScreenPointerCommand(
+            Vector2 screenPosition,
+            int pointerId)
+        {
+            if (IsScreenPointOverUi(
+                    EventSystem.current,
+                    screenPosition,
+                    pointerId,
+                    uiRaycastResults))
             {
                 return;
             }
 
             Vector3 world = worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, -worldCamera.transform.position.z));
-            destination = world;
+            TryIssueCommand(world);
+        }
+
+        public static bool IsScreenPointOverUi(
+            EventSystem eventSystem,
+            Vector2 screenPosition,
+            int pointerId,
+            List<RaycastResult> results)
+        {
+            if (eventSystem == null || results == null)
+            {
+                return false;
+            }
+
+            results.Clear();
+            var pointerData = new PointerEventData(eventSystem)
+            {
+                position = screenPosition,
+                pointerId = pointerId
+            };
+            eventSystem.RaycastAll(pointerData, results);
+            for (int i = 0; i < results.Count; i++)
+            {
+                if (results[i].module is GraphicRaycaster)
+                {
+                    results.Clear();
+                    return true;
+                }
+            }
+
+            results.Clear();
+            return false;
+        }
+
+        public bool TryIssueCommand(Vector2 worldDestination)
+        {
+            if (root == null ||
+                session == null ||
+                enemyWorld == null ||
+                !session.IsPlaying ||
+                !root.IsAlive ||
+                root.IsInputLocked)
+            {
+                return false;
+            }
+
+            destination = worldDestination;
             commandOrigin = transform.position;
             SetIgnoredPathEnemy(null);
             root.CombatAbilities.BeginPiercingCommand();
@@ -129,7 +226,7 @@ namespace SimpleGame
                     pendingAttackCount++;
                 }
 
-                return;
+                return true;
             }
 
             pendingEnemy = selectedEnemy;
@@ -144,6 +241,7 @@ namespace SimpleGame
             root.TrySpawnMovingSlash(
                 destination - (Vector2)transform.position);
             BeginCurrentMove();
+            return true;
         }
 
         private void TickCommand()
@@ -235,8 +333,7 @@ namespace SimpleGame
                 bool shieldRecoil =
                     execution.PrimaryResult.PlayerReaction ==
                         PlayerAttackReaction.Recoil &&
-                    targetEnemy.Archetype ==
-                        EnemyArchetype.Shield;
+                    targetEnemy.Definition.BlocksFrontAttacks;
                 bool bypassedShield =
                     shieldRecoil &&
                     root.CombatAbilities.RollShieldBypass();
@@ -314,6 +411,62 @@ namespace SimpleGame
                 speedMultiplier);
         }
 
+        public bool BeginAim()
+        {
+            if (root == null ||
+                session == null ||
+                !session.IsPlaying ||
+                !root.IsAlive ||
+                root.IsInputLocked)
+            {
+                return false;
+            }
+
+            isAiming = true;
+            aimInput = Vector2.zero;
+            RefreshAimVisuals();
+            return true;
+        }
+
+        public void SetAimInput(Vector2 normalizedInput)
+        {
+            if (!isAiming)
+            {
+                return;
+            }
+
+            aimInput = Vector2.ClampMagnitude(
+                normalizedInput,
+                1f);
+            RefreshAimVisuals();
+        }
+
+        public void EndAim()
+        {
+            isAiming = false;
+            aimInput = Vector2.zero;
+            aimDestination = transform.position;
+            SetAimVisualsVisible(false);
+        }
+
+        public bool ExecuteAimedCommand()
+        {
+            if (!isAiming ||
+                !HasCommandAim(aimInput))
+            {
+                return false;
+            }
+
+            Vector2 commandDestination = aimDestination;
+            return TryIssueCommand(commandDestination);
+        }
+
+        public static bool HasCommandAim(Vector2 normalizedInput)
+        {
+            return normalizedInput.magnitude >=
+                MinimumCommandAimMagnitude;
+        }
+
         public void CancelCommand()
         {
             pendingEnemy = null;
@@ -323,6 +476,142 @@ namespace SimpleGame
             postKillEscapeActive = false;
             pendingAttackCount = 0;
             root?.Movement.CancelMove();
+        }
+
+        public static Vector2 CalculateAimPoint(
+            Vector2 playerPosition,
+            Vector2 normalizedInput,
+            float maximumDistance)
+        {
+            return playerPosition +
+                Vector2.ClampMagnitude(normalizedInput, 1f) *
+                Mathf.Max(0f, maximumDistance);
+        }
+
+        public static float CalculateMaximumAimDistance(
+            Vector2 playerPosition,
+            Vector2 cameraCenter,
+            Vector2 cameraHalfExtents,
+            Vector2 direction,
+            float padding = AimViewportPadding)
+        {
+            if (direction.sqrMagnitude <= 0.0001f)
+            {
+                return 0f;
+            }
+
+            Vector2 normalized = direction.normalized;
+            Vector2 safeHalfExtents = new(
+                Mathf.Max(0f, cameraHalfExtents.x - padding),
+                Mathf.Max(0f, cameraHalfExtents.y - padding));
+            float horizontalDistance = DistanceToViewportEdge(
+                playerPosition.x,
+                cameraCenter.x,
+                safeHalfExtents.x,
+                normalized.x);
+            float verticalDistance = DistanceToViewportEdge(
+                playerPosition.y,
+                cameraCenter.y,
+                safeHalfExtents.y,
+                normalized.y);
+            return Mathf.Max(
+                0f,
+                Mathf.Min(
+                    horizontalDistance,
+                    verticalDistance));
+        }
+
+        private static float DistanceToViewportEdge(
+            float playerCoordinate,
+            float cameraCoordinate,
+            float halfExtent,
+            float direction)
+        {
+            if (Mathf.Abs(direction) <= 0.0001f)
+            {
+                return float.PositiveInfinity;
+            }
+
+            float boundary =
+                cameraCoordinate +
+                Mathf.Sign(direction) * halfExtent;
+            return Mathf.Max(
+                0f,
+                (boundary - playerCoordinate) / direction);
+        }
+
+        private void RefreshAimVisuals()
+        {
+            Vector2 playerPosition = transform.position;
+            if (!isAiming ||
+                worldCamera == null)
+            {
+                aimDestination = playerPosition;
+                SetAimVisualsVisible(false);
+                return;
+            }
+
+            float halfHeight = worldCamera.orthographicSize;
+            float maximumDistance =
+                CalculateMaximumAimDistance(
+                    playerPosition,
+                    worldCamera.transform.position,
+                    new Vector2(
+                        halfHeight * worldCamera.aspect,
+                        halfHeight),
+                    aimInput);
+            aimDestination = CalculateAimPoint(
+                playerPosition,
+                aimInput,
+                maximumDistance);
+            SetAimVisualsVisible(true);
+
+            Vector2 offset =
+                aimDestination - playerPosition;
+            float length = offset.magnitude;
+            if (aimRayRenderer != null)
+            {
+                Transform ray = aimRayRenderer.transform;
+                ray.position =
+                    playerPosition + offset * 0.5f;
+                ray.rotation = Quaternion.Euler(
+                    0f,
+                    0f,
+                    Mathf.Atan2(offset.y, offset.x) *
+                    Mathf.Rad2Deg);
+                ray.localScale = new Vector3(
+                    length,
+                    AimRayWidth,
+                    1f);
+            }
+
+            if (aimEndpointRenderer != null)
+            {
+                Transform endpoint =
+                    aimEndpointRenderer.transform;
+                endpoint.position = aimDestination;
+                float pulse =
+                    0.9f +
+                    0.1f *
+                    Mathf.Sin(Time.unscaledTime * 7f);
+                endpoint.localScale =
+                    Vector3.one *
+                    AimEndpointSize *
+                    pulse;
+            }
+        }
+
+        private void SetAimVisualsVisible(bool visible)
+        {
+            if (aimRayRenderer != null)
+            {
+                aimRayRenderer.enabled = visible;
+            }
+
+            if (aimEndpointRenderer != null)
+            {
+                aimEndpointRenderer.enabled = visible;
+            }
         }
 
         private EnemyBase ResolveCurrentIgnoredPathEnemy()

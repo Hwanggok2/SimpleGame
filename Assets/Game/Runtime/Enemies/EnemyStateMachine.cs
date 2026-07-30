@@ -34,6 +34,11 @@ namespace SimpleGame
                 return;
             }
 
+            if (owner.Movement.IsKnockbackActive)
+            {
+                return;
+            }
+
             PlayerRoot player = owner.Session.Player;
             if (player == null || !player.IsAlive)
             {

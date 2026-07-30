@@ -67,7 +67,8 @@ namespace SimpleGame
         MovingSlash,
         ShieldBypass,
         FlyingSwordCount,
-        FlyingSwordHitCount
+        FlyingSwordHitCount,
+        FilthThrow
     }
 
     public enum StatOperation
@@ -122,6 +123,8 @@ namespace SimpleGame
     {
         public const float LinearLevelWeight = 0.18f;
         public const float EnemyAttackGrowthRate = 0.45f;
+        public const float EnemyMoveSpeedGrowthPerLevel = 0.0125f;
+        public const float MaximumEnemyMoveSpeedMultiplier = 1.6f;
         public const int MaximumEnemyAttackDamage = 8;
         public const int MaximumPlayerLevel = 50;
         public const float ExperienceQuadraticWeight = 0.025f;
@@ -156,6 +159,17 @@ namespace SimpleGame
                 scaledDamage,
                 0,
                 MaximumEnemyAttackDamage);
+        }
+
+        public static float CalculateEnemyMoveSpeed(
+            float baseMoveSpeed,
+            int level)
+        {
+            int levelOffset = Mathf.Max(0, level - 1);
+            float multiplier = Mathf.Min(
+                MaximumEnemyMoveSpeedMultiplier,
+                1f + EnemyMoveSpeedGrowthPerLevel * levelOffset);
+            return Mathf.Max(0f, baseMoveSpeed) * multiplier;
         }
 
         public static float CalculateWaveHealthMultiplier(
@@ -280,6 +294,11 @@ namespace SimpleGame
         public int LevelDifficultyOffset => levelDifficultyOffset;
         public string CombatProfileId => combatProfileId;
         public bool ShowHpBar => showHpBar;
+        public bool AllowsEnemyOverlap =>
+            PrototypeEnemyDefinitions.IsFlyingEye(enemyId);
+        public bool BlocksFrontAttacks =>
+            archetype == EnemyArchetype.Shield ||
+            PrototypeEnemyDefinitions.IsSkeletonBoss(enemyId);
 
         public float CalculateMaxHealth(
             int enemyLevel,
@@ -306,18 +325,32 @@ namespace SimpleGame
                 attackDamage,
                 enemyLevel);
         }
+
+        public float CalculateMoveSpeed(int enemyLevel)
+        {
+            return ProgressionCurve.CalculateEnemyMoveSpeed(
+                moveSpeed,
+                enemyLevel);
+        }
     }
 
     public static class PrototypeEnemyDefinitions
     {
+        public const string ShieldSkeletonId = "ShieldSkeleton";
+        public const string GoblinBossId = "GoblinBoss";
+        public const string MushroomBossId = "MushroomBoss";
+        public const string FlyingEyeId = "FlyingEye";
+        public const string FlyingEyeBossId = "FlyingEyeBoss";
+        public const string SkeletonBossId = "SkeletonBoss";
+
         public static string GetEnemyId(EnemyArchetype archetype)
         {
             return archetype switch
             {
                 EnemyArchetype.Melee => "GoblinMelee",
                 EnemyArchetype.Ranged => "GoblinRanged",
-                EnemyArchetype.Shield => "ShieldSkeleton",
-                EnemyArchetype.Boss => "GoblinBoss",
+                EnemyArchetype.Shield => ShieldSkeletonId,
+                EnemyArchetype.Boss => GoblinBossId,
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(archetype),
                     archetype,
@@ -337,6 +370,48 @@ namespace SimpleGame
             };
         }
 
+        public static string GetDisplayName(
+            string enemyId,
+            EnemyArchetype archetype)
+        {
+            return enemyId switch
+            {
+                MushroomBossId => "머쉬룸 보스",
+                FlyingEyeId => "플라잉 아이",
+                FlyingEyeBossId => "플라잉 아이 보스",
+                SkeletonBossId => "스켈레톤 보스",
+                _ => GetDisplayName(archetype)
+            };
+        }
+
+        public static bool IsMushroomBoss(string enemyId)
+        {
+            return string.Equals(
+                enemyId,
+                MushroomBossId,
+                StringComparison.Ordinal);
+        }
+
+        public static bool IsFlyingEye(string enemyId)
+        {
+            return string.Equals(
+                    enemyId,
+                    FlyingEyeId,
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    enemyId,
+                    FlyingEyeBossId,
+                    StringComparison.Ordinal);
+        }
+
+        public static bool IsSkeletonBoss(string enemyId)
+        {
+            return string.Equals(
+                enemyId,
+                SkeletonBossId,
+                StringComparison.Ordinal);
+        }
+
         public static EnemyDefinition Create(EnemyArchetype archetype)
         {
             return archetype switch
@@ -344,7 +419,7 @@ namespace SimpleGame
                 EnemyArchetype.Melee => new EnemyDefinition(
                     GetEnemyId(archetype),
                     archetype,
-                    0.7f,
+                    0.85f,
                     0.85f,
                     2,
                     0.55f,
@@ -354,7 +429,7 @@ namespace SimpleGame
                     0f,
                     0.5f,
                     0f,
-                    2,
+                    1,
                     5,
                     3f,
                     0.85f,
@@ -364,7 +439,7 @@ namespace SimpleGame
                 EnemyArchetype.Ranged => new EnemyDefinition(
                     GetEnemyId(archetype),
                     archetype,
-                    0.55f,
+                    0.6f,
                     2.25f,
                     2,
                     0.8f,
@@ -374,8 +449,8 @@ namespace SimpleGame
                     0f,
                     0.5f,
                     1f,
-                    2,
-                    5,
+                    1,
+                    7,
                     3f,
                     0.85f,
                     1,
@@ -384,7 +459,7 @@ namespace SimpleGame
                 EnemyArchetype.Shield => new EnemyDefinition(
                     GetEnemyId(archetype),
                     archetype,
-                    0.6f,
+                    0.7f,
                     0f,
                     0,
                     0f,
@@ -394,8 +469,8 @@ namespace SimpleGame
                     2.25f,
                     0.5f,
                     0f,
-                    0,
-                    0,
+                    2,
+                    8,
                     3f,
                     0.85f,
                     0,
@@ -404,7 +479,7 @@ namespace SimpleGame
                 EnemyArchetype.Boss => new EnemyDefinition(
                     GetEnemyId(archetype),
                     archetype,
-                    0.42f,
+                    0.75f,
                     2.6f,
                     4,
                     1.5f,
@@ -414,8 +489,8 @@ namespace SimpleGame
                     0f,
                     0.5f,
                     0f,
-                    5,
-                    25,
+                    8,
+                    50,
                     15f,
                     3.4f,
                     0,
@@ -423,6 +498,102 @@ namespace SimpleGame
                     true),
                 _ => throw new ArgumentOutOfRangeException(nameof(archetype), archetype, null)
             };
+        }
+
+        public static EnemyDefinition CreateMushroomBoss()
+        {
+            return new EnemyDefinition(
+                MushroomBossId,
+                EnemyArchetype.Boss,
+                0.72f,
+                2.6f,
+                4,
+                1.3f,
+                0.5f,
+                2.8f,
+                1.5f,
+                0f,
+                0.5f,
+                0f,
+                10,
+                70,
+                18f,
+                3.8f,
+                0,
+                "BossMushroom",
+                true);
+        }
+
+        public static EnemyDefinition CreateFlyingEye()
+        {
+            return new EnemyDefinition(
+                FlyingEyeId,
+                EnemyArchetype.Melee,
+                0.95f,
+                0.95f,
+                1,
+                0.65f,
+                0f,
+                1.8f,
+                0f,
+                0f,
+                0.5f,
+                0f,
+                2,
+                8,
+                3f,
+                0.75f,
+                0,
+                "FlyingMelee",
+                true);
+        }
+
+        public static EnemyDefinition CreateFlyingEyeBoss()
+        {
+            return new EnemyDefinition(
+                FlyingEyeBossId,
+                EnemyArchetype.Boss,
+                0.88f,
+                3.6f,
+                4,
+                0.9f,
+                0.5f,
+                2.5f,
+                1.6f,
+                0f,
+                0.5f,
+                0f,
+                12,
+                90,
+                20f,
+                4f,
+                0,
+                "BossFlyingEye",
+                true);
+        }
+
+        public static EnemyDefinition CreateSkeletonBoss()
+        {
+            return new EnemyDefinition(
+                SkeletonBossId,
+                EnemyArchetype.Boss,
+                0.8f,
+                3f,
+                4,
+                1.2f,
+                0.5f,
+                3f,
+                1.5f,
+                0f,
+                0.5f,
+                0f,
+                15,
+                120,
+                22f,
+                4.2f,
+                0,
+                "BossSkeleton",
+                true);
         }
     }
 }

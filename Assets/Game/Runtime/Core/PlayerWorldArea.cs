@@ -31,6 +31,15 @@ namespace SimpleGame
                 Random.Range(-spawnJitter, spawnJitter));
         }
 
+        public Vector2 GetOutwardSpawnPosition(Vector2 currentPosition)
+        {
+            return CalculateOutwardSpawnPosition(
+                transform.position,
+                currentPosition,
+                GetSpawnExtents(),
+                Random.Range(-spawnJitter, spawnJitter));
+        }
+
         public Vector2 GetSpawnExtents()
         {
             Vector2 cameraExtents = GetCameraExtents();
@@ -76,6 +85,40 @@ namespace SimpleGame
                 -spawnExtents.y,
                 spawnExtents.y);
             return center + offset;
+        }
+
+        public static Vector2 CalculateOutwardSpawnPosition(
+            Vector2 center,
+            Vector2 currentPosition,
+            Vector2 spawnExtents,
+            float tangentOffset)
+        {
+            Vector2 direction = currentPosition - center;
+            if (direction.sqrMagnitude <= 0.0001f)
+            {
+                direction = Vector2.up;
+            }
+
+            direction.Normalize();
+            float scale = 1f / Mathf.Max(
+                Mathf.Abs(direction.x) / Mathf.Max(0.01f, spawnExtents.x),
+                Mathf.Abs(direction.y) / Mathf.Max(0.01f, spawnExtents.y));
+            Vector2 tangent = new(-direction.y, direction.x);
+            Vector2 offset = direction * scale + tangent * tangentOffset;
+            offset.x = Mathf.Clamp(
+                offset.x,
+                -spawnExtents.x,
+                spawnExtents.x);
+            offset.y = Mathf.Clamp(
+                offset.y,
+                -spawnExtents.y,
+                spawnExtents.y);
+            Vector2 destination = center + offset;
+            return Vector2.Dot(
+                    destination - currentPosition,
+                    direction) > 0f
+                ? destination
+                : currentPosition;
         }
 
         private Vector2 GetCameraExtents()
