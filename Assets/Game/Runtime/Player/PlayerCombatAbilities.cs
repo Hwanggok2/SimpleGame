@@ -28,7 +28,7 @@ namespace SimpleGame
         public const float FilthThrowBaseDamageMultiplier = 0.35f;
         public const float FilthThrowDamageGrowthPerLevel = 0.1f;
         public const float FilthThrowBaseRadius = 1.2f;
-        public const float FilthThrowRadiusGrowthPerLevel = 0.15f;
+        public const float FilthThrowRadiusGrowthPerLevel = 0.12f;
 
         [SerializeField] private int piercingLevel;
         [SerializeField] private int severLevel;
@@ -569,6 +569,25 @@ namespace SimpleGame
                 return;
             }
 
+            float halfHeight = worldCamera.orthographicSize;
+            Vector2 cameraCenter = worldCamera.transform.position;
+            Vector2 cameraHalfExtents = new(
+                halfHeight * worldCamera.aspect,
+                halfHeight);
+            Rect visibleWorldBounds = Rect.MinMaxRect(
+                cameraCenter.x - cameraHalfExtents.x,
+                cameraCenter.y - cameraHalfExtents.y,
+                cameraCenter.x + cameraHalfExtents.x,
+                cameraCenter.y + cameraHalfExtents.y);
+            EnemyBase firstTarget =
+                enemyWorld.FindRandomLivingEnemyInBounds(
+                    visibleWorldBounds,
+                    Random.value);
+            if (firstTarget == null)
+            {
+                return;
+            }
+
             nextFilthThrowAt =
                 Time.time +
                 CalculateFilthThrowInterval(filthThrowLevel);
@@ -578,26 +597,25 @@ namespace SimpleGame
                 CalculateFilthThrowDamageMultiplier(
                     filthThrowLevel,
                     filthThrowBaseDamageMultiplier);
-            float halfHeight = worldCamera.orthographicSize;
-            Vector2 cameraCenter = worldCamera.transform.position;
-            Vector2 cameraHalfExtents = new(
-                halfHeight * worldCamera.aspect,
-                halfHeight);
             int throwCount =
                 CalculateFilthThrowCount(filthThrowLevel);
             for (int index = 0; index < throwCount; index++)
             {
-                Vector2 target =
-                    FilthProjectile.CalculateTargetPosition(
-                        cameraCenter,
-                        cameraHalfExtents,
-                        damageRadius,
-                        new Vector2(Random.value, Random.value));
+                EnemyBase target = index == 0
+                    ? firstTarget
+                    : enemyWorld.FindRandomLivingEnemyInBounds(
+                        visibleWorldBounds,
+                        Random.value);
+                if (target == null)
+                {
+                    break;
+                }
+
                 FilthProjectile.Spawn(
                     filthProjectilePrefab,
                     owner,
                     enemyWorld,
-                    target,
+                    target.transform.position,
                     damageMultiplier,
                     damageRadius);
             }

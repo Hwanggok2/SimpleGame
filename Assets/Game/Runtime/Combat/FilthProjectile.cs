@@ -89,25 +89,6 @@ namespace SimpleGame
                 (1f - progress);
         }
 
-        public static Vector2 CalculateTargetPosition(
-            Vector2 cameraCenter,
-            Vector2 cameraHalfExtents,
-            float damageRadius,
-            Vector2 randomValue)
-        {
-            const float visualPadding = 0.25f;
-            float margin =
-                Mathf.Max(0f, damageRadius) + visualPadding;
-            Vector2 usableHalfExtents = new(
-                Mathf.Max(0f, cameraHalfExtents.x - margin),
-                Mathf.Max(0f, cameraHalfExtents.y - margin));
-            Vector2 normalized = new(
-                Mathf.Lerp(-1f, 1f, Mathf.Clamp01(randomValue.x)),
-                Mathf.Lerp(-1f, 1f, Mathf.Clamp01(randomValue.y)));
-            return cameraCenter +
-                Vector2.Scale(normalized, usableHalfExtents);
-        }
-
         private void Configure(
             PlayerRoot configuredOwner,
             EnemyWorldService configuredEnemyWorld,

@@ -51,6 +51,50 @@ namespace SimpleGame
             return nearest;
         }
 
+        public EnemyBase FindRandomLivingEnemyInBounds(
+            Rect worldBounds,
+            float randomValue)
+        {
+            int livingCount = 0;
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy != null &&
+                    enemy.IsAlive &&
+                    worldBounds.Contains(enemy.transform.position))
+                {
+                    livingCount++;
+                }
+            }
+
+            if (livingCount <= 0)
+            {
+                return null;
+            }
+
+            int selectedIndex = Mathf.Min(
+                Mathf.FloorToInt(
+                    Mathf.Clamp01(randomValue) * livingCount),
+                livingCount - 1);
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy == null ||
+                    !enemy.IsAlive ||
+                    !worldBounds.Contains(enemy.transform.position))
+                {
+                    continue;
+                }
+
+                if (selectedIndex <= 0)
+                {
+                    return enemy;
+                }
+
+                selectedIndex--;
+            }
+
+            return null;
+        }
+
         public EnemyBase FindFirstEnemyOnPath(
             Vector2 start,
             Vector2 destination,
@@ -105,6 +149,67 @@ namespace SimpleGame
             }
 
             return first;
+        }
+
+        public EnemyBase FindAimAssistTarget(
+            Vector2 start,
+            Vector2 destination,
+            float halfWidth,
+            EnemyBase preferredEnemy = null,
+            float retentionWidthMultiplier = 1f)
+        {
+            Vector2 path = destination - start;
+            float pathLength = path.magnitude;
+            if (pathLength <= 0.0001f)
+            {
+                return null;
+            }
+
+            Vector2 direction = path / pathLength;
+            float safeHalfWidth = Mathf.Max(0f, halfWidth);
+            EnemyBase best = null;
+            float bestScore = float.MaxValue;
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (!TryGetAimAssistScore(
+                        enemy,
+                        start,
+                        direction,
+                        pathLength,
+                        safeHalfWidth,
+                        out float score))
+                {
+                    continue;
+                }
+
+                if (score < bestScore)
+                {
+                    best = enemy;
+                    bestScore = score;
+                }
+            }
+
+            const float retentionScoreTolerance = 0.08f;
+            float retentionWidth = safeHalfWidth *
+                Mathf.Max(1f, retentionWidthMultiplier);
+            if (preferredEnemy != null &&
+                enemies.Contains(preferredEnemy) &&
+                TryGetAimAssistScore(
+                    preferredEnemy,
+                    start,
+                    direction,
+                    pathLength,
+                    retentionWidth,
+                    out float preferredScore) &&
+                (best == null ||
+                 best == preferredEnemy ||
+                 preferredScore <=
+                    bestScore + retentionScoreTolerance))
+            {
+                return preferredEnemy;
+            }
+
+            return best;
         }
 
         public List<EnemyBase> CollectPiercingTargets(
@@ -404,6 +509,49 @@ namespace SimpleGame
                 }
             }
 
+            return true;
+        }
+
+        private static bool TryGetAimAssistScore(
+            EnemyBase enemy,
+            Vector2 start,
+            Vector2 direction,
+            float pathLength,
+            float halfWidth,
+            out float score)
+        {
+            score = float.MaxValue;
+            if (enemy == null || !enemy.IsAlive)
+            {
+                return false;
+            }
+
+            Vector2 offset =
+                (Vector2)enemy.transform.position - start;
+            float distanceAlongPath = Vector2.Dot(
+                offset,
+                direction);
+            if (distanceAlongPath <= 0f ||
+                distanceAlongPath > pathLength)
+            {
+                return false;
+            }
+
+            float distanceFromPath = Mathf.Abs(
+                direction.x * offset.y -
+                direction.y * offset.x);
+            float allowedDistance =
+                halfWidth + GetColliderRadius(enemy);
+            if (distanceFromPath > allowedDistance)
+            {
+                return false;
+            }
+
+            float angularError = distanceFromPath /
+                Mathf.Max(0.5f, distanceAlongPath);
+            float distanceTieBreaker =
+                distanceAlongPath / pathLength * 0.05f;
+            score = angularError + distanceTieBreaker;
             return true;
         }
 

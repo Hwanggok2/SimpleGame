@@ -9,8 +9,9 @@ namespace SimpleGame
     public sealed class PrototypeGameSession : MonoBehaviour
     {
         public const float CardChoiceInputDelay = 0.7f;
-        public const int MaximumCardRerollsPerRun = 3;
-        public const int BossRerollReward = 1;
+        public const int DefaultInitialCardRerolls = 5;
+        public const int DefaultMaximumStoredCardRerolls = 9;
+        public const int DefaultBossRerollReward = 1;
         public const int LevelUpHealAmount = 2;
 
         [Header("Scene References")]
@@ -34,12 +35,14 @@ namespace SimpleGame
             StringComparer.Ordinal);
         private readonly List<LevelUpCardDefinition> currentCardChoices =
             new();
-        private GameRunState state = GameRunState.Playing;
+        private readonly HashSet<string> currentCardHistory = new(
+            StringComparer.Ordinal);
+        private GameRunState state = GameRunState.DifficultySelection;
         private int pendingCardSelections;
         private int pendingBossRewardSelections;
         private bool selectingStartingCards;
         private int remainingCardRerolls =
-            MaximumCardRerollsPerRun;
+            DefaultInitialCardRerolls;
         private int continueCount;
         private GameRunState stateBeforePause = GameRunState.Playing;
         private bool cardChoicesInteractable;
@@ -51,6 +54,7 @@ namespace SimpleGame
             CardChoicesChanged;
         public event Action<bool> CardChoiceInteractivityChanged;
         public event Action<int, bool> CardRerollStateChanged;
+        public event Action<bool> DifficultySelectionVisibilityChanged;
         public event Action<bool> PauseVisibilityChanged;
         public event Action<string> PauseDetailsChanged;
         public event Action<bool> GameOverVisibilityChanged;
@@ -64,6 +68,8 @@ namespace SimpleGame
         public float ElapsedTime { get; private set; }
         public bool IsPlaying => state == GameRunState.Playing;
         public int RemainingCardRerolls => remainingCardRerolls;
+        public GameDifficulty Difficulty { get; private set; } =
+            GameDifficulty.Normal;
 
         public static string FormatElapsedTime(float elapsedTime)
         {
@@ -115,8 +121,8 @@ namespace SimpleGame
 
         private void Start()
         {
-            Time.timeScale = 1f;
-            remainingCardRerolls = MaximumCardRerollsPerRun;
+            Time.timeScale = 0f;
+            remainingCardRerolls = GetInitialCardRerolls();
             if (gameData == null ||
                 !gameData.IsConfigured ||
                 stageSpawner == null ||
@@ -153,13 +159,9 @@ namespace SimpleGame
 
             player.Health.Depleted += OnPlayerDepleted;
             player.Progression.LevelUpCardRequested += OnPlayerLevelUp;
-            stageSpawner.Begin(stageId);
-            ShowHint(
-                "왼쪽 조이스틱으로 조준하고 오른쪽 공격 버튼을 누르세요. " +
-                "화면 직접 터치도 사용할 수 있습니다.");
-            QueueCardSelections(
-                CalculateStartingCardSelectionCount(accountLevel),
-                true);
+            state = GameRunState.DifficultySelection;
+            DifficultySelectionVisibilityChanged?.Invoke(true);
+            ShowHint("난이도를 선택하면 게임을 시작합니다.");
         }
 
         private void Update()
@@ -223,7 +225,10 @@ namespace SimpleGame
             if (isBoss)
             {
                 remainingCardRerolls =
-                    CalculateBossRewardRerolls(remainingCardRerolls);
+                    CalculateBossRewardRerolls(
+                        remainingCardRerolls,
+                        GetBossRerollReward(),
+                        GetMaximumStoredCardRerolls());
                 QueueCardSelections(1, false, true);
             }
         }
@@ -248,6 +253,11 @@ namespace SimpleGame
 
         public void TogglePause()
         {
+            if (state == GameRunState.DifficultySelection)
+            {
+                return;
+            }
+
             if (state == GameRunState.Paused)
             {
                 state = stateBeforePause;
@@ -266,6 +276,35 @@ namespace SimpleGame
             PauseDetailsChanged?.Invoke(BuildPauseDetails());
             PauseVisibilityChanged?.Invoke(true);
             ShowHint("일시 정지했습니다. ESC를 누르면 재개합니다.");
+        }
+
+        public void SelectDifficulty(GameDifficulty difficulty)
+        {
+            if (state != GameRunState.DifficultySelection)
+            {
+                return;
+            }
+
+            Difficulty = difficulty;
+            ElapsedTime = 0f;
+            state = GameRunState.Playing;
+            Time.timeScale = 1f;
+            stageSpawner.Begin(stageId, difficulty);
+            DifficultySelectionVisibilityChanged?.Invoke(false);
+            ShowHint(
+                $"{GetDifficultyDisplayName(difficulty)} 난이도로 시작합니다. " +
+                "왼쪽 조이스틱으로 조준하고 공격 버튼을 누르세요.");
+            QueueCardSelections(
+                CalculateStartingCardSelectionCount(accountLevel),
+                true);
+        }
+
+        public static string GetDifficultyDisplayName(
+            GameDifficulty difficulty)
+        {
+            return difficulty == GameDifficulty.Easy
+                ? "쉬움"
+                : "보통";
         }
 
         public void SelectCard(int choiceIndex)
@@ -309,6 +348,7 @@ namespace SimpleGame
             bool completedStartingCards = selectingStartingCards;
             selectingStartingCards = false;
             currentCardChoices.Clear();
+            currentCardHistory.Clear();
             SetCardChoicesInteractable(false);
             CardSelectionVisibilityChanged?.Invoke(false);
             state = GameRunState.Playing;
@@ -331,7 +371,8 @@ namespace SimpleGame
             }
 
             HashSet<string> excludedCardIds =
-                BuildCurrentCardChoiceIds();
+                BuildRerollExcludedCardIds();
+            currentCardHistory.UnionWith(excludedCardIds);
             List<LevelUpCardDefinition> replacements =
                 gameData.LevelUpCards.Draw(
                     GetCardUnlockLevel(),
@@ -345,6 +386,7 @@ namespace SimpleGame
             }
 
             currentCardChoices[choiceIndex] = replacements[0];
+            currentCardHistory.Add(replacements[0].CardId);
             remainingCardRerolls--;
             PublishCardChoices();
             PublishCardRerollState();
@@ -402,6 +444,7 @@ namespace SimpleGame
             selectingStartingCards = false;
             Time.timeScale = 1f;
             currentCardChoices.Clear();
+            currentCardHistory.Clear();
             SetCardChoicesInteractable(false);
             PauseVisibilityChanged?.Invoke(false);
             CardSelectionVisibilityChanged?.Invoke(false);
@@ -435,12 +478,35 @@ namespace SimpleGame
         }
 
         public static int CalculateBossRewardRerolls(
-            int currentRerolls)
+            int currentRerolls,
+            int reward = DefaultBossRerollReward,
+            int maximumStored = DefaultMaximumStoredCardRerolls)
         {
             return Mathf.Clamp(
-                currentRerolls + BossRerollReward,
+                currentRerolls + Mathf.Max(0, reward),
                 0,
-                MaximumCardRerollsPerRun);
+                Mathf.Max(0, maximumStored));
+        }
+
+        private int GetInitialCardRerolls()
+        {
+            return gameData?.GlobalBalance != null
+                ? gameData.GlobalBalance.InitialCardRerolls
+                : DefaultInitialCardRerolls;
+        }
+
+        private int GetMaximumStoredCardRerolls()
+        {
+            return gameData?.GlobalBalance != null
+                ? gameData.GlobalBalance.MaximumStoredCardRerolls
+                : DefaultMaximumStoredCardRerolls;
+        }
+
+        private int GetBossRerollReward()
+        {
+            return gameData?.GlobalBalance != null
+                ? gameData.GlobalBalance.BossRerollReward
+                : DefaultBossRerollReward;
         }
 
         private void QueueCardSelections(
@@ -476,10 +542,16 @@ namespace SimpleGame
         private void RefreshCardChoices()
         {
             currentCardChoices.Clear();
+            currentCardHistory.Clear();
             currentCardChoices.AddRange(gameData.LevelUpCards.Draw(
                 GetCardUnlockLevel(),
                 GetCardStack,
                 3));
+            foreach (LevelUpCardDefinition choice in currentCardChoices)
+            {
+                currentCardHistory.Add(choice.CardId);
+            }
+
             PublishCardChoices();
             PublishCardRerollState();
         }
@@ -506,7 +578,7 @@ namespace SimpleGame
                 gameData.LevelUpCards.HasEligibleCard(
                     GetCardUnlockLevel(),
                     GetCardStack,
-                    BuildCurrentCardChoiceIds());
+                    BuildRerollExcludedCardIds());
             CardRerollStateChanged?.Invoke(
                 remainingCardRerolls,
                 hasAlternative);
@@ -519,9 +591,10 @@ namespace SimpleGame
                 : player.Progression.Level;
         }
 
-        private HashSet<string> BuildCurrentCardChoiceIds()
+        private HashSet<string> BuildRerollExcludedCardIds()
         {
             var cardIds = new HashSet<string>(
+                currentCardHistory,
                 StringComparer.Ordinal);
             foreach (LevelUpCardDefinition choice
                      in currentCardChoices)
@@ -553,7 +626,8 @@ namespace SimpleGame
             text.AppendLine();
             text.AppendLine(
                 $"플레이어 레벨  {player.Progression.Level}    " +
-                $"계정 레벨  {accountLevel}");
+                $"계정 레벨  {accountLevel}    " +
+                $"난이도  {GetDifficultyDisplayName(Difficulty)}");
             text.AppendLine(
                 $"점수  {Score}    계정 경험치  " +
                 $"{AccountExperience}    생존 시간  " +
@@ -636,6 +710,7 @@ namespace SimpleGame
             pendingCardSelections = 0;
             pendingBossRewardSelections = 0;
             selectingStartingCards = false;
+            currentCardHistory.Clear();
             SetCardChoicesInteractable(false);
             CardSelectionVisibilityChanged?.Invoke(false);
             state = GameRunState.Playing;

@@ -23,7 +23,14 @@ namespace SimpleGame
         Paused,
         CardSelection,
         GameOver,
-        Clear
+        Clear,
+        DifficultySelection
+    }
+
+    public enum GameDifficulty
+    {
+        Easy,
+        Normal
     }
 
     public enum PlayerAttackReaction

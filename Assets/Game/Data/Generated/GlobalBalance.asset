@@ -16,3 +16,6 @@ MonoBehaviour:
   accountExperiencePerUnit: 1
   criticalChancePerCard: 0.05
   maximumCriticalChance: 0.5
+  initialCardRerolls: 5
+  maximumStoredCardRerolls: 9
+  bossRerollReward: 1

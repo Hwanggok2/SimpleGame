@@ -258,6 +258,151 @@ namespace SimpleGame.Tests
                 Object.DestroyImmediate(joystickObject);
             }
         }
+
+        [Test]
+        public void MobileControlSettings_ClampScaleAndSafeAreaPosition()
+        {
+            MobileControlSettings settings = MobileControlSettings.Default;
+            settings.joystickScale = 0.2f;
+            settings.joystickPosition = new Vector2(-1f, 2f);
+            settings.attackScale = 3f;
+            settings.attackPosition = new Vector2(2f, -1f);
+
+            settings = MobileControlSettingsStore.Clamp(settings);
+
+            Assert.That(
+                settings.joystickScale,
+                Is.EqualTo(MobileControlSettingsStore.MinimumScale));
+            Assert.That(
+                settings.attackScale,
+                Is.EqualTo(MobileControlSettingsStore.MaximumScale));
+            Assert.That(
+                settings.joystickPosition,
+                Is.EqualTo(new Vector2(0f, 1f)));
+            Assert.That(
+                settings.attackPosition,
+                Is.EqualTo(new Vector2(1f, 0f)));
+
+            Rect safeArea =
+                MobileControlSettingsStore.CalculateSafeAreaInParent(
+                    new Rect(-500f, -1000f, 1000f, 2000f),
+                    new Rect(0f, 100f, 1000f, 1800f),
+                    new Vector2(1000f, 2000f));
+            Vector2 minimumCenter =
+                MobileControlSettingsStore.CalculateControlCenter(
+                    safeArea,
+                    new Vector2(200f, 200f),
+                    1.5f,
+                    Vector2.zero);
+            Vector2 maximumCenter =
+                MobileControlSettingsStore.CalculateControlCenter(
+                    safeArea,
+                    new Vector2(200f, 200f),
+                    1.5f,
+                    Vector2.one);
+
+            Assert.That(
+                minimumCenter,
+                Is.EqualTo(new Vector2(-350f, -750f)));
+            Assert.That(
+                maximumCenter,
+                Is.EqualTo(new Vector2(350f, 750f)));
+        }
+
+        [Test]
+        public void MobileControlSettings_PlayerPrefsRoundTrip()
+        {
+            MobileControlSettings original =
+                MobileControlSettingsStore.Load();
+            try
+            {
+                MobileControlSettings expected =
+                    MobileControlSettings.Default;
+                expected.controlsEnabled = false;
+                expected.autoAttackEnabled = true;
+                expected.joystickScale = 1.25f;
+                expected.joystickPosition = new Vector2(0.2f, 0.35f);
+                expected.attackScale = 0.8f;
+                expected.attackPosition = new Vector2(0.75f, 0.4f);
+
+                MobileControlSettingsStore.Save(expected);
+                MobileControlSettings actual =
+                    MobileControlSettingsStore.Load();
+
+                Assert.That(actual.controlsEnabled, Is.False);
+                Assert.That(actual.autoAttackEnabled, Is.True);
+                Assert.That(actual.joystickScale, Is.EqualTo(1.25f));
+                Assert.That(
+                    actual.joystickPosition,
+                    Is.EqualTo(new Vector2(0.2f, 0.35f)));
+                Assert.That(actual.attackScale, Is.EqualTo(0.8f));
+                Assert.That(
+                    actual.attackPosition,
+                    Is.EqualTo(new Vector2(0.75f, 0.4f)));
+            }
+            finally
+            {
+                MobileControlSettingsStore.Save(original);
+            }
+        }
+
+        [Test]
+        public void ControlSettingsLayout_UsesTwoColumnsInLandscape()
+        {
+            Vector2 landscape = new(1920f, 1080f);
+            Vector2 portrait = new(1080f, 1920f);
+            Vector2 shortPortrait = new(1080f, 1200f);
+
+            Assert.That(
+                MobileControlSettingsStore
+                    .UsesTwoColumnSettingsLayout(landscape),
+                Is.True);
+            Assert.That(
+                MobileControlSettingsStore
+                    .UsesTwoColumnSettingsLayout(portrait),
+                Is.False);
+            Assert.That(
+                MobileControlSettingsStore
+                    .UsesTwoColumnSettingsLayout(shortPortrait),
+                Is.True);
+
+            Vector2 joystickBottom =
+                MobileControlSettingsStore
+                    .CalculateSettingsSliderPosition(
+                        landscape,
+                        false,
+                        2);
+            Vector2 attackBottom =
+                MobileControlSettingsStore
+                    .CalculateSettingsSliderPosition(
+                        landscape,
+                        true,
+                        2);
+            Assert.That(joystickBottom.x, Is.LessThan(0f));
+            Assert.That(attackBottom.x, Is.GreaterThan(0f));
+            Assert.That(joystickBottom.y, Is.GreaterThan(-1080f));
+            Assert.That(attackBottom.y, Is.EqualTo(joystickBottom.y));
+
+            Vector2 portraitAttackBottom =
+                MobileControlSettingsStore
+                    .CalculateSettingsSliderPosition(
+                        portrait,
+                        true,
+                        2);
+            Assert.That(portraitAttackBottom.x, Is.Zero);
+            Assert.That(portraitAttackBottom.y, Is.GreaterThan(-1920f));
+        }
+
+        [Test]
+        public void AutoAttack_UsesHalfSecondIntervalAndDefaultsOff()
+        {
+            Assert.That(
+                PlayerController.AutoAttackInterval,
+                Is.EqualTo(0.5f));
+            Assert.That(
+                MobileControlSettings.Default.autoAttackEnabled,
+                Is.False);
+        }
     }
 
     public sealed class ImmediateGraphicRaycaster :

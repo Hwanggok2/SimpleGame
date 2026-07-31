@@ -79,6 +79,7 @@ namespace SimpleGameEditor
                     false);
                 sharedStrings = ReadSharedStrings();
                 sheetParts = ReadSheetParts();
+                ValidateTableMetadata();
             }
             catch
             {
@@ -203,6 +204,205 @@ namespace SimpleGameEditor
             return result;
         }
 
+        private void ValidateTableMetadata()
+        {
+            var tableIds = new HashSet<int>();
+            var tableNames = new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+            var tableDisplayNames = new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (KeyValuePair<string, string> sheetPart
+                     in sheetParts)
+            {
+                XDocument sheet = ReadXml(sheetPart.Value);
+                List<XElement> tableParts = sheet
+                    .Descendants(SpreadsheetNamespace + "tablePart")
+                    .ToList();
+                if (tableParts.Count == 0)
+                {
+                    continue;
+                }
+
+                string relationshipPart =
+                    GetRelationshipPartPath(sheetPart.Value);
+                Dictionary<string, string> relationshipTargets =
+                    ReadRelationshipTargets(relationshipPart);
+                foreach (XElement tablePart in tableParts)
+                {
+                    string relationshipId = tablePart.Attribute(
+                        DocumentRelationshipNamespace + "id")?.Value;
+                    if (string.IsNullOrWhiteSpace(relationshipId) ||
+                        !relationshipTargets.TryGetValue(
+                            relationshipId,
+                            out string target))
+                    {
+                        throw new InvalidDataException(
+                            $"{sheetPart.Key} contains an invalid " +
+                            "table relationship.");
+                    }
+
+                    string tablePath = ResolvePartPath(
+                        sheetPart.Value,
+                        target);
+                    ValidateTable(
+                        sheetPart.Key,
+                        sheet,
+                        tablePath,
+                        tableIds,
+                        tableNames,
+                        tableDisplayNames);
+                }
+            }
+        }
+
+        private void ValidateTable(
+            string sheetName,
+            XDocument sheet,
+            string tablePath,
+            HashSet<int> tableIds,
+            HashSet<string> tableNames,
+            HashSet<string> tableDisplayNames)
+        {
+            XDocument tableDocument = ReadXml(tablePath);
+            XElement table = tableDocument.Root;
+            if (table == null ||
+                table.Name != SpreadsheetNamespace + "table")
+            {
+                throw new InvalidDataException(
+                    $"Excel table part is invalid: {tablePath}");
+            }
+
+            int tableId = ReadPositiveInteger(
+                table.Attribute("id")?.Value,
+                0);
+            string tableName = table.Attribute("name")?.Value;
+            string displayName =
+                table.Attribute("displayName")?.Value;
+            if (tableId <= 0 || !tableIds.Add(tableId))
+            {
+                throw new InvalidDataException(
+                    $"Excel table id is missing or duplicated: {tablePath}");
+            }
+
+            if (string.IsNullOrWhiteSpace(tableName) ||
+                !tableNames.Add(tableName))
+            {
+                throw new InvalidDataException(
+                    $"Excel table name is missing or duplicated: " +
+                    $"{tablePath}");
+            }
+
+            if (string.IsNullOrWhiteSpace(displayName) ||
+                !tableDisplayNames.Add(displayName))
+            {
+                throw new InvalidDataException(
+                    $"Excel table display name is missing or duplicated: " +
+                    $"{tablePath}");
+            }
+
+            string rangeReference = table.Attribute("ref")?.Value;
+            ParseRangeReference(
+                rangeReference,
+                out int firstColumn,
+                out int firstRow,
+                out int lastColumn,
+                out int lastRow);
+            if (lastColumn < firstColumn || lastRow < firstRow)
+            {
+                throw new InvalidDataException(
+                    $"{sheetName} table '{displayName}' has an invalid " +
+                    $"range '{rangeReference}'.");
+            }
+
+            XElement tableColumns = table.Element(
+                SpreadsheetNamespace + "tableColumns");
+            List<XElement> columns = tableColumns?
+                .Elements(SpreadsheetNamespace + "tableColumn")
+                .ToList() ?? new List<XElement>();
+            int declaredColumnCount = ReadPositiveInteger(
+                tableColumns?.Attribute("count")?.Value,
+                0);
+            int rangeColumnCount = lastColumn - firstColumn + 1;
+            if (columns.Count == 0 ||
+                declaredColumnCount != columns.Count ||
+                rangeColumnCount != columns.Count)
+            {
+                throw new InvalidDataException(
+                    $"{sheetName} table '{displayName}' range has " +
+                    $"{rangeColumnCount} columns, but its metadata has " +
+                    $"{columns.Count}.");
+            }
+
+            int headerRowCount = ReadNonNegativeInteger(
+                table.Attribute("headerRowCount")?.Value,
+                1);
+            if (headerRowCount == 0)
+            {
+                return;
+            }
+
+            XElement headerRow = sheet
+                .Descendants(SpreadsheetNamespace + "row")
+                .FirstOrDefault(row => ReadPositiveInteger(
+                    row.Attribute("r")?.Value,
+                    0) == firstRow);
+            var headerCells = new Dictionary<int, XElement>();
+            if (headerRow != null)
+            {
+                foreach (XElement cell in headerRow.Elements(
+                             SpreadsheetNamespace + "c"))
+                {
+                    string reference = cell.Attribute("r")?.Value;
+                    headerCells[GetColumnIndex(reference)] = cell;
+                }
+            }
+
+            for (int index = 0; index < columns.Count; index++)
+            {
+                int columnIndex = firstColumn + index;
+                string expected =
+                    columns[index].Attribute("name")?.Value ??
+                    string.Empty;
+                string actual = string.Empty;
+                if (headerCells.TryGetValue(
+                        columnIndex,
+                        out XElement cell))
+                {
+                    actual = ReadCellValue(
+                        sheetName,
+                        cell.Attribute("r")?.Value,
+                        cell);
+                }
+
+                if (!string.Equals(
+                        expected,
+                        actual,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"{sheetName} table '{displayName}' header " +
+                        $"{index + 1} differs from its table metadata. " +
+                        $"Cell='{actual}', TableColumn='{expected}'.");
+                }
+            }
+        }
+
+        private Dictionary<string, string> ReadRelationshipTargets(
+            string relationshipPart)
+        {
+            XDocument relationships = ReadXml(relationshipPart);
+            return relationships
+                .Descendants(
+                    PackageRelationshipNamespace + "Relationship")
+                .ToDictionary(
+                    relation => relation.Attribute("Id")?.Value ??
+                        string.Empty,
+                    relation => relation.Attribute("Target")?.Value ??
+                        string.Empty,
+                    StringComparer.Ordinal);
+        }
+
         private string ReadCellValue(
             string sheetName,
             string reference,
@@ -305,6 +505,63 @@ namespace SimpleGameEditor
             return result - 1;
         }
 
+        private static void ParseRangeReference(
+            string rangeReference,
+            out int firstColumn,
+            out int firstRow,
+            out int lastColumn,
+            out int lastRow)
+        {
+            string[] references = (rangeReference ?? string.Empty)
+                .Split(':');
+            if (references.Length == 0 ||
+                references.Length > 2)
+            {
+                throw new InvalidDataException(
+                    $"Invalid Excel table range: {rangeReference}");
+            }
+
+            ParseCellReference(
+                references[0],
+                out firstColumn,
+                out firstRow);
+            ParseCellReference(
+                references.Length == 2
+                    ? references[1]
+                    : references[0],
+                out lastColumn,
+                out lastRow);
+        }
+
+        private static void ParseCellReference(
+            string cellReference,
+            out int columnIndex,
+            out int rowNumber)
+        {
+            string normalized =
+                (cellReference ?? string.Empty).Replace("$", string.Empty);
+            int rowStart = 0;
+            while (rowStart < normalized.Length &&
+                   char.IsLetter(normalized[rowStart]))
+            {
+                rowStart++;
+            }
+
+            if (rowStart == 0 ||
+                !int.TryParse(
+                    normalized.Substring(rowStart),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out rowNumber) ||
+                rowNumber <= 0)
+            {
+                throw new InvalidDataException(
+                    $"Invalid cell reference: {cellReference}");
+            }
+
+            columnIndex = GetColumnIndex(normalized);
+        }
+
         private static int ReadPositiveInteger(
             string value,
             int fallback)
@@ -317,6 +574,36 @@ namespace SimpleGameEditor
                 result > 0
                 ? result
                 : fallback;
+        }
+
+        private static int ReadNonNegativeInteger(
+            string value,
+            int fallback)
+        {
+            return int.TryParse(
+                    value,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out int result) &&
+                result >= 0
+                ? result
+                : fallback;
+        }
+
+        private static string GetRelationshipPartPath(string sourcePart)
+        {
+            int separatorIndex = sourcePart.LastIndexOf('/');
+            if (separatorIndex < 0 ||
+                separatorIndex >= sourcePart.Length - 1)
+            {
+                throw new InvalidDataException(
+                    $"Invalid Excel part path: {sourcePart}");
+            }
+
+            string directory =
+                sourcePart.Substring(0, separatorIndex);
+            string fileName = sourcePart.Substring(separatorIndex + 1);
+            return $"{directory}/_rels/{fileName}.rels";
         }
 
         private static string ResolvePartPath(

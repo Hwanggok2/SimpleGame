@@ -230,6 +230,11 @@ namespace SimpleGame
                 controller.ExecuteAimedCommand();
         }
 
+        public void SetAutoAttackEnabled(bool enabled)
+        {
+            controller?.SetAutoAttackEnabled(enabled);
+        }
+
         public void ReceiveDamage(int amount)
         {
             if (!health.ApplyDamage(amount))

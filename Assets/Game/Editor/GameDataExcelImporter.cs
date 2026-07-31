@@ -22,6 +22,9 @@ namespace SimpleGameEditor
         public int AccountExperiencePerUnit { get; set; }
         public float CriticalChancePerCard { get; set; }
         public float MaximumCriticalChance { get; set; }
+        public int InitialCardRerolls { get; set; }
+        public int MaximumStoredCardRerolls { get; set; }
+        public int BossRerollReward { get; set; }
     }
 
     public readonly struct GameDataImportSummary
@@ -78,7 +81,19 @@ namespace SimpleGameEditor
                 model);
             ParseStageSpawn(
                 workbook.ReadSheet("StageSpawn"),
-                model);
+                model,
+                GameDifficulty.Normal);
+            if (workbook.SheetNames.Any(name =>
+                    string.Equals(
+                        name,
+                        "StageSpawnEasy",
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                ParseStageSpawn(
+                    workbook.ReadSheet("StageSpawnEasy"),
+                    model,
+                    GameDifficulty.Easy);
+            }
             ParseLevelTable(
                 workbook.ReadSheet("PlayerLevelExp"),
                 model.PlayerLevels);
@@ -177,7 +192,8 @@ namespace SimpleGameEditor
 
         private static void ParseStageSpawn(
             ExcelSheet sheet,
-            GameDataExcelModel model)
+            GameDataExcelModel model,
+            GameDifficulty difficulty)
         {
             var table = new ExcelTable(
                 sheet,
@@ -236,7 +252,8 @@ namespace SimpleGameEditor
                     table.PositiveInt(row, "SpawnIndex"),
                     spawnPointId,
                     enemyId,
-                    table.PositiveInt(row, "EnemyLevel"));
+                    table.PositiveInt(row, "EnemyLevel"),
+                    difficulty);
                 if (!runtimeIds.Add(entry.RuntimeId))
                 {
                     throw table.Error(
@@ -298,7 +315,10 @@ namespace SimpleGameEditor
                 "AccountExpScoreUnit",
                 "AccountExpPerUnit",
                 "CriticalChancePerCard",
-                "MaximumCriticalChance");
+                "MaximumCriticalChance",
+                "InitialCardRerolls",
+                "MaximumStoredCardRerolls",
+                "BossRerollReward");
             if (table.DataRows.Count != 1)
             {
                 throw new InvalidDataException(
@@ -314,6 +334,14 @@ namespace SimpleGameEditor
                 table.Rate(row, "CriticalChancePerCard");
             model.MaximumCriticalChance =
                 table.Rate(row, "MaximumCriticalChance");
+            model.InitialCardRerolls =
+                table.NonNegativeInt(row, "InitialCardRerolls");
+            model.MaximumStoredCardRerolls =
+                table.NonNegativeInt(
+                    row,
+                    "MaximumStoredCardRerolls");
+            model.BossRerollReward =
+                table.NonNegativeInt(row, "BossRerollReward");
             if (model.MaximumCriticalChance <
                 model.CriticalChancePerCard)
             {
@@ -321,6 +349,15 @@ namespace SimpleGameEditor
                     row,
                     "MaximumCriticalChance",
                     "must be greater than or equal to CriticalChancePerCard");
+            }
+
+            if (model.MaximumStoredCardRerolls <
+                model.InitialCardRerolls)
+            {
+                throw table.Error(
+                    row,
+                    "MaximumStoredCardRerolls",
+                    "must be greater than or equal to InitialCardRerolls");
             }
         }
 
@@ -613,7 +650,10 @@ namespace SimpleGameEditor
                 data.AccountExperienceScoreUnit,
                 data.AccountExperiencePerUnit,
                 data.CriticalChancePerCard,
-                data.MaximumCriticalChance);
+                data.MaximumCriticalChance,
+                data.InitialCardRerolls,
+                data.MaximumStoredCardRerolls,
+                data.BossRerollReward);
             manifest.PlayerBalance.Configure(data.PlayerDefinitions);
             manifest.LevelUpCards.Configure(data.LevelUpCards);
 

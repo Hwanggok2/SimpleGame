@@ -187,6 +187,54 @@ namespace SimpleGame.Tests
         }
 
         [Test]
+        public void Recycle_RespectsTotalInactiveLimitAcrossPrefabs()
+        {
+            using var context = new PoolContext();
+            SetPrivateField(
+                context.Factory,
+                "maximumInactivePerPrefab",
+                8);
+            SetPrivateField(
+                context.Factory,
+                "maximumInactiveTotal",
+                1);
+
+            EnemyBase melee = context.Factory.Spawn(
+                "GoblinMelee",
+                1,
+                1,
+                Vector2.zero);
+            EnemyBase ranged = context.Factory.Spawn(
+                "GoblinRanged",
+                1,
+                1,
+                Vector2.right * 3f);
+
+            context.Factory.Recycle(melee);
+            context.Factory.Recycle(ranged);
+
+            Assert.That(
+                context.Factory.InactiveInstanceCount,
+                Is.EqualTo(1));
+            Assert.That(
+                context.Factory.ManagedInstanceCount,
+                Is.EqualTo(1));
+
+            EnemyBase reused = context.Factory.Spawn(
+                "GoblinMelee",
+                1,
+                2,
+                Vector2.up * 2f);
+            Assert.That(reused, Is.SameAs(melee));
+            Assert.That(
+                context.Factory.InactiveInstanceCount,
+                Is.Zero);
+            Assert.That(
+                context.Factory.ManagedInstanceCount,
+                Is.EqualTo(1));
+        }
+
+        [Test]
         public void Spawn_DoesNotReuseDifferentSourcePrefab()
         {
             using var context = new PoolContext();

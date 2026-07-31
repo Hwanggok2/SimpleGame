@@ -495,7 +495,7 @@ Enemy가 회색 공격 사거리 안
 
 방패병도 별도 애니메이터 클래스를 만들지 않고 같은 Adapter를 사용한다. `EnemyStateMachine`은 하늘색 범위 밖에서 Motion=Move(Walk), 범위 안에서 Motion=Guard(Shield)를 요청한다. Attack/Hurt 상태는 AnimatorController의 Exit Time 이후 현재 Motion 값에 맞는 Idle·Move·Guard 상태로 복귀한다.
 
-Player와 Enemy의 Animation·Animator 자산은 `Assets/Game/Characters` 아래에서 관리한다. 프로젝트의 모든 Prefab은 `Assets/Prefab`에 모으고 원본 Sprite Sheet만 `Assets/Resources`에 유지한다.
+Player와 Enemy의 Animation·Animator 자산은 `Assets/Game/Characters` 아래에서 관리한다. 프로젝트의 모든 Prefab은 `Assets/Prefab`에 모으고 원본 Sprite Sheet만 `Assets/SourceAssets`에 유지한다.
 
 ```text
 Assets/Game/Characters/
@@ -509,7 +509,7 @@ Assets/Game/Characters/
 
 Assets/Prefab/      # Player, Enemy, UI, Map, Effect 등 모든 Prefab
 
-Assets/Resources/
+Assets/SourceAssets/
 ├─ Bandits - Pixel Art/Sprites/LightBandit.png
 └─ Monsters Creatures Fantasy/Sprites/      # Goblin, Skeleton 원본
 ```
@@ -1154,7 +1154,8 @@ BossEnemy
 ```text
 PlayerCombatAbilities.Update
   └─ CalculateFilthThrowCount(level) = clamp(level, 1, 5)
-       └─ 같은 프레임에 레벨 수만큼 독립 목표 계산·Spawn
+       └─ FindRandomLivingEnemyInBounds(camera bounds)
+            └─ 같은 프레임에 레벨 수만큼 독립 목표 선택·Spawn
             └─ FilthProjectile
                  ├─ Throw 0.45초
                  └─ Field 3초
@@ -1164,7 +1165,8 @@ PlayerCombatAbilities.Update
 
 - 별도 Scene 시스템이나 Spawner를 추가하지 않는다. 자동 발동 주기와 카드 레벨은 기존 `PlayerCombatAbilities`가 소유한다.
 - `PlayerRoot.Configure`가 이미 받은 World Camera를 전달하므로 `Camera.main` 전역 검색에 의존하지 않는다.
-- 투사체 하나가 포물선 비행과 장판 상태를 모두 담당하며 장판은 매 틱 현재 Enemy 목록을 다시 수집한다. 같은 쿨다운에 생성된 구체는 목표와 장판을 서로 독립적으로 소유한다.
+- `EnemyWorldService.FindRandomLivingEnemyInBounds`는 등록된 Enemy 목록에서 화면 안 생존 후보 수를 센 뒤 난수 인덱스 하나를 다시 순회해 선택하므로 별도 후보 List를 할당하지 않는다. 후보가 없으면 쿨다운을 소비하지 않고 다음 갱신에서 재시도한다.
+- 투사체 하나가 선택 순간 Enemy 위치까지의 포물선 비행과 장판 상태를 모두 담당하며 장판은 매 틱 현재 Enemy 목록을 다시 수집한다. 같은 쿨다운에 생성된 구체는 목표와 장판을 서로 독립적으로 소유한다.
 - 모든 범위 대상을 공격하는 장판에는 거리 정렬이 필요 없다. `FilthProjectile`이 보유한 List를 `EnemyWorldService.FillEnemiesInRadius`에 넘겨 비우고 다시 채워 틱마다 후보·결과 List를 생성하거나 정렬하지 않는다.
 - 목표 위치, 포물선, 레벨별 투척 수·피해·반경·재사용, 틱 수는 순수 정적 함수로 분리해 EditMode에서 검증한다.
 
@@ -1177,21 +1179,25 @@ AimJoystickControl(pointerId)
   ├─ PointerDown → PlayerController.BeginAim
   │                  └─ 기존 명령과 독립된 조준 상태 시작
   ├─ Drag → SetAimInput
-  │           └─ 방향·크기 → Viewport 기반 AimDestination
+  │           ├─ 방향·크기 → Viewport 기반 RawAimDestination
+  │           └─ EnemyWorldService.FindAimAssistTarget
+  │                └─ 표시용 AimDestination만 Enemy에 고정
   └─ PointerUp → EndAim
                   └─ 가이드만 해제
 
 AttackCommandButton.PointerDown
   └─ PrototypeHUDView / PrototypeHUDPresenter
        └─ PlayerController.ExecuteAimedCommand
-            └─ AimDestination 스냅샷
+            └─ 원본 통로 후보 재검사
+                 └─ 고정 Enemy 현재 위치 또는 RawAimDestination 스냅샷
                  └─ TryIssueCommand
 ```
 
 - `AimJoystickControl`은 최초 PointerId 하나만 소유하고 다른 Pointer의 Drag·PointerUp을 무시한다. 공격 버튼은 다른 Pointer로 동시에 사용할 수 있다.
 - 앱 포커스를 잃거나 모바일 앱이 일시정지되면 PointerUp 누락에 대비해 조이스틱 소유권·입력·가이드를 즉시 해제한다.
 - `BeginAim`과 `SetAimInput`은 조준 상태와 표시만 갱신하며 기존 명령을 취소하거나 이동·공격 API를 호출하지 않는다.
-- `ExecuteAimedCommand`는 입력 크기 `0.01` 이상일 때 현재 끝점을 지역 값으로 스냅샷한 뒤 기존 `TryIssueCommand`에 전달한다. 따라서 조준 입력과 월드 직접 터치는 동일한 이동·타깃·공격 파이프라인을 공유한다.
+- `EnemyWorldService.FindAimAssistTarget`은 등록된 Enemy를 추가 할당 없이 순회해 원본 선분의 전방·거리·통로 폭을 검사한다. 중앙선 각도 오차를 우선하고 진행 거리를 동률 기준으로 사용하며, 넓은 유지 폭과 작은 점수 허용치로 미세 입력에서 대상이 깜빡이지 않게 한다.
+- `PlayerController`는 `RawAimDestination`과 표시용 `AimDestination`을 분리한다. 공격 직전에 후보를 다시 검사하고 유효한 잠금이 있으면 Enemy 현재 위치를, 없으면 원본 끝점을 기존 `TryIssueCommand`에 전달한다. 따라서 조준 입력과 월드 직접 터치는 동일한 이동·타깃·공격 파이프라인을 공유한다.
 - 공격 버튼과 월드 직접 터치는 `EndAim`을 호출하지 않는다. 이후 조이스틱을 움직이면 다음 명령의 조준점만 바뀌고 현재 명령의 목적지는 유지된다.
 - `EndAim`은 입력과 끝점을 Player 위치로 초기화하고 Renderer를 숨기지만 `CancelCommand`를 호출하지 않는다.
 
@@ -1200,6 +1206,7 @@ AttackCommandButton.PointerDown
 - 패드 로컬 오프셋을 반경으로 나누고 벡터 길이를 1로 Clamp해 360도 정규화 입력을 만든다.
 - `PlayerController.CalculateMaximumAimDistance`는 현재 Player 좌표에서 카메라 직교 Viewport 경계와 조준 방향의 교점을 구한다. 가로·세로 반경은 각각 0.5 월드 단위 줄인 안전 경계를 사용한다.
 - 끝점은 `playerPosition + normalizedInput × maximumDistance`로 계산하므로 입력 크기와 레이 길이가 선형이다.
+- 표시 레이와 끝점은 조준 보정 대상이 있을 때만 그 Enemy 위치를 사용한다. 원본 끝점은 항상 조이스틱 입력으로 계산되어 보정 후보 탐색 범위와 사용자의 의도를 유지한다.
 - `CharacterAssetBuilder`가 Player Prefab에 하늘색 `AimRay`와 45도 회전한 `AimEndpoint` SpriteRenderer를 저장한다. `PlayerController`는 위치·회전·길이·Pulse와 표시 여부만 변경한다.
 
 ### 24.3 HUD 구성과 책임

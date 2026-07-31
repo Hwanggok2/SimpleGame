@@ -81,11 +81,11 @@ namespace SimpleGame.Tests
 
         [TestCase(0, 0f, 0f, 0)]
         [TestCase(1, 0.35f, 1.2f, 1)]
-        [TestCase(2, 0.45f, 1.35f, 2)]
-        [TestCase(3, 0.55f, 1.5f, 3)]
-        [TestCase(4, 0.65f, 1.65f, 4)]
-        [TestCase(5, 0.75f, 1.8f, 5)]
-        [TestCase(6, 0.75f, 1.8f, 5)]
+        [TestCase(2, 0.45f, 1.32f, 2)]
+        [TestCase(3, 0.55f, 1.44f, 3)]
+        [TestCase(4, 0.65f, 1.56f, 4)]
+        [TestCase(5, 0.75f, 1.68f, 5)]
+        [TestCase(6, 0.75f, 1.68f, 5)]
         public void FilthThrow_UpgradeMathMatchesDesign(
             int level,
             float expectedDamage,
@@ -161,40 +161,6 @@ namespace SimpleGame.Tests
                     destination,
                     1f),
                 Is.EqualTo(destination));
-        }
-
-        [Test]
-        public void FilthTarget_LeavesRadiusInsideScreenBounds()
-        {
-            Vector2 cameraCenter = new(2f, -1f);
-            Vector2 halfExtents = new(8f, 5f);
-            const float radius = 1.8f;
-
-            Vector2 minimum =
-                FilthProjectile.CalculateTargetPosition(
-                    cameraCenter,
-                    halfExtents,
-                    radius,
-                    Vector2.zero);
-            Vector2 maximum =
-                FilthProjectile.CalculateTargetPosition(
-                    cameraCenter,
-                    halfExtents,
-                    radius,
-                    Vector2.one);
-
-            Assert.That(
-                minimum.x - radius,
-                Is.GreaterThan(cameraCenter.x - halfExtents.x));
-            Assert.That(
-                minimum.y - radius,
-                Is.GreaterThan(cameraCenter.y - halfExtents.y));
-            Assert.That(
-                maximum.x + radius,
-                Is.LessThan(cameraCenter.x + halfExtents.x));
-            Assert.That(
-                maximum.y + radius,
-                Is.LessThan(cameraCenter.y + halfExtents.y));
         }
     }
 }

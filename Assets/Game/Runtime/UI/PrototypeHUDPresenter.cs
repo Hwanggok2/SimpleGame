@@ -30,6 +30,12 @@ namespace SimpleGame
             view.Bind(
                 HudButtonId.Attack,
                 () => session.Player.ExecuteAimedCommand());
+            view.Bind(
+                HudButtonId.DifficultyEasy,
+                () => session.SelectDifficulty(GameDifficulty.Easy));
+            view.Bind(
+                HudButtonId.DifficultyNormal,
+                () => session.SelectDifficulty(GameDifficulty.Normal));
 
             session.HintChanged += OnHintChanged;
             session.CardSelectionVisibilityChanged += view.ShowCardSelection;
@@ -37,6 +43,8 @@ namespace SimpleGame
             session.CardChoiceInteractivityChanged +=
                 view.SetCardChoicesInteractable;
             session.CardRerollStateChanged += view.SetCardRerollState;
+            session.DifficultySelectionVisibilityChanged +=
+                view.ShowDifficultySelection;
             session.PauseVisibilityChanged += view.ShowPauseDetails;
             session.PauseDetailsChanged += view.SetPauseDetails;
             session.GameOverVisibilityChanged += view.ShowGameOver;
@@ -73,6 +81,8 @@ namespace SimpleGame
             session.CardChoiceInteractivityChanged -=
                 view.SetCardChoicesInteractable;
             session.CardRerollStateChanged -= view.SetCardRerollState;
+            session.DifficultySelectionVisibilityChanged -=
+                view.ShowDifficultySelection;
             session.PauseVisibilityChanged -= view.ShowPauseDetails;
             session.PauseDetailsChanged -= view.SetPauseDetails;
             session.GameOverVisibilityChanged -= view.ShowGameOver;

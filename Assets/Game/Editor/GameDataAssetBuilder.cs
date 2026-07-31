@@ -201,7 +201,14 @@ namespace SimpleGameEditor
                     out bool globalBalanceCreated);
             if (globalBalanceCreated)
             {
-                globalBalance.Configure(5, 1, 0.05f, 0.5f);
+                globalBalance.Configure(
+                    5,
+                    1,
+                    0.05f,
+                    0.5f,
+                    5,
+                    9,
+                    1);
             }
 
             PlayerBalanceTable playerBalance =
@@ -668,7 +675,7 @@ namespace SimpleGameEditor
                     "FILTH_THROW",
                     "CARD_FILTH_THROW_NAME",
                     "오물 투척",
-                    "화면 안 무작위 위치로 오물 구체를 던집니다. 착탄 지점은 3초 동안 0.5초마다 피해를 주며, 레벨마다 투척 수·피해·범위가 증가하고 재사용 대기시간이 감소합니다. 1~5레벨 투척 수: 1/2/3/4/5.",
+                    "화면 안의 무작위 생존 적에게 오물 구체를 던집니다. 착탄 지점은 3초 동안 0.5초마다 피해를 주며, 레벨마다 투척 수·피해·범위가 증가하고 재사용 대기시간이 감소합니다. 1~5레벨 투척 수: 1/2/3/4/5, 반경: 1.2/1.32/1.44/1.56/1.68.",
                     LevelUpCardEffectType.UpgradeRank,
                     PlayerStatId.FilthThrow,
                     StatOperation.Add,

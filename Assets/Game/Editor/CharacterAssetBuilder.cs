@@ -41,6 +41,12 @@ namespace SimpleGameEditor
             PrefabRootPath + "/MushroomPoisonCloud.prefab";
         public const string PrototypeSquareAssetPath =
             RootPath + "/Shared/PrototypeSquare.asset";
+        public const string AimDashAssetPath =
+            RootPath + "/Shared/AimDash.asset";
+        public const string AimEllipseAssetPath =
+            RootPath + "/Shared/AimEllipse.asset";
+        public const string AimArrowAssetPath =
+            RootPath + "/Shared/AimArrow.asset";
         public const string DefaultFontPath =
             "Assets/Font/Pretendard-Regular SDF.asset";
 
@@ -50,14 +56,19 @@ namespace SimpleGameEditor
             AnimationPath + "/Player";
         private const string PlayerControllerPath =
             AnimatorPath + "/Player.controller";
+        private const string SourceAssetRootPath =
+            "Assets/SourceAssets";
         private const string SourcePlayerAnimationPath =
-            "Assets/Resources/Bandits - Pixel Art/Animations/Light Bandit";
+            SourceAssetRootPath +
+            "/Bandits - Pixel Art/Animations/Light Bandit";
         private const string SourcePlayerControllerPath =
             SourcePlayerAnimationPath + "/LightBandit_AnimController.controller";
         private const string SourcePlayerPrefabPath =
-            "Assets/Resources/Bandits - Pixel Art/Demo/LightBandit.prefab";
+            SourceAssetRootPath +
+            "/Bandits - Pixel Art/Demo/LightBandit.prefab";
         private const string MovingSlashSpritePath =
-            "Assets/Resources/Effects/MovingSlash_Crescent_6f.png";
+            SourceAssetRootPath +
+            "/Effects/MovingSlash_Crescent_6f.png";
         private const string SpriteBindingPath = "Visual/Sprite";
 
         [MenuItem("SimpleGame/Build Character Assets %#g")]
@@ -81,7 +92,8 @@ namespace SimpleGameEditor
                 -1f);
 
             Sprite[] lightBandit = LoadSprites(
-                "Assets/Resources/Bandits - Pixel Art/Sprites/LightBandit.png");
+                SourceAssetRootPath +
+                "/Bandits - Pixel Art/Sprites/LightBandit.png");
             Sprite[] playerIdle = Slice(lightBandit, 0, 4);
             Sprite[] playerMove = Slice(lightBandit, 8, 8);
             Sprite[] playerGuard = Slice(lightBandit, 4, 4);
@@ -107,19 +119,24 @@ namespace SimpleGameEditor
                 playerFaceLeft);
 
             Sprite[] goblinIdle = LoadSprites(
-                "Assets/Resources/Monsters Creatures Fantasy/Sprites/Goblin/Idle.png");
+                SourceAssetRootPath +
+                "/Monsters Creatures Fantasy/Sprites/Goblin/Idle.png");
             AnimatorController goblinController = BuildProfile(
                 "Goblin",
                 goblinIdle,
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Goblin/Run.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Goblin/Run.png"),
                 goblinIdle,
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Goblin/Attack1.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Goblin/Attack1.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Goblin/Take Hit.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Goblin/Take Hit.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Goblin/Death.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Goblin/Death.png"),
                 12f,
                 12f,
                 12f,
@@ -129,24 +146,31 @@ namespace SimpleGameEditor
                 enemyFaceRight,
                 enemyFaceLeft,
                 attack2Frames: LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Goblin/Attack2.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Goblin/Attack2.png"),
                 attack2Fps: 16f);
 
             Sprite[] skeletonIdle = LoadSprites(
-                "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Idle.png");
+                SourceAssetRootPath +
+                "/Monsters Creatures Fantasy/Sprites/Skeleton/Idle.png");
             AnimatorController skeletonController = BuildProfile(
                 "Skeleton",
                 skeletonIdle,
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Walk.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Skeleton/Walk.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Shield.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Skeleton/Shield.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Attack1.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Skeleton/Attack1.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Take Hit.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Skeleton/Take Hit.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Death.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Skeleton/Death.png"),
                 12f,
                 12f,
                 12f,
@@ -156,23 +180,29 @@ namespace SimpleGameEditor
                 enemyFaceRight,
                 enemyFaceLeft,
                 attack2Frames: LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Skeleton/Attack2.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Skeleton/Attack2.png"),
                 attack2Fps: 16f);
 
             Sprite[] mushroomIdle = LoadSprites(
-                "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Idle.png");
+                SourceAssetRootPath +
+                "/Monsters Creatures Fantasy/Sprites/Mushroom/Idle.png");
             AnimatorController mushroomController = BuildProfile(
                 "Mushroom",
                 mushroomIdle,
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Run.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Mushroom/Run.png"),
                 mushroomIdle,
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Attack1.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Mushroom/Attack1.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Take Hit.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Mushroom/Take Hit.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Death.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Mushroom/Death.png"),
                 12f,
                 12f,
                 12f,
@@ -182,22 +212,27 @@ namespace SimpleGameEditor
                 enemyFaceRight,
                 enemyFaceLeft,
                 attack2Frames: LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Mushroom/Attack2.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Mushroom/Attack2.png"),
                 attack2Fps: 14f);
 
             Sprite[] flyingEyeIdle = LoadSprites(
-                "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Flight.png");
+                SourceAssetRootPath +
+                "/Monsters Creatures Fantasy/Sprites/Flying eye/Flight.png");
             AnimatorController flyingEyeController = BuildProfile(
                 "FlyingEye",
                 flyingEyeIdle,
                 flyingEyeIdle,
                 flyingEyeIdle,
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Attack1.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Flying eye/Attack1.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Take Hit.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Flying eye/Take Hit.png"),
                 LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Death.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Flying eye/Death.png"),
                 12f,
                 12f,
                 12f,
@@ -207,7 +242,8 @@ namespace SimpleGameEditor
                 enemyFaceRight,
                 enemyFaceLeft,
                 attack2Frames: LoadSprites(
-                    "Assets/Resources/Monsters Creatures Fantasy/Sprites/Flying eye/Attack2.png"),
+                    SourceAssetRootPath +
+                    "/Monsters Creatures Fantasy/Sprites/Flying eye/Attack2.png"),
                 attack2Fps: 16f);
 
             MovingSlashProjectile movingSlashPrefab =
@@ -916,20 +952,41 @@ namespace SimpleGameEditor
             SpriteRenderer aimRay = CreateSpriteVisual(
                 root.transform,
                 "AimRay",
-                new Color(0.2f, 0.9f, 1f, 0.68f),
-                new Vector2(0.01f, PlayerController.AimRayWidth),
+                Color.white,
+                Vector2.one,
                 108);
+            aimRay.sprite = LoadAimDashSprite();
+            aimRay.drawMode = SpriteDrawMode.Tiled;
+            aimRay.tileMode = SpriteTileMode.Continuous;
+            aimRay.size = new Vector2(
+                0.01f,
+                PlayerController.AimRayWidth);
             SpriteRenderer aimEndpoint = CreateSpriteVisual(
                 root.transform,
                 "AimEndpoint",
-                new Color(0.12f, 0.92f, 1f, 0.86f),
+                Color.white,
                 Vector2.one * PlayerController.AimEndpointSize,
                 109);
-            aimEndpoint.transform.localRotation =
-                Quaternion.Euler(0f, 0f, 45f);
+            aimEndpoint.sprite = LoadAimEllipseSprite();
+            SpriteRenderer commandEndpoint = CreateSpriteVisual(
+                root.transform,
+                "CommandEndpoint",
+                Color.white,
+                Vector2.one * PlayerController.AimEndpointSize,
+                110);
+            commandEndpoint.sprite = LoadAimEllipseSprite();
+            SpriteRenderer commandArrow = CreateSpriteVisual(
+                root.transform,
+                "CommandArrow",
+                new Color(1f, 0f, 0f, 0.5f),
+                Vector2.one * PlayerController.AimEndpointSize,
+                111);
+            commandArrow.sprite = LoadAimArrowSprite();
             playerController.ConfigureAimVisuals(
                 aimRay,
-                aimEndpoint);
+                aimEndpoint,
+                commandEndpoint,
+                commandArrow);
 
             SpriteRenderer attackRange = CreateSpriteVisual(
                 root.transform,
@@ -1223,6 +1280,116 @@ namespace SimpleGameEditor
                 new Vector2(0.5f, 0.5f),
                 1f);
             sprite.name = "PrototypeSquare";
+            AssetDatabase.AddObjectToAsset(sprite, texture);
+            EditorUtility.SetDirty(texture);
+            AssetDatabase.SaveAssets();
+            return sprite;
+        }
+
+        private static Sprite LoadAimDashSprite()
+        {
+            return LoadOrCreateProceduralSprite(
+                AimDashAssetPath,
+                "AimDash",
+                16,
+                4,
+                40f,
+                (x, _) => x < 9,
+                TextureWrapMode.Repeat);
+        }
+
+        private static Sprite LoadAimEllipseSprite()
+        {
+            return LoadOrCreateProceduralSprite(
+                AimEllipseAssetPath,
+                "AimEllipse",
+                64,
+                40,
+                64f,
+                (x, y) =>
+                {
+                    float offsetX = x - 31.5f;
+                    float offsetY = y - 19.5f;
+                    float outer =
+                        offsetX * offsetX / (30f * 30f) +
+                        offsetY * offsetY / (18f * 18f);
+                    float inner =
+                        offsetX * offsetX / (26f * 26f) +
+                        offsetY * offsetY / (14f * 14f);
+                    return outer <= 1f && inner >= 1f;
+                },
+                TextureWrapMode.Clamp);
+        }
+
+        private static Sprite LoadAimArrowSprite()
+        {
+            return LoadOrCreateProceduralSprite(
+                AimArrowAssetPath,
+                "AimArrow",
+                64,
+                40,
+                64f,
+                (x, y) =>
+                {
+                    float vertical = Mathf.Abs(y - 19.5f);
+                    bool shaft = x >= 10 && x <= 40 && vertical <= 2.5f;
+                    bool head = x >= 36 && x <= 54 &&
+                        vertical <= (54f - x) * (10f / 18f);
+                    return shaft || head;
+                },
+                TextureWrapMode.Clamp);
+        }
+
+        private static Sprite LoadOrCreateProceduralSprite(
+            string path,
+            string spriteName,
+            int width,
+            int height,
+            float pixelsPerUnit,
+            Func<int, int, bool> isOpaque,
+            TextureWrapMode wrapMode)
+        {
+            Sprite existing = AssetDatabase
+                .LoadAllAssetsAtPath(path)
+                .OfType<Sprite>()
+                .FirstOrDefault();
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var texture = new Texture2D(
+                width,
+                height,
+                TextureFormat.RGBA32,
+                false)
+            {
+                name = spriteName + "Texture",
+                filterMode = FilterMode.Point,
+                wrapMode = wrapMode
+            };
+            var pixels = new Color[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    pixels[y * width + x] = isOpaque(x, y)
+                        ? Color.white
+                        : Color.clear;
+                }
+            }
+
+            texture.SetPixels(pixels);
+            texture.Apply();
+            AssetDatabase.CreateAsset(texture, path);
+            Sprite sprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, width, height),
+                new Vector2(0.5f, 0.5f),
+                pixelsPerUnit,
+                0u,
+                SpriteMeshType.FullRect);
+            sprite.name = spriteName;
             AssetDatabase.AddObjectToAsset(sprite, texture);
             EditorUtility.SetDirty(texture);
             AssetDatabase.SaveAssets();

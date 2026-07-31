@@ -14,6 +14,8 @@ namespace SimpleGame
         [SerializeField] private string spawnPointId;
         [SerializeField] private string enemyId;
         [SerializeField, Min(1)] private int enemyLevel = 1;
+        [SerializeField] private GameDifficulty difficulty =
+            GameDifficulty.Normal;
 
         public StageSpawnEntry(
             string stageId,
@@ -22,7 +24,8 @@ namespace SimpleGame
             int spawnIndex,
             string spawnPointId,
             string enemyId,
-            int enemyLevel)
+            int enemyLevel,
+            GameDifficulty difficulty = GameDifficulty.Normal)
         {
             this.stageId = stageId;
             this.waveId = waveId;
@@ -31,6 +34,7 @@ namespace SimpleGame
             this.spawnPointId = spawnPointId;
             this.enemyId = enemyId;
             this.enemyLevel = Mathf.Max(1, enemyLevel);
+            this.difficulty = difficulty;
         }
 
         public string StageId => stageId;
@@ -40,12 +44,13 @@ namespace SimpleGame
         public string SpawnPointId => spawnPointId;
         public string EnemyId => enemyId;
         public int EnemyLevel => enemyLevel;
+        public GameDifficulty Difficulty => difficulty;
         public int WaveNumber =>
             TryParseWaveNumber(waveId, out int result)
                 ? result
                 : 1;
         public string RuntimeId =>
-            $"{stageId}_{waveId}_{spawnIndex:000}";
+            $"{difficulty}_{stageId}_{waveId}_{spawnIndex:000}";
 
         public static bool TryParseWaveNumber(
             string value,
@@ -78,7 +83,9 @@ namespace SimpleGame
             entries = new List<StageSpawnEntry>(values);
         }
 
-        public List<StageSpawnEntry> CopyStageEntries(string stageId)
+        public List<StageSpawnEntry> CopyStageEntries(
+            string stageId,
+            GameDifficulty difficulty = GameDifficulty.Normal)
         {
             var result = new List<StageSpawnEntry>();
             foreach (StageSpawnEntry entry in entries)
@@ -87,7 +94,8 @@ namespace SimpleGame
                     string.Equals(
                         entry.StageId,
                         stageId,
-                        StringComparison.Ordinal))
+                        StringComparison.Ordinal) &&
+                    entry.Difficulty == difficulty)
                 {
                     result.Add(entry);
                 }

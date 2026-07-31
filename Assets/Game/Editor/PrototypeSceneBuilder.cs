@@ -30,6 +30,9 @@ namespace SimpleGameEditor
         public const string GameOverPanelPrefabPath =
             CharacterAssetBuilder.PrefabRootPath +
             "/GameOverPanel.prefab";
+        public const string DifficultySelectionPanelPrefabPath =
+            CharacterAssetBuilder.PrefabRootPath +
+            "/DifficultySelectionPanel.prefab";
         private const string ScenePath = "Assets/Scenes/PrototypeScene.unity";
         private const string WorldTilePath = "Assets/Game/World/Tiles";
         private const float LevelUpCardWidth = 300f;
@@ -463,7 +466,7 @@ namespace SimpleGameEditor
                 }
 
                 string spritePath =
-                    "Assets/Resources/PNG/" +
+                    "Assets/SourceAssets/PNG/" +
                     $"Top-Down Simple Summer_Ground {sourceIndex:00}.png";
                 tile.sprite =
                     AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
@@ -503,8 +506,23 @@ namespace SimpleGameEditor
                 LoadOrCreatePrefab(
                     PauseDetailsPanelPrefabPath,
                     CreatePauseDetailsPanelPrefab);
+            Transform controlSettingsPanel = pausePrefab.transform.Find(
+                "ControlSettingsPanel");
+            Image controlSettingsBackground =
+                controlSettingsPanel != null
+                    ? controlSettingsPanel.GetComponent<Image>()
+                    : null;
             if (pausePrefab.transform.Find(
-                    "ControlPadToggle") == null)
+                    "ControlPadToggle") == null ||
+                pausePrefab.transform.Find(
+                    "AutoAttackToggle") == null ||
+                pausePrefab.transform.Find(
+                    "ControlSettingsButton") == null ||
+                controlSettingsPanel == null ||
+                controlSettingsBackground == null ||
+                !Mathf.Approximately(
+                    controlSettingsBackground.color.a,
+                    0.45f))
             {
                 pausePrefab = CreatePauseDetailsPanelPrefab();
             }
@@ -513,6 +531,10 @@ namespace SimpleGameEditor
                 LoadOrCreatePrefab(
                     GameOverPanelPrefabPath,
                     CreateGameOverPanelPrefab);
+            GameObject difficultySelectionPrefab =
+                LoadOrCreatePrefab(
+                    DifficultySelectionPanelPrefabPath,
+                    CreateDifficultySelectionPanelPrefab);
 
             GameObject hudPrefab =
                 AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -526,12 +548,14 @@ namespace SimpleGameEditor
                 existingHudView.AttackButton == null ||
                 existingHudView.AttackButton.GetComponent<
                     AttackCommandButton>() == null ||
-                existingHudView.AimJoystick == null)
+                existingHudView.AimJoystick == null ||
+                existingHudView.DifficultySelectionPanelPrefab == null)
             {
                 CreatePrototypeHudPrefab(
                     cardSelectionPrefab,
                     pausePrefab,
-                    gameOverPrefab);
+                    gameOverPrefab,
+                    difficultySelectionPrefab);
             }
 
             AssetDatabase.SaveAssets();
@@ -549,7 +573,8 @@ namespace SimpleGameEditor
         private static GameObject CreatePrototypeHudPrefab(
             GameObject cardSelectionPrefab,
             GameObject pausePrefab,
-            GameObject gameOverPrefab)
+            GameObject gameOverPrefab,
+            GameObject difficultySelectionPrefab)
         {
             var canvasObject = new GameObject(
                 "PrototypeHUD",
@@ -656,7 +681,8 @@ namespace SimpleGameEditor
                 modalRootObject.transform,
                 cardSelectionPrefab,
                 pausePrefab,
-                gameOverPrefab);
+                gameOverPrefab,
+                difficultySelectionPrefab);
             var presenter =
                 canvasObject.AddComponent<PrototypeHUDPresenter>();
             presenter.Configure(hudView);
@@ -704,10 +730,13 @@ namespace SimpleGameEditor
             RectTransform labelRect = label.rectTransform;
             labelRect.anchorMin = Vector2.zero;
             labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(70f, 190f);
+            labelRect.offsetMin = new Vector2(70f, 410f);
             labelRect.offsetMax = new Vector2(-70f, -70f);
             label.alignment = TextAlignmentOptions.TopLeft;
             CreateControlPadToggle(panel.transform);
+            CreateAutoAttackToggle(panel.transform);
+            CreateControlSettingsButton(panel.transform);
+            CreateControlSettingsPanel(panel.transform);
             return SaveTemporaryPrefab(
                 panel,
                 PauseDetailsPanelPrefabPath);
@@ -779,6 +808,271 @@ namespace SimpleGameEditor
             return toggle;
         }
 
+        private static Toggle CreateAutoAttackToggle(
+            Transform parent)
+        {
+            var toggleObject = new GameObject(
+                "AutoAttackToggle",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Toggle));
+            toggleObject.transform.SetParent(parent, false);
+
+            RectTransform rect =
+                toggleObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 170f);
+            rect.sizeDelta = new Vector2(480f, 86f);
+
+            Image background = toggleObject.GetComponent<Image>();
+            background.color =
+                new Color(0.08f, 0.24f, 0.31f, 0.96f);
+            background.raycastTarget = true;
+
+            var checkmarkObject = new GameObject(
+                "Checkmark",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            checkmarkObject.transform.SetParent(
+                toggleObject.transform,
+                false);
+            RectTransform checkmarkRect =
+                checkmarkObject.GetComponent<RectTransform>();
+            checkmarkRect.anchorMin = new Vector2(0f, 0.5f);
+            checkmarkRect.anchorMax = new Vector2(0f, 0.5f);
+            checkmarkRect.pivot = new Vector2(0.5f, 0.5f);
+            checkmarkRect.anchoredPosition = new Vector2(48f, 0f);
+            checkmarkRect.sizeDelta = new Vector2(46f, 46f);
+            Image checkmark = checkmarkObject.GetComponent<Image>();
+            checkmark.sprite = LoadBuiltinCircleSprite();
+            checkmark.color = new Color(1f, 0.36f, 0.22f, 1f);
+            checkmark.raycastTarget = false;
+
+            TMP_Text label = CreateTextObject(
+                toggleObject.transform,
+                "Label",
+                "자동 공격",
+                30f);
+            RectTransform labelRect = label.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(90f, 8f);
+            labelRect.offsetMax = new Vector2(-18f, -8f);
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.raycastTarget = false;
+
+            Toggle toggle = toggleObject.GetComponent<Toggle>();
+            toggle.targetGraphic = background;
+            toggle.graphic = checkmark;
+            toggle.isOn = false;
+            return toggle;
+        }
+
+        private static void CreateControlSettingsButton(Transform parent)
+        {
+            Button button = CreateButtonVisual(
+                "ControlSettingsButton",
+                "조작");
+            button.transform.SetParent(parent, false);
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 268f);
+            rect.sizeDelta = new Vector2(480f, 86f);
+        }
+
+        private static void CreateControlSettingsPanel(Transform parent)
+        {
+            GameObject panel = CreatePanel(
+                parent,
+                "ControlSettingsPanel",
+                new Color(0.025f, 0.035f, 0.045f, 0.45f),
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            TMP_Text title = CreateTextObject(
+                panel.transform,
+                "ControlSettingsTitle",
+                "조작 패널 설정",
+                42f);
+            RectTransform titleRect = title.rectTransform;
+            titleRect.anchorMin = new Vector2(0f, 1f);
+            titleRect.anchorMax = new Vector2(1f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 1f);
+            titleRect.anchoredPosition = new Vector2(0f, -55f);
+            titleRect.sizeDelta = new Vector2(0f, 90f);
+            title.alignment = TextAlignmentOptions.Center;
+            title.fontStyle = FontStyles.Bold;
+
+            CreateControlSettingsSlider(
+                panel.transform,
+                "JoystickSizeSlider",
+                "왼쪽 조이스틱 크기",
+                MobileControlSettingsStore.MinimumScale,
+                MobileControlSettingsStore.MaximumScale,
+                1f,
+                -245f);
+            CreateControlSettingsSlider(
+                panel.transform,
+                "JoystickHorizontalSlider",
+                "왼쪽 조이스틱 가로 위치",
+                0f,
+                1f,
+                MobileControlSettings.Default.joystickPosition.x,
+                -445f);
+            CreateControlSettingsSlider(
+                panel.transform,
+                "JoystickVerticalSlider",
+                "왼쪽 조이스틱 세로 위치",
+                0f,
+                1f,
+                MobileControlSettings.Default.joystickPosition.y,
+                -645f);
+            CreateControlSettingsSlider(
+                panel.transform,
+                "AttackSizeSlider",
+                "오른쪽 공격 버튼 크기",
+                MobileControlSettingsStore.MinimumScale,
+                MobileControlSettingsStore.MaximumScale,
+                1f,
+                -895f);
+            CreateControlSettingsSlider(
+                panel.transform,
+                "AttackHorizontalSlider",
+                "오른쪽 공격 버튼 가로 위치",
+                0f,
+                1f,
+                MobileControlSettings.Default.attackPosition.x,
+                -1095f);
+            CreateControlSettingsSlider(
+                panel.transform,
+                "AttackVerticalSlider",
+                "오른쪽 공격 버튼 세로 위치",
+                0f,
+                1f,
+                MobileControlSettings.Default.attackPosition.y,
+                -1295f);
+
+            CreateControlSettingsActionButton(
+                panel.transform,
+                "ControlDefaultsButton",
+                "기본값",
+                -280f);
+            CreateControlSettingsActionButton(
+                panel.transform,
+                "ControlCancelButton",
+                "취소",
+                0f);
+            CreateControlSettingsActionButton(
+                panel.transform,
+                "ControlApplyButton",
+                "적용",
+                280f);
+            panel.SetActive(false);
+        }
+
+        private static Slider CreateControlSettingsSlider(
+            Transform parent,
+            string objectName,
+            string labelText,
+            float minimum,
+            float maximum,
+            float value,
+            float y)
+        {
+            var sliderObject = new GameObject(
+                objectName,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Slider));
+            sliderObject.transform.SetParent(parent, false);
+            RectTransform rect =
+                sliderObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, y);
+            rect.sizeDelta = new Vector2(760f, 44f);
+
+            Image background = sliderObject.GetComponent<Image>();
+            background.color = new Color(0.08f, 0.18f, 0.22f, 1f);
+
+            var handleObject = new GameObject(
+                "Handle",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            handleObject.transform.SetParent(sliderObject.transform, false);
+            RectTransform handleRect =
+                handleObject.GetComponent<RectTransform>();
+            handleRect.anchorMin = new Vector2(0f, 0.5f);
+            handleRect.anchorMax = new Vector2(0f, 0.5f);
+            handleRect.pivot = new Vector2(0.5f, 0.5f);
+            handleRect.sizeDelta = new Vector2(58f, 58f);
+            Image handleImage = handleObject.GetComponent<Image>();
+            handleImage.sprite = LoadBuiltinCircleSprite();
+            handleImage.color = new Color(0.25f, 0.88f, 1f, 1f);
+
+            TMP_Text label = CreateTextObject(
+                sliderObject.transform,
+                "Label",
+                labelText,
+                28f);
+            RectTransform labelRect = label.rectTransform;
+            labelRect.anchorMin = new Vector2(0f, 1f);
+            labelRect.anchorMax = new Vector2(0f, 1f);
+            labelRect.pivot = new Vector2(0f, 0f);
+            labelRect.anchoredPosition = new Vector2(0f, 22f);
+            labelRect.sizeDelta = new Vector2(620f, 54f);
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+
+            TMP_Text valueLabel = CreateTextObject(
+                sliderObject.transform,
+                "Value",
+                $"{Mathf.RoundToInt(value * 100f)}%",
+                28f);
+            RectTransform valueRect = valueLabel.rectTransform;
+            valueRect.anchorMin = new Vector2(1f, 1f);
+            valueRect.anchorMax = new Vector2(1f, 1f);
+            valueRect.pivot = new Vector2(1f, 0f);
+            valueRect.anchoredPosition = new Vector2(0f, 22f);
+            valueRect.sizeDelta = new Vector2(130f, 54f);
+            valueLabel.alignment = TextAlignmentOptions.MidlineRight;
+
+            Slider slider = sliderObject.GetComponent<Slider>();
+            slider.minValue = minimum;
+            slider.maxValue = maximum;
+            slider.value = value;
+            slider.wholeNumbers = false;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.handleRect = handleRect;
+            slider.targetGraphic = handleImage;
+            return slider;
+        }
+
+        private static void CreateControlSettingsActionButton(
+            Transform parent,
+            string objectName,
+            string labelText,
+            float x)
+        {
+            Button button = CreateButtonVisual(objectName, labelText);
+            button.transform.SetParent(parent, false);
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(x, 72f);
+            rect.sizeDelta = new Vector2(230f, 86f);
+        }
+
         private static GameObject CreateGameOverPanelPrefab()
         {
             GameObject panel = CreatePanel(
@@ -815,6 +1109,80 @@ namespace SimpleGameEditor
             return SaveTemporaryPrefab(
                 panel,
                 GameOverPanelPrefabPath);
+        }
+
+        private static GameObject CreateDifficultySelectionPanelPrefab()
+        {
+            GameObject panel = CreatePanel(
+                null,
+                "DifficultySelectionPanel",
+                new Color(0.025f, 0.035f, 0.045f, 0.97f),
+                new Vector2(0.08f, 0.24f),
+                new Vector2(0.92f, 0.76f),
+                Vector2.zero,
+                Vector2.zero);
+            TMP_Text title = CreateTextObject(
+                panel.transform,
+                "DifficultyTitle",
+                "난이도 선택",
+                52f);
+            RectTransform titleRect = title.rectTransform;
+            titleRect.anchorMin = new Vector2(0f, 1f);
+            titleRect.anchorMax = new Vector2(1f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 1f);
+            titleRect.anchoredPosition = new Vector2(0f, -70f);
+            titleRect.sizeDelta = new Vector2(0f, 90f);
+            title.alignment = TextAlignmentOptions.Center;
+            title.fontStyle = FontStyles.Bold;
+
+            TMP_Text description = CreateTextObject(
+                panel.transform,
+                "DifficultyDescription",
+                "난이도는 이번 게임의 적 수와 적 레벨에 적용됩니다.",
+                28f);
+            RectTransform descriptionRect = description.rectTransform;
+            descriptionRect.anchorMin = new Vector2(0.08f, 0.58f);
+            descriptionRect.anchorMax = new Vector2(0.92f, 0.76f);
+            descriptionRect.offsetMin = Vector2.zero;
+            descriptionRect.offsetMax = Vector2.zero;
+            description.alignment = TextAlignmentOptions.Center;
+
+            CreateDifficultyButton(
+                panel.transform,
+                HudButtonId.DifficultyEasy,
+                "쉬움\n적 수 75% · 적 레벨 80%",
+                90f,
+                new Color(0.12f, 0.5f, 0.32f, 0.98f));
+            CreateDifficultyButton(
+                panel.transform,
+                HudButtonId.DifficultyNormal,
+                "보통\n현재 밸런스",
+                -90f,
+                new Color(0.18f, 0.38f, 0.68f, 0.98f));
+            return SaveTemporaryPrefab(
+                panel,
+                DifficultySelectionPanelPrefabPath);
+        }
+
+        private static void CreateDifficultyButton(
+            Transform parent,
+            HudButtonId id,
+            string labelText,
+            float y,
+            Color color)
+        {
+            Button button = CreateButtonVisual(id.ToString(), labelText);
+            button.transform.SetParent(parent, false);
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(0f, y);
+            rect.sizeDelta = new Vector2(620f, 138f);
+            button.GetComponent<Image>().color = color;
+            TMP_Text label = button.GetComponentInChildren<TMP_Text>();
+            label.fontSize = 30f;
+            label.fontStyle = FontStyles.Bold;
         }
 
         private static GameObject SaveTemporaryPrefab(
@@ -1076,7 +1444,7 @@ namespace SimpleGameEditor
                 {
                     rerollButton = CreateButtonVisual(
                         "RerollButton",
-                        $"교체 {PrototypeGameSession.MaximumCardRerollsPerRun}");
+                        $"교체 {PrototypeGameSession.DefaultInitialCardRerolls}");
                     rerollButton.transform.SetParent(
                         contents.transform,
                         false);
@@ -1115,7 +1483,7 @@ namespace SimpleGameEditor
                 rerollRect.sizeDelta = new Vector2(96f, 58f);
                 rerollButton.targetGraphic = rerollImage;
                 rerollLabel.text =
-                    $"교체 {PrototypeGameSession.MaximumCardRerollsPerRun}";
+                    $"교체 {PrototypeGameSession.DefaultInitialCardRerolls}";
                 rerollLabel.enableAutoSizing = true;
                 rerollLabel.fontSizeMin = 14f;
                 rerollLabel.fontSizeMax = 22f;

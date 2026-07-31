@@ -12,7 +12,7 @@ namespace SimpleGame.Tests
         {
             GlobalBalance balance =
                 ScriptableObject.CreateInstance<GlobalBalance>();
-            balance.Configure(5, 1, 0.1f, 0.7f);
+            balance.Configure(5, 1, 0.1f, 0.7f, 5, 9, 1);
 
             Assert.That(balance.CalculateAccountExperience(19), Is.EqualTo(3));
 
@@ -49,14 +49,30 @@ namespace SimpleGame.Tests
                     1,
                     "TOP_01",
                     "GoblinMelee",
-                    1)
+                    1),
+                new StageSpawnEntry(
+                    "Stage01",
+                    "WAVE_01",
+                    1f,
+                    1,
+                    "BOTTOM_01",
+                    "GoblinMelee",
+                    1,
+                    GameDifficulty.Easy)
             });
 
             var entries = schedule.CopyStageEntries("Stage01");
+            var easyEntries = schedule.CopyStageEntries(
+                "Stage01",
+                GameDifficulty.Easy);
 
             Assert.That(entries.Count, Is.EqualTo(2));
             Assert.That(entries[0].SpawnPointId, Is.EqualTo("TOP_01"));
             Assert.That(entries[1].SpawnPointId, Is.EqualTo("TOP_02"));
+            Assert.That(easyEntries, Has.Count.EqualTo(1));
+            Assert.That(
+                easyEntries[0].SpawnPointId,
+                Is.EqualTo("BOTTOM_01"));
 
             Object.DestroyImmediate(schedule);
         }
@@ -170,19 +186,23 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void CardRerollBudget_IsThreePerRun()
+        public void CardRerollBudget_StartsAtFiveAndStoresNine()
         {
             Assert.That(
-                PrototypeGameSession.MaximumCardRerollsPerRun,
-                Is.EqualTo(3));
+                PrototypeGameSession.DefaultInitialCardRerolls,
+                Is.EqualTo(5));
             Assert.That(
-                PrototypeGameSession.BossRerollReward,
+                PrototypeGameSession.DefaultMaximumStoredCardRerolls,
+                Is.EqualTo(9));
+            Assert.That(
+                PrototypeGameSession.DefaultBossRerollReward,
                 Is.EqualTo(1));
         }
 
         [TestCase(0, 1)]
-        [TestCase(2, 3)]
-        [TestCase(3, 3)]
+        [TestCase(5, 6)]
+        [TestCase(8, 9)]
+        [TestCase(9, 9)]
         public void BossReward_AddsOneRerollWithoutExceedingBudget(
             int currentRerolls,
             int expectedRerolls)
@@ -282,6 +302,10 @@ namespace SimpleGame.Tests
                 LevelUpCardDefinition cardB = CreateCard("B", 1);
                 LevelUpCardDefinition cardC = CreateCard("C", 1);
                 LevelUpCardDefinition cardD = CreateCard("D", 1);
+                LevelUpCardDefinition cardE = CreateCard("E", 1);
+                LevelUpCardDefinition cardF = CreateCard("F", 1);
+                LevelUpCardDefinition cardG = CreateCard("G", 1);
+                LevelUpCardDefinition cardH = CreateCard("H", 1);
                 table.Configure(new[] { cardA, cardB, cardC });
                 manifest.Configure(
                     null,
@@ -334,17 +358,35 @@ namespace SimpleGame.Tests
 
                 session.RerollCard(0);
                 Assert.That(choices[0].CardId, Is.EqualTo("A"));
-                Assert.That(session.RemainingCardRerolls, Is.EqualTo(3));
+                Assert.That(session.RemainingCardRerolls, Is.EqualTo(5));
 
-                table.Configure(new[] { cardA, cardB, cardC, cardD });
-                session.RerollCard(0);
-                Assert.That(choices[0].CardId, Is.EqualTo("D"));
-                Assert.That(choices[1].CardId, Is.EqualTo("B"));
-                Assert.That(choices[2].CardId, Is.EqualTo("C"));
-                Assert.That(session.RemainingCardRerolls, Is.EqualTo(2));
+                table.Configure(new[]
+                {
+                    cardA,
+                    cardB,
+                    cardC,
+                    cardD,
+                    cardE,
+                    cardF,
+                    cardG,
+                    cardH
+                });
+                var shownCardIds = new HashSet<string>
+                {
+                    "A",
+                    "B",
+                    "C"
+                };
+                for (int reroll = 0; reroll < 5; reroll++)
+                {
+                    session.RerollCard(0);
+                    Assert.That(
+                        shownCardIds.Add(choices[0].CardId),
+                        Is.True,
+                        "A reroll must not return a card already shown " +
+                        "during the current selection.");
+                }
 
-                session.RerollCard(0);
-                session.RerollCard(0);
                 Assert.That(session.RemainingCardRerolls, Is.Zero);
                 string cardAfterBudgetSpent = choices[0].CardId;
 

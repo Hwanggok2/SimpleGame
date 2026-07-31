@@ -5,7 +5,8 @@ namespace SimpleGame
 {
     public sealed class PrototypeEnemyFactory : MonoBehaviour
     {
-        private const int DefaultMaximumInactivePerPrefab = 64;
+        private const int DefaultMaximumInactivePerPrefab = 32;
+        private const int DefaultMaximumInactiveTotal = 96;
 
         [SerializeField] private Transform enemyRoot;
         [SerializeField] private PrototypeGameSession session;
@@ -15,6 +16,9 @@ namespace SimpleGame
         [SerializeField, Min(0)]
         private int maximumInactivePerPrefab =
             DefaultMaximumInactivePerPrefab;
+        [SerializeField, Min(0)]
+        private int maximumInactiveTotal =
+            DefaultMaximumInactiveTotal;
 
         private readonly Dictionary<EnemyBase, Stack<EnemyBase>>
             inactiveByPrefab = new();
@@ -138,7 +142,10 @@ namespace SimpleGame
 
             int maximumInactive =
                 Mathf.Max(0, maximumInactivePerPrefab);
-            if (inactive.Count >= maximumInactive)
+            int maximumTotal =
+                Mathf.Max(0, maximumInactiveTotal);
+            if (inactive.Count >= maximumInactive ||
+                inactiveInstances.Count > maximumTotal)
             {
                 inactiveInstances.Remove(enemy);
                 sourcePrefabByInstance.Remove(enemy);

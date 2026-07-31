@@ -26,12 +26,16 @@ namespace SimpleGame
             enemyFactory = configuredEnemyFactory;
         }
 
-        public void Begin(string stageId)
+        public void Begin(
+            string stageId,
+            GameDifficulty difficulty = GameDifficulty.Normal)
         {
             nextEntryIndex = 0;
             activeEntries = gameData != null &&
                 gameData.StageSpawnSchedule != null
-                ? gameData.StageSpawnSchedule.CopyStageEntries(stageId)
+                ? gameData.StageSpawnSchedule.CopyStageEntries(
+                    stageId,
+                    difficulty)
                 : new List<StageSpawnEntry>();
         }
 

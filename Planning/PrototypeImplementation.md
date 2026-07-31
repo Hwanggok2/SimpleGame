@@ -78,10 +78,10 @@
 - Player Prefab: `Assets/Prefab/Player.prefab`.
 - Player AnimationClips: `Assets/Game/Characters/Animations/Player`.
 - Player AnimatorController: `Assets/Game/Characters/Animators/Player.controller`.
-- Melee, Ranged, and Boss Enemy visual: `Resources/Monsters Creatures Fantasy/Sprites/Goblin`.
-- ShieldEnemy visual: `Resources/Monsters Creatures Fantasy/Sprites/Skeleton`.
-- All gameplay, UI, map, and effect Prefabs are stored directly under `Assets/Prefab`. Character AnimationClips and AnimatorControllers remain under `Assets/Game/Characters`, while only source Sprite Sheets remain under `Assets/Resources`.
-- `PrototypeEnemyFactory` uses a lazy pool keyed by saved Enemy Prefab. It reuses fully reset inactive instances first, instantiates only when that prefab's pool is empty, and caps inactive storage at 64 instances per prefab.
+- Melee, Ranged, and Boss Enemy visual: `Assets/SourceAssets/Monsters Creatures Fantasy/Sprites/Goblin`.
+- ShieldEnemy visual: `Assets/SourceAssets/Monsters Creatures Fantasy/Sprites/Skeleton`.
+- All gameplay, UI, map, and effect Prefabs are stored directly under `Assets/Prefab`. Character AnimationClips and AnimatorControllers remain under `Assets/Game/Characters`, while only source Sprite Sheets remain under `Assets/SourceAssets`.
+- `PrototypeEnemyFactory` uses a lazy pool keyed by saved Enemy Prefab. It reuses fully reset inactive instances first, instantiates only when that prefab's pool is empty, and caps inactive storage at 32 instances per prefab and 96 instances in total.
 - Player and Enemy Prefabs serialize one Rigidbody2D, one Collider2D, and all fixed range, warning, marker, and label objects. Camera follow/shake, world area, world recycler, nine Tilemap chunks, and CombatFeedback components are saved in the Scene; runtime code contains no `AddComponent` or fixed-child construction.
 - Shared `CharacterSpriteAnimator` only forwards Motion, FaceLeft, Attack, Hurt, and Death parameters to each Prefab's Animator. It does not load Sprite arrays or advance frames in code.
 - Each character Prefab has exactly one Animator and its Controller on the Prefab root. Every AnimationClip binds to the shared `Visual/Sprite` child path.

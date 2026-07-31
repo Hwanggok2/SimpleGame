@@ -14,12 +14,17 @@ namespace SimpleGame
         public const float AimViewportPadding = 0.5f;
         public const float AimRayWidth = 0.08f;
         public const float AimEndpointSize = 0.42f;
+        public const float AutoAttackInterval = 0.5f;
+        public const float AimAssistHalfWidth = 0.65f;
+        public const float AimAssistRetentionWidthMultiplier = 1.35f;
         public const float MinimumCommandAimMagnitude = 0.01f;
         private const float EnemySelectionRadius =
             EnemyPiercingVerticalRadius;
 
         [SerializeField] private SpriteRenderer aimRayRenderer;
         [SerializeField] private SpriteRenderer aimEndpointRenderer;
+        [SerializeField] private SpriteRenderer commandEndpointRenderer;
+        [SerializeField] private SpriteRenderer commandArrowRenderer;
 
         private PlayerRoot root;
         private PrototypeGameSession session;
@@ -36,21 +41,38 @@ namespace SimpleGame
         private int pendingAttackCount;
         private float attackRange = DefaultAttackRange;
         private Vector2 aimInput;
+        private Vector2 rawAimDestination;
         private Vector2 aimDestination;
+        private EnemyBase aimAssistEnemy;
+        private uint aimAssistEnemyGeneration;
+        private EnemyBase autoAttackEnemy;
+        private uint autoAttackEnemyGeneration;
+        private float nextAutoAttackAt;
+        private Vector2 commandMarkerDestination;
+        private bool autoAttackEnabled;
+        private bool commandMarkerVisible;
         private bool isAiming;
         private readonly List<RaycastResult> uiRaycastResults = new();
 
         public Vector2 AimInput => aimInput;
+        public Vector2 RawAimDestination => rawAimDestination;
         public Vector2 AimDestination => aimDestination;
         public bool IsAiming => isAiming;
+        public bool AutoAttackEnabled => autoAttackEnabled;
 
         public void ConfigureAimVisuals(
             SpriteRenderer configuredRayRenderer,
-            SpriteRenderer configuredEndpointRenderer)
+            SpriteRenderer configuredEndpointRenderer,
+            SpriteRenderer configuredCommandEndpointRenderer,
+            SpriteRenderer configuredCommandArrowRenderer)
         {
             aimRayRenderer = configuredRayRenderer;
             aimEndpointRenderer = configuredEndpointRenderer;
+            commandEndpointRenderer =
+                configuredCommandEndpointRenderer;
+            commandArrowRenderer = configuredCommandArrowRenderer;
             SetAimVisualsVisible(false);
+            HideCommandMarker();
         }
 
         public void Configure(
@@ -86,11 +108,13 @@ namespace SimpleGame
 
             ReadPointer();
             TickCommand();
+            TickAutoAttack();
         }
 
         private void LateUpdate()
         {
             RefreshAimVisuals();
+            RefreshCommandMarkerVisuals();
         }
 
         private void ReadPointer()
@@ -180,6 +204,17 @@ namespace SimpleGame
 
         public bool TryIssueCommand(Vector2 worldDestination)
         {
+            return TryIssueCommand(
+                worldDestination,
+                null,
+                true);
+        }
+
+        private bool TryIssueCommand(
+            Vector2 worldDestination,
+            EnemyBase preferredEnemy,
+            bool userInitiated)
+        {
             if (root == null ||
                 session == null ||
                 enemyWorld == null ||
@@ -194,9 +229,12 @@ namespace SimpleGame
             commandOrigin = transform.position;
             SetIgnoredPathEnemy(null);
             root.CombatAbilities.BeginPiercingCommand();
-            EnemyBase directEnemy = enemyWorld.FindEnemyNear(
-                destination,
-                EnemySelectionRadius);
+            EnemyBase directEnemy =
+                preferredEnemy != null && preferredEnemy.IsAlive
+                    ? preferredEnemy
+                    : enemyWorld.FindEnemyNear(
+                        destination,
+                        EnemySelectionRadius);
             if (directEnemy != null &&
                 !IsTargetInCommandDirection(
                     commandOrigin,
@@ -217,6 +255,12 @@ namespace SimpleGame
                 pathEnemy != null && pathEnemy != directEnemy;
             EnemyBase selectedEnemy =
                 SelectCommandEnemy(directEnemy, pathEnemy);
+            if (userInitiated)
+            {
+                SetAutoAttackTarget(selectedEnemy);
+            }
+
+            ShowCommandMarker(destination);
             if (selectedEnemy != null &&
                 hasDestination &&
                 pendingEnemy == selectedEnemy)
@@ -268,6 +312,7 @@ namespace SimpleGame
                     {
                         SetIgnoredPathEnemy(null);
                         postKillEscapeActive = false;
+                        HideCommandMarker();
                     }
 
                     return;
@@ -315,6 +360,12 @@ namespace SimpleGame
                 }
 
                 attackExecuted = true;
+                if (targetEnemy == ResolveAutoAttackEnemy())
+                {
+                    nextAutoAttackAt =
+                        Time.time + AutoAttackInterval;
+                }
+
                 bool critical = root.Critical.Roll();
 
                 root.PlayAttack(targetEnemy.transform.position);
@@ -424,6 +475,7 @@ namespace SimpleGame
 
             isAiming = true;
             aimInput = Vector2.zero;
+            SetAimAssistEnemy(null);
             RefreshAimVisuals();
             return true;
         }
@@ -445,7 +497,9 @@ namespace SimpleGame
         {
             isAiming = false;
             aimInput = Vector2.zero;
+            rawAimDestination = transform.position;
             aimDestination = transform.position;
+            SetAimAssistEnemy(null);
             SetAimVisualsVisible(false);
         }
 
@@ -457,8 +511,23 @@ namespace SimpleGame
                 return false;
             }
 
-            Vector2 commandDestination = aimDestination;
-            return TryIssueCommand(commandDestination);
+            EnemyBase commandEnemy = enemyWorld != null
+                ? enemyWorld.FindAimAssistTarget(
+                    transform.position,
+                    rawAimDestination,
+                    AimAssistHalfWidth,
+                    ResolveAimAssistEnemy(),
+                    AimAssistRetentionWidthMultiplier)
+                : null;
+            SetAimAssistEnemy(commandEnemy);
+            Vector2 commandDestination = commandEnemy != null
+                ? commandEnemy.transform.position
+                : rawAimDestination;
+            aimDestination = commandDestination;
+            return TryIssueCommand(
+                commandDestination,
+                commandEnemy,
+                true);
         }
 
         public static bool HasCommandAim(Vector2 normalizedInput)
@@ -476,6 +545,60 @@ namespace SimpleGame
             postKillEscapeActive = false;
             pendingAttackCount = 0;
             root?.Movement.CancelMove();
+            HideCommandMarker();
+        }
+
+        public void SetAutoAttackEnabled(bool enabled)
+        {
+            autoAttackEnabled = enabled;
+            if (!enabled)
+            {
+                SetAutoAttackTarget(null);
+            }
+        }
+
+        private void TickAutoAttack()
+        {
+            EnemyBase target = ResolveAutoAttackEnemy();
+            if (!autoAttackEnabled ||
+                target == null ||
+                Time.time < nextAutoAttackAt ||
+                (hasDestination && pendingEnemy == target))
+            {
+                return;
+            }
+
+            TryIssueCommand(
+                target.transform.position,
+                target,
+                false);
+        }
+
+        private EnemyBase ResolveAutoAttackEnemy()
+        {
+            if (autoAttackEnemy == null ||
+                !autoAttackEnemy.IsAlive ||
+                autoAttackEnemy.SpawnGeneration !=
+                    autoAttackEnemyGeneration)
+            {
+                SetAutoAttackTarget(null);
+            }
+
+            return autoAttackEnemy;
+        }
+
+        private void SetAutoAttackTarget(EnemyBase enemy)
+        {
+            autoAttackEnemy =
+                autoAttackEnabled && enemy != null && enemy.IsAlive
+                    ? enemy
+                    : null;
+            autoAttackEnemyGeneration = autoAttackEnemy != null
+                ? autoAttackEnemy.SpawnGeneration
+                : 0u;
+            nextAutoAttackAt = autoAttackEnemy != null
+                ? Time.time + AutoAttackInterval
+                : 0f;
         }
 
         public static Vector2 CalculateAimPoint(
@@ -546,7 +669,9 @@ namespace SimpleGame
             if (!isAiming ||
                 worldCamera == null)
             {
+                rawAimDestination = playerPosition;
                 aimDestination = playerPosition;
+                SetAimAssistEnemy(null);
                 SetAimVisualsVisible(false);
                 return;
             }
@@ -560,10 +685,23 @@ namespace SimpleGame
                         halfHeight * worldCamera.aspect,
                         halfHeight),
                     aimInput);
-            aimDestination = CalculateAimPoint(
+            rawAimDestination = CalculateAimPoint(
                 playerPosition,
                 aimInput,
                 maximumDistance);
+            EnemyBase assistedEnemy =
+                HasCommandAim(aimInput) && enemyWorld != null
+                    ? enemyWorld.FindAimAssistTarget(
+                        playerPosition,
+                        rawAimDestination,
+                        AimAssistHalfWidth,
+                        ResolveAimAssistEnemy(),
+                        AimAssistRetentionWidthMultiplier)
+                    : null;
+            SetAimAssistEnemy(assistedEnemy);
+            aimDestination = assistedEnemy != null
+                ? assistedEnemy.transform.position
+                : rawAimDestination;
             SetAimVisualsVisible(true);
 
             Vector2 offset =
@@ -579,10 +717,21 @@ namespace SimpleGame
                     0f,
                     Mathf.Atan2(offset.y, offset.x) *
                     Mathf.Rad2Deg);
-                ray.localScale = new Vector3(
-                    length,
-                    AimRayWidth,
-                    1f);
+                if (aimRayRenderer.drawMode ==
+                    SpriteDrawMode.Tiled)
+                {
+                    ray.localScale = Vector3.one;
+                    aimRayRenderer.size = new Vector2(
+                        length,
+                        AimRayWidth);
+                }
+                else
+                {
+                    ray.localScale = new Vector3(
+                        length,
+                        AimRayWidth,
+                        1f);
+                }
             }
 
             if (aimEndpointRenderer != null)
@@ -598,6 +747,74 @@ namespace SimpleGame
                     Vector3.one *
                     AimEndpointSize *
                     pulse;
+                endpoint.rotation = Quaternion.identity;
+            }
+        }
+
+        private void RefreshCommandMarkerVisuals()
+        {
+            if (!commandMarkerVisible)
+            {
+                return;
+            }
+
+            Vector2 markerPosition = commandMarkerDestination;
+            if (pendingEnemy != null && pendingEnemy.IsAlive)
+            {
+                markerPosition = pendingEnemy.transform.position;
+            }
+
+            if (commandEndpointRenderer != null)
+            {
+                Transform endpoint = commandEndpointRenderer.transform;
+                endpoint.position = markerPosition;
+                endpoint.rotation = Quaternion.identity;
+            }
+
+            if (commandArrowRenderer != null)
+            {
+                Transform arrow = commandArrowRenderer.transform;
+                arrow.position = markerPosition;
+                Vector2 direction =
+                    markerPosition - (Vector2)transform.position;
+                arrow.rotation = direction.sqrMagnitude > 0.0001f
+                    ? Quaternion.Euler(
+                        0f,
+                        0f,
+                        Mathf.Atan2(direction.y, direction.x) *
+                        Mathf.Rad2Deg)
+                    : Quaternion.identity;
+            }
+        }
+
+        private void ShowCommandMarker(Vector2 markerDestination)
+        {
+            commandMarkerDestination = markerDestination;
+            commandMarkerVisible = true;
+            if (commandEndpointRenderer != null)
+            {
+                commandEndpointRenderer.enabled = true;
+            }
+
+            if (commandArrowRenderer != null)
+            {
+                commandArrowRenderer.enabled = true;
+            }
+
+            RefreshCommandMarkerVisuals();
+        }
+
+        private void HideCommandMarker()
+        {
+            commandMarkerVisible = false;
+            if (commandEndpointRenderer != null)
+            {
+                commandEndpointRenderer.enabled = false;
+            }
+
+            if (commandArrowRenderer != null)
+            {
+                commandArrowRenderer.enabled = false;
             }
         }
 
@@ -612,6 +829,26 @@ namespace SimpleGame
             {
                 aimEndpointRenderer.enabled = visible;
             }
+        }
+
+        private EnemyBase ResolveAimAssistEnemy()
+        {
+            if (aimAssistEnemy == null ||
+                !aimAssistEnemy.IsAlive ||
+                aimAssistEnemy.SpawnGeneration !=
+                    aimAssistEnemyGeneration)
+            {
+                SetAimAssistEnemy(null);
+            }
+
+            return aimAssistEnemy;
+        }
+
+        private void SetAimAssistEnemy(EnemyBase enemy)
+        {
+            aimAssistEnemy = enemy;
+            aimAssistEnemyGeneration =
+                enemy != null ? enemy.SpawnGeneration : 0u;
         }
 
         private EnemyBase ResolveCurrentIgnoredPathEnemy()

@@ -22,17 +22,29 @@ namespace SimpleGame.Tests
                 GameDataExcelImporter.DefaultWorkbookRelativePath));
 
             GameDataExcelModel model = GameDataExcelParser.Parse(path);
+            StageSpawnEntry[] normalSpawns = model.SpawnEntries
+                .Where(entry =>
+                    entry.Difficulty == GameDifficulty.Normal)
+                .ToArray();
+            StageSpawnEntry[] easySpawns = model.SpawnEntries
+                .Where(entry =>
+                    entry.Difficulty == GameDifficulty.Easy)
+                .ToArray();
 
             Assert.That(model.EnemyDefinitions, Has.Count.EqualTo(8));
-            Assert.That(model.SpawnEntries, Has.Count.EqualTo(3283));
+            Assert.That(normalSpawns, Has.Length.EqualTo(3283));
+            Assert.That(easySpawns, Has.Length.EqualTo(2487));
             Assert.That(
-                model.SpawnEntries.Max(entry => entry.EnemyLevel),
+                normalSpawns.Max(entry => entry.EnemyLevel),
                 Is.EqualTo(52));
             Assert.That(
-                model.SpawnEntries.Max(entry => entry.WaveNumber),
+                easySpawns.Max(entry => entry.EnemyLevel),
+                Is.EqualTo(42));
+            Assert.That(
+                normalSpawns.Max(entry => entry.WaveNumber),
                 Is.EqualTo(60));
             Assert.That(
-                model.SpawnEntries
+                normalSpawns
                     .Where(entry => entry.WaveNumber == 5)
                     .All(entry =>
                         ProgressionCurve
@@ -40,7 +52,7 @@ namespace SimpleGame.Tests
                                 entry.WaveNumber) == 1.2f),
                 Is.True);
             Assert.That(
-                model.SpawnEntries
+                normalSpawns
                     .Where(entry => entry.WaveNumber == 8)
                     .All(entry =>
                         ProgressionCurve
@@ -48,11 +60,11 @@ namespace SimpleGame.Tests
                                 entry.WaveNumber) == 1.5f),
                 Is.True);
             Assert.That(
-                model.SpawnEntries
+                normalSpawns
                     .Count(entry => entry.SpawnTimeSec < 60f),
                 Is.EqualTo(43));
             Assert.That(
-                model.SpawnEntries.Count(entry =>
+                normalSpawns.Count(entry =>
                     entry.SpawnTimeSec >= 540f &&
                     entry.SpawnTimeSec < 600f),
                 Is.EqualTo(699));
@@ -63,6 +75,11 @@ namespace SimpleGame.Tests
             Assert.That(model.AccountExperienceScoreUnit, Is.EqualTo(5));
             Assert.That(model.CriticalChancePerCard, Is.EqualTo(0.05f));
             Assert.That(model.MaximumCriticalChance, Is.EqualTo(0.5f));
+            Assert.That(model.InitialCardRerolls, Is.EqualTo(5));
+            Assert.That(
+                model.MaximumStoredCardRerolls,
+                Is.EqualTo(9));
+            Assert.That(model.BossRerollReward, Is.EqualTo(1));
             Assert.That(
                 model.PlayerDefinitions[0].BaseMoveSpeed,
                 Is.EqualTo(10f));
@@ -106,17 +123,17 @@ namespace SimpleGame.Tests
             Assert.That(flyingEyeBoss.AllowsEnemyOverlap, Is.True);
             Assert.That(skeletonBoss.BlocksFrontAttacks, Is.True);
             Assert.That(
-                model.SpawnEntries.Count(entry =>
+                normalSpawns.Count(entry =>
                     entry.EnemyId ==
                         PrototypeEnemyDefinitions.FlyingEyeId),
                 Is.EqualTo(186));
             Assert.That(
-                model.SpawnEntries.Single(entry =>
+                normalSpawns.Single(entry =>
                     entry.WaveNumber == 24 &&
                     entry.EnemyId ==
                         PrototypeEnemyDefinitions.MushroomBossId),
                 Is.Not.Null);
-            string[] bossOrder = model.SpawnEntries
+            string[] bossOrder = normalSpawns
                 .Where(entry =>
                     entry.EnemyId ==
                         PrototypeEnemyDefinitions.GoblinBossId ||
@@ -243,6 +260,26 @@ namespace SimpleGame.Tests
         }
 
         [Test]
+        public void WorkbookReader_RejectsOutOfSyncTableHeaders()
+        {
+            string path = Path.GetFullPath(Path.Combine(
+                Application.dataPath,
+                "..",
+                "outputs",
+                "phase4-balance-20260730-019fb294",
+                "GameData_10min_Balance.xlsx"));
+
+            InvalidDataException exception = Assert.Throws<
+                InvalidDataException>(() =>
+            {
+                using var reader = new OpenXmlWorkbookReader(path);
+            });
+
+            StringAssert.Contains("WavePlan", exception.Message);
+            StringAssert.Contains("TableColumn", exception.Message);
+        }
+
+        [Test]
         public void GeneratedCards_ContainFlyingSwordUpgrades()
         {
             LevelUpCardTable table =
@@ -327,7 +364,7 @@ namespace SimpleGame.Tests
         public void MovingSlashCrescentSheet_HasSixPixelArtFrames()
         {
             string assetPath =
-                $"Assets/Resources/" +
+                $"Assets/SourceAssets/" +
                 $"{MovingSlashProjectile.AnimationResourcePath}.png";
             TextureImporter importer =
                 AssetImporter.GetAtPath(assetPath) as TextureImporter;
@@ -531,14 +568,42 @@ namespace SimpleGame.Tests
                 serializedPlayerController
                     .FindProperty("aimEndpointRenderer")
                     .objectReferenceValue as SpriteRenderer;
+            SpriteRenderer commandEndpoint =
+                serializedPlayerController
+                    .FindProperty("commandEndpointRenderer")
+                    .objectReferenceValue as SpriteRenderer;
+            SpriteRenderer commandArrow =
+                serializedPlayerController
+                    .FindProperty("commandArrowRenderer")
+                    .objectReferenceValue as SpriteRenderer;
             Assert.That(aimRay, Is.Not.Null);
             Assert.That(aimRay.name, Is.EqualTo("AimRay"));
             Assert.That(aimRay.enabled, Is.False);
+            Assert.That(aimRay.drawMode, Is.EqualTo(SpriteDrawMode.Tiled));
+            Assert.That(aimRay.color, Is.EqualTo(Color.white));
+            Assert.That(
+                AssetDatabase.GetAssetPath(aimRay.sprite),
+                Is.EqualTo(CharacterAssetBuilder.AimDashAssetPath));
             Assert.That(aimEndpoint, Is.Not.Null);
             Assert.That(
                 aimEndpoint.name,
                 Is.EqualTo("AimEndpoint"));
             Assert.That(aimEndpoint.enabled, Is.False);
+            Assert.That(
+                AssetDatabase.GetAssetPath(aimEndpoint.sprite),
+                Is.EqualTo(CharacterAssetBuilder.AimEllipseAssetPath));
+            Assert.That(commandEndpoint, Is.Not.Null);
+            Assert.That(commandEndpoint.enabled, Is.False);
+            Assert.That(
+                AssetDatabase.GetAssetPath(commandEndpoint.sprite),
+                Is.EqualTo(CharacterAssetBuilder.AimEllipseAssetPath));
+            Assert.That(commandArrow, Is.Not.Null);
+            Assert.That(commandArrow.enabled, Is.False);
+            Assert.That(commandArrow.color.a, Is.EqualTo(0.5f));
+            Assert.That(commandArrow.color.r, Is.EqualTo(1f));
+            Assert.That(
+                AssetDatabase.GetAssetPath(commandArrow.sprite),
+                Is.EqualTo(CharacterAssetBuilder.AimArrowAssetPath));
         }
 
         [Test]
@@ -769,11 +834,16 @@ namespace SimpleGame.Tests
             GameObject gameOver =
                 AssetDatabase.LoadAssetAtPath<GameObject>(
                     PrototypeSceneBuilder.GameOverPanelPrefabPath);
+            GameObject difficulty =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    PrototypeSceneBuilder
+                        .DifficultySelectionPanelPrefabPath);
 
             Assert.That(hud, Is.Not.Null);
             Assert.That(cardSelection, Is.Not.Null);
             Assert.That(pause, Is.Not.Null);
             Assert.That(gameOver, Is.Not.Null);
+            Assert.That(difficulty, Is.Not.Null);
             Assert.That(hud.transform.Find("TopPanel"), Is.Not.Null);
             Transform hintPanel = hud.transform.Find("HintPanel");
             Assert.That(hintPanel, Is.Not.Null);
@@ -859,6 +929,12 @@ namespace SimpleGame.Tests
                 AssetDatabase.GetAssetPath(view.GameOverPanelPrefab),
                 Is.EqualTo(
                     PrototypeSceneBuilder.GameOverPanelPrefabPath));
+            Assert.That(
+                AssetDatabase.GetAssetPath(
+                    view.DifficultySelectionPanelPrefab),
+                Is.EqualTo(
+                    PrototypeSceneBuilder
+                        .DifficultySelectionPanelPrefabPath));
 
             Assert.That(
                 cardSelection.GetComponentsInChildren<
@@ -887,6 +963,60 @@ namespace SimpleGame.Tests
                     .GetComponent<TMP_Text>()
                     .text,
                 Is.EqualTo("조작 패드 표시"));
+            Transform autoAttackToggle =
+                pause.transform.Find("AutoAttackToggle");
+            Assert.That(autoAttackToggle, Is.Not.Null);
+            Assert.That(
+                autoAttackToggle.GetComponent<Toggle>().isOn,
+                Is.False);
+            Assert.That(
+                autoAttackToggle.Find("Label")
+                    .GetComponent<TMP_Text>()
+                    .text,
+                Is.EqualTo("자동 공격"));
+            Transform controlSettingsButton =
+                pause.transform.Find("ControlSettingsButton");
+            Transform controlSettingsPanel =
+                pause.transform.Find("ControlSettingsPanel");
+            Assert.That(controlSettingsButton, Is.Not.Null);
+            Assert.That(
+                controlSettingsButton.GetComponent<Button>(),
+                Is.Not.Null);
+            Assert.That(controlSettingsPanel, Is.Not.Null);
+            Assert.That(controlSettingsPanel.gameObject.activeSelf, Is.False);
+            Assert.That(
+                controlSettingsPanel.GetComponent<Image>().color.a,
+                Is.LessThanOrEqualTo(0.5f));
+            foreach (string sliderName in new[]
+                     {
+                         "JoystickSizeSlider",
+                         "JoystickHorizontalSlider",
+                         "JoystickVerticalSlider",
+                         "AttackSizeSlider",
+                         "AttackHorizontalSlider",
+                         "AttackVerticalSlider"
+                     })
+            {
+                Assert.That(
+                    controlSettingsPanel.Find(sliderName)
+                        ?.GetComponent<Slider>(),
+                    Is.Not.Null,
+                    sliderName);
+            }
+
+            foreach (string buttonName in new[]
+                     {
+                         "ControlDefaultsButton",
+                         "ControlCancelButton",
+                         "ControlApplyButton"
+                     })
+            {
+                Assert.That(
+                    controlSettingsPanel.Find(buttonName)
+                        ?.GetComponent<Button>(),
+                    Is.Not.Null,
+                    buttonName);
+            }
             Assert.That(
                 gameOver.transform.Find("GameOverTitle"),
                 Is.Not.Null);
@@ -894,11 +1024,25 @@ namespace SimpleGame.Tests
                 gameOver.transform.Find("ContinueAd")
                     .GetComponent<Button>(),
                 Is.Not.Null);
+            Assert.That(
+                difficulty.transform.Find(
+                    HudButtonId.DifficultyEasy.ToString())
+                    ?.GetComponent<Button>(),
+                Is.Not.Null);
+            Assert.That(
+                difficulty.transform.Find(
+                    HudButtonId.DifficultyNormal.ToString())
+                    ?.GetComponent<Button>(),
+                Is.Not.Null);
         }
 
         [Test]
         public void PrototypeHud_UpdatesAndBindsSharedCardRerolls()
         {
+            MobileControlSettings originalControlSettings =
+                MobileControlSettingsStore.Load();
+            MobileControlSettingsStore.Save(
+                MobileControlSettings.Default);
             GameObject hudPrefab =
                 AssetDatabase.LoadAssetAtPath<GameObject>(
                     PrototypeSceneBuilder.PrototypeHudPrefabPath);
@@ -938,20 +1082,129 @@ namespace SimpleGame.Tests
                 toggle.isOn = false;
                 Assert.That(view.CommandControlsEnabled, Is.False);
                 Assert.That(
+                    MobileControlSettingsStore.Load().controlsEnabled,
+                    Is.False);
+                Assert.That(
                     view.AimJoystick.gameObject.activeSelf,
                     Is.False);
                 Assert.That(
                     view.AttackButton.gameObject.activeSelf,
                     Is.False);
 
-                toggle.isOn = true;
-                Assert.That(view.CommandControlsEnabled, Is.True);
+                Transform controlSettingsButton =
+                    hud.transform.Find(
+                        "ModalRoot/PauseDetailsPanel/" +
+                        "ControlSettingsButton");
+                Transform controlSettingsPanel =
+                    hud.transform.Find(
+                        "ModalRoot/PauseDetailsPanel/" +
+                        "ControlSettingsPanel");
+                Assert.That(controlSettingsButton, Is.Not.Null);
+                Assert.That(controlSettingsPanel, Is.Not.Null);
+                Image pauseBackground =
+                    controlPadToggle.parent.GetComponent<Image>();
+                float mainBackgroundAlpha = pauseBackground.color.a;
+
+                controlSettingsButton.GetComponent<Button>()
+                    .onClick.Invoke();
+                Assert.That(view.CommandControlsEnabled, Is.False);
+                Assert.That(
+                    MobileControlSettingsStore.Load().controlsEnabled,
+                    Is.False);
                 Assert.That(
                     view.AimJoystick.gameObject.activeSelf,
                     Is.True);
                 Assert.That(
                     view.AttackButton.gameObject.activeSelf,
                     Is.True);
+                Assert.That(
+                    pauseBackground.color.a,
+                    Is.LessThan(0.2f));
+                Assert.That(
+                    controlSettingsPanel.GetComponent<Image>().color.a,
+                    Is.LessThan(0.5f));
+                controlSettingsPanel.Find("ControlCancelButton")
+                    .GetComponent<Button>()
+                    .onClick.Invoke();
+                Assert.That(
+                    view.AimJoystick.gameObject.activeSelf,
+                    Is.False);
+                Assert.That(
+                    view.AttackButton.gameObject.activeSelf,
+                    Is.False);
+                Assert.That(
+                    pauseBackground.color.a,
+                    Is.EqualTo(mainBackgroundAlpha).Within(0.001f));
+
+                toggle.isOn = true;
+                Assert.That(view.CommandControlsEnabled, Is.True);
+                Assert.That(
+                    MobileControlSettingsStore.Load().controlsEnabled,
+                    Is.True);
+                Assert.That(
+                    view.AimJoystick.gameObject.activeSelf,
+                    Is.True);
+                Assert.That(
+                    view.AttackButton.gameObject.activeSelf,
+                    Is.True);
+
+                controlSettingsButton.GetComponent<Button>()
+                    .onClick.Invoke();
+                Assert.That(
+                    controlSettingsPanel.gameObject.activeSelf,
+                    Is.True);
+                Assert.That(
+                    controlPadToggle.gameObject.activeSelf,
+                    Is.False);
+
+                Slider joystickSize = controlSettingsPanel.Find(
+                        "JoystickSizeSlider")
+                    .GetComponent<Slider>();
+                joystickSize.value = 1.5f;
+                Assert.That(
+                    view.AimJoystick.transform.localScale.x,
+                    Is.EqualTo(1.5f).Within(0.001f));
+                controlSettingsPanel.Find("ControlCancelButton")
+                    .GetComponent<Button>()
+                    .onClick.Invoke();
+                Assert.That(
+                    view.AimJoystick.transform.localScale.x,
+                    Is.EqualTo(1f).Within(0.001f));
+
+                controlSettingsButton.GetComponent<Button>()
+                    .onClick.Invoke();
+                Slider attackSize = controlSettingsPanel.Find(
+                        "AttackSizeSlider")
+                    .GetComponent<Slider>();
+                attackSize.value = 0.7f;
+                controlSettingsPanel.Find("ControlApplyButton")
+                    .GetComponent<Button>()
+                    .onClick.Invoke();
+                Assert.That(
+                    view.AttackButton.transform.localScale.x,
+                    Is.EqualTo(0.7f).Within(0.001f));
+                Assert.That(
+                    MobileControlSettingsStore.Load().attackScale,
+                    Is.EqualTo(0.7f).Within(0.001f));
+
+                controlSettingsButton.GetComponent<Button>()
+                    .onClick.Invoke();
+                joystickSize.value = 1.5f;
+                controlSettingsPanel.Find("ControlDefaultsButton")
+                    .GetComponent<Button>()
+                    .onClick.Invoke();
+                Assert.That(
+                    joystickSize.value,
+                    Is.EqualTo(1f).Within(0.001f));
+                Assert.That(
+                    attackSize.value,
+                    Is.EqualTo(1f).Within(0.001f));
+                controlSettingsPanel.Find("ControlCancelButton")
+                    .GetComponent<Button>()
+                    .onClick.Invoke();
+                Assert.That(
+                    view.AttackButton.transform.localScale.x,
+                    Is.EqualTo(0.7f).Within(0.001f));
 
                 Transform panel = hud.transform.Find(
                     "ModalRoot/CardSelectionPanel");
@@ -994,6 +1247,8 @@ namespace SimpleGame.Tests
             finally
             {
                 UnityEngine.Object.DestroyImmediate(hud);
+                MobileControlSettingsStore.Save(
+                    originalControlSettings);
             }
         }
 
