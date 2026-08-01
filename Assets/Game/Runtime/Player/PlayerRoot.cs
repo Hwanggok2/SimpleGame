@@ -23,6 +23,7 @@ namespace SimpleGame
         [SerializeField] private CharacterSpriteAnimator characterAnimation;
         [SerializeField] private SpriteRenderer attackRangeRenderer;
         [SerializeField] private TMP_Text levelLabel;
+        [SerializeField] private PlayerHealthBar healthBar;
         [SerializeField] private string playerId = "LightBandit";
 
         private const float FrontRecoilDistance = 1.2f;
@@ -31,6 +32,7 @@ namespace SimpleGame
 
         private Coroutine inputLockRoutine;
         private int moveSpeedCardLevel;
+        private PrototypeGameSession session;
 
         public HealthComponent Health => health;
         public PlayerMovement Movement => movement;
@@ -61,14 +63,16 @@ namespace SimpleGame
 
         public void ConfigureVisuals(
             SpriteRenderer configuredAttackRange,
-            TMP_Text configuredLevelLabel)
+            TMP_Text configuredLevelLabel,
+            PlayerHealthBar configuredHealthBar)
         {
             attackRangeRenderer = configuredAttackRange;
             levelLabel = configuredLevelLabel;
+            healthBar = configuredHealthBar;
         }
 
         public void Configure(
-            PrototypeGameSession session,
+            PrototypeGameSession configuredSession,
             EnemyWorldService enemyWorld,
             Camera worldCamera,
             LevelExperienceTable experienceTable,
@@ -76,6 +80,7 @@ namespace SimpleGame
             PlayerBalanceTable playerBalance,
             SpawnPointRegistry spawnPoints)
         {
+            session = configuredSession;
             health = GetComponent<HealthComponent>();
             movement = GetComponent<PlayerMovement>();
             critical = GetComponent<CriticalSystem>();
@@ -111,6 +116,7 @@ namespace SimpleGame
 
             stats.Configure(definition);
             health.Configure(definition.BaseMaxHp);
+            healthBar?.Bind(health);
             progression.Configure(experienceTable);
             critical.Configure(
                 globalBalance.CriticalChancePerCard,
@@ -129,7 +135,7 @@ namespace SimpleGame
                 characterAnimation);
             controller.Configure(
                 this,
-                session,
+                configuredSession,
                 enemyWorld,
                 worldCamera,
                 stats.AttackRange);
@@ -175,6 +181,9 @@ namespace SimpleGame
                 case PlayerStatId.FlyingSwordCount:
                 case PlayerStatId.FlyingSwordHitCount:
                 case PlayerStatId.FilthThrow:
+                case PlayerStatId.FlyingSwordPiercingFusion:
+                case PlayerStatId.FlyingSwordStaticFusion:
+                case PlayerStatId.StaticFilthFusion:
                     return combatAbilities.ApplyCard(card);
                 default:
                     return false;
@@ -186,12 +195,14 @@ namespace SimpleGame
         public PlayerAttackExecution AttackEnemy(
             EnemyBase enemy,
             bool criticalHit,
-            bool allowPiercing)
+            bool allowAttackPiercing,
+            bool movementPiercingRequested)
         {
             return combatAbilities.ExecuteNormalAttack(
                 enemy,
                 criticalHit,
-                allowPiercing);
+                allowAttackPiercing,
+                movementPiercingRequested);
         }
 
         public bool ApplySkillHit(
@@ -203,9 +214,44 @@ namespace SimpleGame
                 damageMultiplier);
         }
 
-        public void TrySpawnMovingSlash(Vector2 movementDirection)
+        public bool ApplySkillHitWithStaticBurst(
+            EnemyBase enemy,
+            float baseDamageMultiplier,
+            int staticChargeLevel,
+            float staticDamageMultiplier)
         {
-            combatAbilities.TrySpawnMovingSlash(movementDirection);
+            return combatAbilities.ApplySkillHitWithStaticBurst(
+                enemy,
+                baseDamageMultiplier,
+                staticChargeLevel,
+                staticDamageMultiplier);
+        }
+
+        public bool BeginControlInput()
+        {
+            return controller != null &&
+                controller.BeginControlInput();
+        }
+
+        public void SetControlInput(Vector2 normalizedInput)
+        {
+            controller?.SetControlInput(normalizedInput);
+        }
+
+        public void EndControlInput()
+        {
+            controller?.EndControlInput();
+        }
+
+        public bool ExecuteControlAction()
+        {
+            return controller != null &&
+                controller.ExecuteControlAction();
+        }
+
+        public void SetControlMode(MobileControlMode mode)
+        {
+            controller?.SetControlMode(mode);
         }
 
         public bool BeginAim()
@@ -249,7 +295,7 @@ namespace SimpleGame
             }
 
             controller.CancelCommand();
-            controller.EndAim();
+            controller.EndControlInput();
             movement.StopKnockback();
             IsInputLocked = true;
             characterAnimation.PlayDeath(Vector2.zero);
@@ -267,7 +313,7 @@ namespace SimpleGame
             health.RestoreFull();
             movement.StopKnockback();
             controller.CancelCommand();
-            controller.EndAim();
+            controller.EndControlInput();
             if (inputLockRoutine != null)
             {
                 StopCoroutine(inputLockRoutine);
@@ -319,16 +365,23 @@ namespace SimpleGame
 
         private void BuildVisual()
         {
-            if (attackRangeRenderer == null || levelLabel == null)
+            if (attackRangeRenderer == null ||
+                levelLabel == null ||
+                healthBar == null)
             {
                 Debug.LogError(
-                    "Player prefab requires preconfigured range and level visuals.",
+                    "Player prefab requires preconfigured range, level, " +
+                    "and health visuals.",
                     this);
                 return;
             }
 
             RefreshAttackRangeVisual();
-            levelLabel.text = "플레이어";
+            levelLabel.text = session != null
+                ? session.GetString(
+                    GameStringIds.PlayerDisplayName,
+                    "플레이어")
+                : "플레이어";
 
             if (!characterAnimation.IsConfigured)
             {

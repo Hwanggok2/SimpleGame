@@ -1,0 +1,322 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e7973a1590141fb92a2e16213b05efe, type: 3}
+  m_Name: GameStringTable
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.GameStringTable
+  entries:
+  - stringId: CARD_CRIT_NAME
+    text: "\uCE58\uBA85\uD0C0 \uAC15\uD654"
+  - stringId: CARD_CRIT_DESCRIPTION
+    text: "\uCE58\uBA85\uD0C0 \uD655\uB960\uC774 5% \uC99D\uAC00\uD569\uB2C8\uB2E4.
+      \uCD5C\uB300 50%\uAE4C\uC9C0 \uC801\uC6A9\uB429\uB2C8\uB2E4."
+  - stringId: CARD_HP_NAME
+    text: "\uCCB4\uB825 \uAC15\uD654"
+  - stringId: CARD_HP_DESCRIPTION
+    text: "\uCD5C\uB300 \uCCB4\uB825\uACFC \uD604\uC7AC \uCCB4\uB825\uC774 5 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  - stringId: CARD_SPEED_NAME
+    text: "\uC774\uB3D9 \uC18D\uB3C4 \uAC15\uD654"
+  - stringId: CARD_SPEED_DESCRIPTION
+    text: "\uC774\uB3D9 \uC18D\uB3C4\uAC00 1 \uC99D\uAC00\uD569\uB2C8\uB2E4. \uCD5C\uB300
+      \uB808\uBCA8\uC5D0\uC11C\uB294 \uBAA9\uC801\uC9C0\uAE4C\uC9C0 \uC57D 0.15\uCD08\uC5D0
+      \uC774\uB3D9\uD569\uB2C8\uB2E4."
+  - stringId: CARD_RANGE_NAME
+    text: "\uACF5\uACA9 \uBC94\uC704 \uAC15\uD654"
+  - stringId: CARD_RANGE_DESCRIPTION
+    text: "\uAE30\uBCF8 \uACF5\uACA9 \uC0AC\uAC70\uB9AC\uAC00 0.15 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  - stringId: CARD_PIERCING_NAME
+    text: "\uAD00\uD1B5"
+  - stringId: CARD_PIERCING_DESCRIPTION
+    text: "일반 공격은 0.4초 판정창마다 카드 레벨만큼 주 대상 뒤의 적에게 추가 피해를 줍니다. 이동 관통은 카드 레벨만큼 적을 지나간 뒤 0.4초 후 횟수가 재충전되며, 이동 입력을 유지하는 중에도 충전됩니다. 공격 관통 수와 이동 관통 수는 서로 별도로 소비합니다."
+  - stringId: CARD_SEVER_NAME
+    text: "\uC808\uB2E8"
+  - stringId: CARD_SEVER_DESCRIPTION
+    text: "실제 이동 관통 0.3초 뒤 관통 시작 위치부터 현재 위치까지 검은 절단선을 만듭니다. 선은 0.1초 동안 사라지며 재사용 대기시간은 0.1초, 피해는 공격력의 2배입니다."
+  - stringId: CARD_HIT_HEAL_NAME
+    text: "\uD761\uD608"
+  - stringId: CARD_HIT_HEAL_DESCRIPTION
+    text: "\uC801\uC744 \uCC98\uCE58\uD560 \uB54C\uB9C8\uB2E4 5% \uD655\uB960\uB85C
+      \uCCB4\uB825\uC744 \uCE74\uB4DC \uB808\uBCA8\uB2F9 2 \uD68C\uBCF5\uD569\uB2C8\uB2E4.
+      1/2/3\uB808\uBCA8 \uD68C\uBCF5\uB7C9\uC740 2/4/6\uC785\uB2C8\uB2E4."
+  - stringId: CARD_STATIC_NAME
+    text: "\uC815\uC804\uAE30"
+  - stringId: CARD_STATIC_DESCRIPTION
+    text: "\uACF5\uACA9 \uB300\uC0C1\uACFC \uC8FC\uBCC0 \uC801\uC5D0\uAC8C \uACF5\uACA9\uB825\uC758
+      0.75\uBC30 \uD53C\uD574\uB97C \uC90D\uB2C8\uB2E4. \uB808\uBCA8\uB9C8\uB2E4
+      \uC8FC\uBCC0 \uB300\uC0C1\uC774 2\uBA85 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  - stringId: CARD_MOVING_SLASH_NAME
+    text: "\uCC38\uACA9"
+  - stringId: CARD_MOVING_SLASH_DESCRIPTION
+    text: "기본 공격 시 주 대상 방향으로 초승달 검기의 발동을 판정합니다. 방패에 막힌 공격도 판정하고 연속 발동할 수 있으며, 추가 피해로는 재발동하지 않습니다. 1~5레벨: 확률 15/19.5/24/28.5/33%, 피해 1.8/2.15/2.5/2.85/3.2배, 크기 100/115/130/145/160%, 사거리 6/7.5/9/10.5/12, 최대 타격 2/3/4/5/6."
+  - stringId: CARD_SHIELD_BYPASS_NAME
+    text: "\uBC29\uD328 \uC6B0\uD68C"
+  - stringId: CARD_SHIELD_BYPASS_DESCRIPTION
+    text: "\uBC29\uD328\uBCD1 \uC815\uBA74 \uACF5\uACA9 \uC2DC \uBC18\uB3D9\uACFC
+      0.5\uCD08 \uC870\uC791 \uBD88\uAC00\uB97C \uBB34\uC2DC\uD560 \uD655\uB960\uC774
+      \uB808\uBCA8\uB9C8\uB2E4 10% \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  - stringId: CARD_FLYING_SWORD_COUNT_NAME
+    text: "\uC774\uAE30\uC5B4\uAC80 \uC218 \uC99D\uAC00"
+  - stringId: CARD_FLYING_SWORD_COUNT_DESCRIPTION
+    text: "\uD50C\uB808\uC774\uC5B4\uAC00 \uC801\uC5D0\uAC8C \uD53C\uD574\uB97C \uC8FC\uBA74
+      \uC900\uBE44\uB41C \uC774\uAE30\uC5B4\uAC80 1\uAC1C\uAC00 \uBB34\uC791\uC704
+      \uC801 Spawn \uC704\uCE58\uC5D0\uC11C \uB0A0\uC544\uAC11\uB2C8\uB2E4. \uB808\uBCA8\uB9C8\uB2E4
+      \uAC80 1\uAC1C\uAC00 \uD65C\uC131\uD654\uB418\uBA70 \uAC80\uB9C8\uB2E4 0.3\uCD08
+      \uD6C4 \uC7AC\uCDA9\uC804\uB429\uB2C8\uB2E4."
+  - stringId: CARD_FLYING_SWORD_HITS_NAME
+    text: "\uC774\uAE30\uC5B4\uAC80 \uD0C0\uACA9 \uC218 \uC99D\uAC00"
+  - stringId: CARD_FLYING_SWORD_HITS_DESCRIPTION
+    text: "\uC774\uAE30\uC5B4\uAC80 \uD55C \uC790\uB8E8\uAC00 \uD0C0\uACA9\uD560
+      \uC218 \uC788\uB294 \uC801\uC774 1\uBA85 \uC99D\uAC00\uD569\uB2C8\uB2E4. \uAE30\uBCF8
+      2\uBA85\uC774\uBA70 \uCD5C\uB300 5\uBA85\uC785\uB2C8\uB2E4."
+  - stringId: CARD_FILTH_THROW_NAME
+    text: "\uC624\uBB3C \uD22C\uCC99"
+  - stringId: CARD_FILTH_THROW_DESCRIPTION
+    text: "\uD654\uBA74 \uC548\uC758 \uBB34\uC791\uC704 \uC0DD\uC874 \uC801\uC5D0\uAC8C
+      \uC624\uBB3C \uAD6C\uCCB4\uB97C \uB3D9\uC2DC\uC5D0 \uB358\uC9D1\uB2C8\uB2E4.
+      \uCC29\uD0C4 \uC9C0\uC810\uC740 3\uCD08 \uB3D9\uC548 0.5\uCD08\uB9C8\uB2E4
+      \uD53C\uD574\uB97C \uC8FC\uBA70, \uB808\uBCA8\uB9C8\uB2E4 \uD22C\uCC99 \uC218\xB7\uD2F1
+      \uD53C\uD574\xB7\uBC94\uC704\uAC00 \uC99D\uAC00\uD558\uACE0 \uC7AC\uC0AC\uC6A9
+      \uB300\uAE30\uC2DC\uAC04\uC774 \uAC10\uC18C\uD569\uB2C8\uB2E4. 1~5\uB808\uBCA8:
+      \uD22C\uCC99 \uC218 1/2/3/4/5, \uD53C\uD574 0.35/0.45/0.55/0.65/0.75\uBC30,
+      \uBC18\uACBD 1.2/1.32/1.44/1.56/1.68, \uC7AC\uC0AC\uC6A9 6/5.5/5/4.5/4\uCD08."
+  - stringId: CARD_FUSION_FLYING_SWORD_PIERCING_NAME
+    text: "\uC774\uAE30\uC5B4\uAC80\xB7\uAD00\uD1B5 \uC735\uD569"
+  - stringId: CARD_FUSION_FLYING_SWORD_PIERCING_DESCRIPTION
+    text: "\uC774\uAE30\uC5B4\uAC80\uC774 \uBB34\uC791\uC704 \uC2A4\uD3F0 \uC704\uCE58\uC5D0\uC11C
+      \uBAA9\uD45C\uB97C \uC9C0\uB098 \uBE44\uD589\uD558\uB294 \uC804\uCCB4 \uACBD\uB85C\uC758
+      \uBAA8\uB4E0 \uC801\uC744 \uAD00\uD1B5\uD569\uB2C8\uB2E4. \uD68D\uB4DD \uC989\uC2DC
+      \uC7AC\uB8CC \uC2A4\uD0AC\uC740 \uC0AC\uB77C\uC9C0\uACE0 \uB2E4\uC74C \uB808\uBCA8\uC5C5\uBD80\uD130
+      1\uB808\uBCA8 \uCE74\uB4DC\uB85C \uB2E4\uC2DC \uB4F1\uC7A5\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+  - stringId: CARD_FUSION_FLYING_SWORD_STATIC_NAME
+    text: "\uC774\uAE30\uC5B4\uAC80\xB7\uC815\uC804\uAE30 \uC735\uD569"
+  - stringId: CARD_FUSION_FLYING_SWORD_STATIC_DESCRIPTION
+    text: "\uC774\uAE30\uC5B4\uAC80\uC5D0 \uC801\uC911\uD55C \uC801\uB9C8\uB2E4 \uB9C8\uC2A4\uD130
+      \uC815\uC804\uAE30\uAC00 \uB3C5\uB9BD\uC801\uC73C\uB85C \uBC1C\uC0DD\uD574
+      \uB300\uC0C1\uACFC \uC8FC\uBCC0 \uCD5C\uB300 11\uBA85\uC5D0\uAC8C \uCD94\uAC00
+      \uD53C\uD574\uB97C \uC90D\uB2C8\uB2E4. \uD68D\uB4DD \uC989\uC2DC \uC7AC\uB8CC
+      \uC2A4\uD0AC\uC740 \uC0AC\uB77C\uC9C0\uACE0 1\uB808\uBCA8\uBD80\uD130 \uB2E4\uC2DC
+      \uB4F1\uC7A5\uD569\uB2C8\uB2E4."
+  - stringId: CARD_FUSION_STATIC_FILTH_NAME
+    text: "\uC815\uC804\uAE30\xB7\uC624\uBB3C \uD22C\uCC99 \uC735\uD569"
+  - stringId: CARD_FUSION_STATIC_FILTH_DESCRIPTION
+    text: "\uC735\uD569 \uC624\uBB3C \uC7A5\uD310\uB9C8\uB2E4 \uC801\uC774 \uCC98\uC74C
+      \uD53C\uD574\uB97C \uBC1B\uC744 \uB54C \uB9C8\uC2A4\uD130 \uC815\uC804\uAE30\uAC00
+      \uBC1C\uC0DD\uD569\uB2C8\uB2E4. \uAC19\uC740 \uC7A5\uD310\uACFC \uAC19\uC740
+      \uC0DD\uC131 \uAC1C\uCCB4\uC5D0\uB294 1\uD68C\uB9CC \uC801\uC6A9\uB418\uBA70,
+      \uC7AC\uB8CC \uC2A4\uD0AC\uC740 1\uB808\uBCA8\uBD80\uD130 \uB2E4\uC2DC \uB4F1\uC7A5\uD569\uB2C8\uB2E4."
+  - stringId: STAGE_STAGE01_NAME
+    text: "\uC2A4\uD14C\uC774\uC9C0 1"
+  - stringId: STAGE_STAGE01_DESCRIPTION
+    text: "10\uBD84 \uB3D9\uC548 \uBAB0\uB824\uC624\uB294 \uC801\uC744 \uCC98\uCE58\uD558\uBA70
+      \uC0DD\uC874\uD558\uC138\uC694."
+  - stringId: DIFFICULTY_EASY_NAME
+    text: "\uC26C\uC6C0"
+  - stringId: DIFFICULTY_EASY_DESCRIPTION
+    text: "\uC801 \uC218 75% \xB7 \uC801 \uB808\uBCA8 80%"
+  - stringId: DIFFICULTY_NORMAL_NAME
+    text: "\uBCF4\uD1B5"
+  - stringId: DIFFICULTY_NORMAL_DESCRIPTION
+    text: "\uD604\uC7AC \uBC38\uB7F0\uC2A4"
+  - stringId: UI_DIFFICULTY_TITLE
+    text: "\uB09C\uC774\uB3C4 \uC120\uD0DD"
+  - stringId: UI_DIFFICULTY_STAGE_FORMAT
+    text: "{0}\n{1}\n\uB09C\uC774\uB3C4\uB294 \uC774\uBC88 \uAC8C\uC784\uC758 \uC801
+      \uC218\uC640 \uC801 \uB808\uBCA8\uC5D0 \uC801\uC6A9\uB429\uB2C8\uB2E4."
+  - stringId: UI_DIFFICULTY_OPTION_FORMAT
+    text: '{0}
+
+      {1}'
+  - stringId: CARD_HEADER_FORMAT
+    text: "{0}\n{1} \xB7 \uD68D\uB4DD \uD6C4 \uB808\uBCA8 {2}/{3}"
+  - stringId: CARD_REROLL_FORMAT
+    text: "\uAD50\uCCB4 {0}"
+  - stringId: UI_CARD_SELECTION_TITLE
+    text: "\uB808\uBCA8 \uC5C5\n\uCE74\uB4DC\uB97C \uC120\uD0DD\uD558\uC138\uC694"
+  - stringId: UI_SETTINGS_BUTTON
+    text: "\uC124\uC815"
+  - stringId: UI_SETTINGS_CONTROLS_VISIBLE
+    text: "\uC870\uC791 \uD328\uB4DC \uD45C\uC2DC"
+  - stringId: UI_SETTINGS_AUTO_ATTACK
+    text: "\uC790\uB3D9 \uACF5\uACA9"
+  - stringId: UI_SETTINGS_CONTROL_BUTTON
+    text: "\uC870\uC791"
+  - stringId: UI_SETTINGS_CONTROL_TITLE
+    text: "\uC870\uC791 \uD328\uB110 \uC124\uC815"
+  - stringId: UI_SETTINGS_JOYSTICK_SIZE
+    text: "\uC67C\uCABD \uC870\uC774\uC2A4\uD2F1 \uD06C\uAE30"
+  - stringId: UI_SETTINGS_JOYSTICK_HORIZONTAL
+    text: "\uC67C\uCABD \uC870\uC774\uC2A4\uD2F1 \uAC00\uB85C \uC704\uCE58"
+  - stringId: UI_SETTINGS_JOYSTICK_VERTICAL
+    text: "\uC67C\uCABD \uC870\uC774\uC2A4\uD2F1 \uC138\uB85C \uC704\uCE58"
+  - stringId: UI_SETTINGS_ATTACK_SIZE
+    text: "\uC624\uB978\uCABD \uACF5\uACA9 \uBC84\uD2BC \uD06C\uAE30"
+  - stringId: UI_SETTINGS_ATTACK_HORIZONTAL
+    text: "\uC624\uB978\uCABD \uACF5\uACA9 \uBC84\uD2BC \uAC00\uB85C \uC704\uCE58"
+  - stringId: UI_SETTINGS_ATTACK_VERTICAL
+    text: "\uC624\uB978\uCABD \uACF5\uACA9 \uBC84\uD2BC \uC138\uB85C \uC704\uCE58"
+  - stringId: UI_COMMON_DEFAULTS
+    text: "\uAE30\uBCF8\uAC12"
+  - stringId: UI_COMMON_CANCEL
+    text: "\uCDE8\uC18C"
+  - stringId: UI_COMMON_APPLY
+    text: "\uC801\uC6A9"
+  - stringId: UI_SETTINGS_CONTROL_MODE
+    text: "\uC870\uC791 \uBAA8\uB4DC"
+  - stringId: CONTROL_MODE_1_NAME
+    text: "\uBAA8\uB4DC 1"
+  - stringId: CONTROL_MODE_2_NAME
+    text: "\uBAA8\uB4DC 2"
+  - stringId: UI_AUTO_AIM_BUTTON
+    text: "\uC790\uB3D9 \uC870\uC900"
+  - stringId: UI_ATTACK_BUTTON
+    text: "\uACF5\uACA9"
+  - stringId: UI_GAME_OVER_TITLE
+    text: "\uAC8C\uC784 \uC885\uB8CC"
+  - stringId: UI_CONTINUE_BUTTON
+    text: "\uC774\uC5B4\uD558\uAE30"
+  - stringId: HUD_HP_FORMAT
+    text: "\uCCB4\uB825  {0}/{1}"
+  - stringId: HUD_GAME_OVER_SUMMARY_FORMAT
+    text: "\uAC8C\uC784 \uC885\uB8CC\n\uC810\uC218 {0} / \uACC4\uC815 \uACBD\uD5D8\uCE58
+      {1}"
+  - stringId: HUD_MAX_LEVEL
+    text: "\uCD5C\uB300 \uB808\uBCA8"
+  - stringId: HUD_EXP_REMAINING_FORMAT
+    text: "\uB2E4\uC74C \uB808\uBCA8\uAE4C\uC9C0 \uACBD\uD5D8\uCE58 {0}"
+  - stringId: HINT_SELECT_DIFFICULTY
+    text: "\uB09C\uC774\uB3C4\uB97C \uC120\uD0DD\uD558\uBA74 \uAC8C\uC784\uC744 \uC2DC\uC791\uD569\uB2C8\uB2E4."
+  - stringId: HINT_RESUME_CARD_SELECTION
+    text: "\uB808\uBCA8 \uC5C5: \uCE74\uB4DC\uB97C \uC120\uD0DD\uD558\uC138\uC694."
+  - stringId: HINT_GAME_RESUMED
+    text: "\uAC8C\uC784\uC744 \uC7AC\uAC1C\uD588\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_GAME_PAUSED
+    text: "\uC77C\uC2DC \uC815\uC9C0\uD588\uC2B5\uB2C8\uB2E4. ESC\uB97C \uB204\uB974\uBA74
+      \uC7AC\uAC1C\uD569\uB2C8\uB2E4."
+  - stringId: HINT_GAME_STARTED_FORMAT
+    text: "{0} \uB09C\uC774\uB3C4\uB85C \uC2DC\uC791\uD569\uB2C8\uB2E4. \uC67C\uCABD
+      \uC870\uC774\uC2A4\uD2F1\uC73C\uB85C \uC870\uC900\uD558\uACE0 \uACF5\uACA9
+      \uBC84\uD2BC\uC744 \uB204\uB974\uC138\uC694."
+  - stringId: HINT_START_CARD_SELECTED
+    text: "\uC2DC\uC791 \uCE74\uB4DC\uB97C \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4.
+      \uAC8C\uC784\uC744 \uC2DC\uC791\uD569\uB2C8\uB2E4."
+  - stringId: HINT_CARD_ACQUIRED_FORMAT
+    text: "{0} \uCE74\uB4DC\uB97C \uD68D\uB4DD\uD588\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_CONTINUE_LIMIT
+    text: "\uC774\uC5B4\uD558\uAE30\uB294 \uAC8C\uC784 \uC885\uB8CC \uD6C4 \uCD5C\uB300
+      \uB450 \uBC88 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_CONTINUE_SUCCESS_FORMAT
+    text: "\uBCF4\uC0C1\uD615 \uAD11\uACE0\uB97C \uD655\uC778\uD55C \uAC83\uC73C\uB85C
+      \uCC98\uB9AC\uD588\uC2B5\uB2C8\uB2E4. \uC774\uC5B4\uD558\uAE30 {0}/2, \uCCB4\uB825\uC744
+      \uBAA8\uB450 \uD68C\uBCF5\uD588\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_DEBUG_DAMAGE
+    text: "\uC2DC\uD5D8 \uAE30\uB2A5: \uD50C\uB808\uC774\uC5B4\uAC00 \uD53C\uD574
+      10\uC744 \uBC1B\uC558\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_DEBUG_EXP
+    text: "\uC2DC\uD5D8 \uAE30\uB2A5: \uD50C\uB808\uC774\uC5B4 \uACBD\uD5D8\uCE58\uAC00
+      5 \uC99D\uAC00\uD588\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_PLAYER_DEFEATED
+    text: "\uD50C\uB808\uC774\uC5B4\uAC00 \uC4F0\uB7EC\uC84C\uC2B5\uB2C8\uB2E4. \uC774\uC5B4\uD558\uAE30\uB85C
+      \uB2E4\uC2DC \uB3C4\uC804\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_CARD_SELECT_BOSS_FORMAT
+    text: "\uBCF4\uC2A4 \uCC98\uCE58 \uBCF4\uC0C1: \uCE74\uB4DC\uB97C \uC120\uD0DD\uD558\uC138\uC694.
+      \uB0A8\uC740 \uC120\uD0DD {0}\uD68C"
+  - stringId: HINT_CARD_SELECT_ACCOUNT_FORMAT
+    text: "\uACC4\uC815 \uB808\uBCA8 {0} \uC2DC\uC791 \uBCF4\uB108\uC2A4: \uCE74\uB4DC\uB97C
+      \uC120\uD0DD\uD558\uC138\uC694. \uB0A8\uC740 \uC120\uD0DD {1}\uD68C"
+  - stringId: HINT_CARD_SELECT_LEVEL_UP_FORMAT
+    text: "\uB808\uBCA8 \uC5C5: \uCE74\uB4DC\uB97C \uC120\uD0DD\uD558\uC138\uC694.
+      \uB0A8\uC740 \uC120\uD0DD {0}\uD68C"
+  - stringId: HINT_ALL_SKILLS_MAXED
+    text: "\uBAA8\uB4E0 \uC2A4\uD0AC\uC774 \uCD5C\uB300 \uB808\uBCA8\uC5D0 \uB3C4\uB2EC\uD588\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_SHIELD_INSIDE
+    text: "\uBC29\uD328\uBCD1\uC758 \uC548\uCABD\uC5D0 \uB3C4\uCC29\uD588\uC2B5\uB2C8\uB2E4.
+      \uB2E4\uC2DC \uB204\uB974\uBA74 \uADFC\uC811 \uACF5\uACA9\uD569\uB2C8\uB2E4."
+  - stringId: HINT_SHIELD_BYPASS_SUCCESS
+    text: "\uBC29\uD328 \uC6B0\uD68C \uC131\uACF5! \uBC18\uB3D9\uACFC \uC870\uC791
+      \uBD88\uAC00\uB97C \uBB34\uC2DC\uD588\uC2B5\uB2C8\uB2E4."
+  - stringId: HINT_ENEMY_DAMAGE_FORMAT
+    text: "{0} \uB808\uBCA8 {1}: {2} \uD53C\uD574 {3:0.##}"
+  - stringId: HINT_ENEMY_CRITICAL_DAMAGE_FORMAT
+    text: "{0} \uB808\uBCA8 {1}: {2} \uCE58\uBA85\uD0C0 \uD53C\uD574 {3:0.##}"
+  - stringId: HINT_ENEMY_FRONT_BLOCK_FORMAT
+    text: "{0} \uB808\uBCA8 {1}: \uC815\uBA74 \uBC29\uC5B4"
+  - stringId: PAUSE_TITLE
+    text: "\uC77C\uC2DC \uC815\uC9C0"
+  - stringId: PAUSE_RESUME_GUIDE
+    text: "ESC\uB97C \uB204\uB974\uBA74 \uAC8C\uC784\uC744 \uC7AC\uAC1C\uD569\uB2C8\uB2E4."
+  - stringId: PAUSE_OVERVIEW_FORMAT
+    text: "\uD50C\uB808\uC774\uC5B4 \uB808\uBCA8  {0}    \uACC4\uC815 \uB808\uBCA8 
+      {1}    \uB09C\uC774\uB3C4  {2}"
+  - stringId: PAUSE_SCORE_FORMAT
+    text: "\uC810\uC218  {0}    \uACC4\uC815 \uACBD\uD5D8\uCE58  {1}    \uC0DD\uC874
+      \uC2DC\uAC04  {2}"
+  - stringId: PAUSE_VITALS_FORMAT
+    text: "\uCCB4\uB825  {0}/{1}    \uACF5\uACA9\uB825  {2:0.##}"
+  - stringId: PAUSE_MOBILITY_FORMAT
+    text: "\uCE58\uBA85\uD0C0 \uD655\uB960  {0:0}%    \uC774\uB3D9 \uC18D\uB3C4 
+      {1:0.##}"
+  - stringId: PAUSE_COMBAT_FORMAT
+    text: "\uACF5\uACA9 \uC0AC\uAC70\uB9AC  {0:0.##}    \uD6C4\uBA74 \uD53C\uD574 
+      x{1:0.##}"
+  - stringId: PAUSE_EXP_FORMAT
+    text: "\uACBD\uD5D8\uCE58  {0}/{1}    \uB2E4\uC74C \uB808\uBCA8\uAE4C\uC9C0 
+      {2}"
+  - stringId: PAUSE_SKILLS_TITLE
+    text: "\uD68D\uB4DD\uD55C \uC2A4\uD0AC"
+  - stringId: PAUSE_SKILL_LEVEL_FORMAT
+    text: "\uB808\uBCA8 {0}/{1}"
+  - stringId: COMMON_NONE
+    text: "\uC5C6\uC74C"
+  - stringId: PLAYER_DISPLAY_NAME
+    text: "\uD50C\uB808\uC774\uC5B4"
+  - stringId: ENEMY_GENERIC_NAME
+    text: "\uC801"
+  - stringId: ENEMY_GOBLIN_MELEE_NAME
+    text: "\uADFC\uC811 \uACE0\uBE14\uB9B0"
+  - stringId: ENEMY_GOBLIN_RANGED_NAME
+    text: "\uC6D0\uAC70\uB9AC \uACE0\uBE14\uB9B0"
+  - stringId: ENEMY_SHIELD_SKELETON_NAME
+    text: "\uBC29\uD328\uBCD1"
+  - stringId: ENEMY_GOBLIN_BOSS_NAME
+    text: "\uACE0\uBE14\uB9B0 \uC6B0\uB450\uBA38\uB9AC"
+  - stringId: ENEMY_MUSHROOM_BOSS_NAME
+    text: "\uBA38\uC26C\uB8F8 \uBCF4\uC2A4"
+  - stringId: ENEMY_FLYING_EYE_NAME
+    text: "\uD50C\uB77C\uC789 \uC544\uC774"
+  - stringId: ENEMY_FLYING_EYE_BOSS_NAME
+    text: "\uD50C\uB77C\uC789 \uC544\uC774 \uBCF4\uC2A4"
+  - stringId: ENEMY_SKELETON_BOSS_NAME
+    text: "\uC2A4\uCF08\uB808\uD1A4 \uBCF4\uC2A4"
+  - stringId: ENEMY_LEVEL_LABEL_FORMAT
+    text: "{0} \uB808\uBCA8 {1}"
+  - stringId: COMBAT_SIDE_FRONT
+    text: "\uC815\uBA74"
+  - stringId: COMBAT_SIDE_REAR
+    text: "\uD6C4\uBA74"
+  - stringId: UI_AUTO_ATTACK_ON
+    text: On
+  - stringId: UI_AUTO_ATTACK_OFF
+    text: Off
+  - stringId: CONTROL_MODE_HIDDEN_NAME
+    text: "\uC228\uAE30\uAE30"
+  - stringId: PAUSE_PLAYER_OVERVIEW_FORMAT
+    text: "\uD50C\uB808\uC774\uC5B4 \uB808\uBCA8: {0}\n\uB09C\uC774\uB3C4: {1}\n\uC810\uC218:
+      {2}\n\uC0DD\uC874 \uC2DC\uAC04: {3}"
+  - stringId: PAUSE_ACCOUNT_OVERVIEW_FORMAT
+    text: "\uD604\uC7AC \uACC4\uC815 \uB808\uBCA8: {0}\n\uC774\uBC88 \uAC8C\uC784
+      \uD68D\uB4DD \uACBD\uD5D8\uCE58: {1}\n\uB2E4\uC74C \uACC4\uC815 \uB808\uBCA8
+      \uC9C4\uD589\uB3C4: {2}/{3}"
+  - stringId: PAUSE_ACCOUNT_MAX_FORMAT
+    text: "\uD604\uC7AC \uACC4\uC815 \uB808\uBCA8: {0}\n\uC774\uBC88 \uAC8C\uC784
+      \uD68D\uB4DD \uACBD\uD5D8\uCE58: {1}\n\uB2E4\uC74C \uACC4\uC815 \uB808\uBCA8
+      \uC9C4\uD589\uB3C4: MAX"
+  - stringId: PAUSE_STATS_TITLE
+    text: "\uD604\uC7AC \uC2A4\uD0EF"

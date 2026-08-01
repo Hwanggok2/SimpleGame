@@ -37,12 +37,17 @@ namespace SimpleGame
             player = configuredPlayer;
         }
 
+        public void CancelInput()
+        {
+            ReleaseAim();
+        }
+
         public void OnPointerDown(PointerEventData eventData)
         {
             if (eventData == null ||
                 activePointerId != NoPointer ||
                 player == null ||
-                !player.BeginAim())
+                !player.BeginControlInput())
             {
                 return;
             }
@@ -141,7 +146,7 @@ namespace SimpleGame
                     NormalizedInput * knobTravel;
             }
 
-            player.SetAimInput(NormalizedInput);
+            player.SetControlInput(NormalizedInput);
         }
 
         private void ReleaseAim()
@@ -151,7 +156,7 @@ namespace SimpleGame
             ResetVisual();
             if (player != null)
             {
-                player.EndAim();
+                player.EndControlInput();
             }
         }
 

@@ -10,6 +10,7 @@ namespace SimpleGame
         private float invulnerableUntil;
 
         public event Action Depleted;
+        public event Action<int, int> Changed;
 
         public int MaxHealth => maxHealth;
         public int CurrentHealth => currentHealth;
@@ -21,6 +22,7 @@ namespace SimpleGame
             maxHealth = Mathf.Max(1, value);
             currentHealth = maxHealth;
             invulnerableUntil = 0f;
+            Changed?.Invoke(currentHealth, maxHealth);
         }
 
         public bool ApplyDamage(int amount)
@@ -31,6 +33,7 @@ namespace SimpleGame
             }
 
             currentHealth = Mathf.Max(0, currentHealth - amount);
+            Changed?.Invoke(currentHealth, maxHealth);
             if (currentHealth == 0)
             {
                 Depleted?.Invoke();
@@ -42,6 +45,7 @@ namespace SimpleGame
         public void RestoreFull()
         {
             currentHealth = maxHealth;
+            Changed?.Invoke(currentHealth, maxHealth);
         }
 
         public int Heal(int amount)
@@ -53,7 +57,13 @@ namespace SimpleGame
 
             int previous = currentHealth;
             currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
-            return currentHealth - previous;
+            int restored = currentHealth - previous;
+            if (restored > 0)
+            {
+                Changed?.Invoke(currentHealth, maxHealth);
+            }
+
+            return restored;
         }
 
         public void IncreaseMaximum(int amount, bool restoreAddedHealth)
@@ -68,6 +78,8 @@ namespace SimpleGame
             {
                 currentHealth += amount;
             }
+
+            Changed?.Invoke(currentHealth, maxHealth);
         }
 
         public void RestoreFraction(float fraction)
@@ -76,6 +88,7 @@ namespace SimpleGame
                 Mathf.CeilToInt(maxHealth * fraction),
                 1,
                 maxHealth);
+            Changed?.Invoke(currentHealth, maxHealth);
         }
 
         public void MakeInvulnerable(float seconds)

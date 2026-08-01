@@ -14,12 +14,16 @@ namespace SimpleGame
         [SerializeField] private GameObject fieldVisual;
 
         private readonly List<EnemyBase> damageTargets = new();
+        private readonly Dictionary<EnemyBase, uint>
+            staticTriggeredEnemyGenerations = new();
         private PlayerRoot owner;
         private EnemyWorldService enemyWorld;
         private Vector2 start;
         private Vector2 destination;
         private float damageMultiplier;
         private float damageRadius;
+        private int staticChargeLevel;
+        private float staticDamageMultiplier;
         private float throwElapsed;
         private float fieldElapsed;
         private int appliedTickCount;
@@ -31,7 +35,9 @@ namespace SimpleGame
             EnemyWorldService enemyWorld,
             Vector2 destination,
             float damageMultiplier,
-            float damageRadius)
+            float damageRadius,
+            int staticChargeLevel = 0,
+            float staticDamageMultiplier = 0f)
         {
             if (prefab == null)
             {
@@ -48,7 +54,9 @@ namespace SimpleGame
                 enemyWorld,
                 destination,
                 damageMultiplier,
-                damageRadius);
+                damageRadius,
+                staticChargeLevel,
+                staticDamageMultiplier);
         }
 
         public void ConfigureVisuals(
@@ -68,6 +76,17 @@ namespace SimpleGame
                 0,
                 Mathf.RoundToInt(
                     FieldDuration / DamageTickInterval));
+        }
+
+        public static bool ShouldTriggerStaticBurst(
+            int staticChargeLevel,
+            bool hasRecordedGeneration,
+            uint recordedGeneration,
+            uint currentGeneration)
+        {
+            return staticChargeLevel > 0 &&
+                (!hasRecordedGeneration ||
+                 recordedGeneration != currentGeneration);
         }
 
         public static Vector2 CalculateArcPosition(
@@ -94,7 +113,9 @@ namespace SimpleGame
             EnemyWorldService configuredEnemyWorld,
             Vector2 configuredDestination,
             float configuredDamageMultiplier,
-            float configuredDamageRadius)
+            float configuredDamageRadius,
+            int configuredStaticChargeLevel,
+            float configuredStaticDamageMultiplier)
         {
             owner = configuredOwner;
             enemyWorld = configuredEnemyWorld;
@@ -105,9 +126,16 @@ namespace SimpleGame
             damageMultiplier =
                 Mathf.Max(0f, configuredDamageMultiplier);
             damageRadius = Mathf.Max(0.1f, configuredDamageRadius);
+            staticChargeLevel = Mathf.Max(
+                0,
+                configuredStaticChargeLevel);
+            staticDamageMultiplier = Mathf.Max(
+                0f,
+                configuredStaticDamageMultiplier);
             throwElapsed = 0f;
             fieldElapsed = 0f;
             appliedTickCount = 0;
+            staticTriggeredEnemyGenerations.Clear();
             landed = false;
             transform.position = start;
             transform.localScale = Vector3.one;
@@ -190,10 +218,34 @@ namespace SimpleGame
                 damageTargets);
             foreach (EnemyBase enemy in damageTargets)
             {
-                owner.ApplySkillHit(
-                    enemy,
-                    damageMultiplier);
+                if (enemy == null || !enemy.IsAlive)
+                {
+                    continue;
+                }
+
+                bool hasRecordedGeneration =
+                    staticTriggeredEnemyGenerations.TryGetValue(
+                        enemy,
+                        out uint recordedGeneration);
+                if (ShouldTriggerStaticBurst(
+                        staticChargeLevel,
+                        hasRecordedGeneration,
+                        recordedGeneration,
+                        enemy.SpawnGeneration))
+                {
+                    staticTriggeredEnemyGenerations[enemy] =
+                        enemy.SpawnGeneration;
+                    owner.ApplySkillHitWithStaticBurst(
+                        enemy,
+                        damageMultiplier,
+                        staticChargeLevel,
+                        staticDamageMultiplier);
+                    continue;
+                }
+
+                owner.ApplySkillHit(enemy, damageMultiplier);
             }
         }
+
     }
 }

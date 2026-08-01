@@ -18,6 +18,7 @@ namespace SimpleGameEditor
         public List<LevelExperienceRow> AccountLevels { get; } = new();
         public List<PlayerDefinition> PlayerDefinitions { get; } = new();
         public List<LevelUpCardDefinition> LevelUpCards { get; } = new();
+        public List<GameStringEntry> GameStrings { get; } = new();
         public int AccountExperienceScoreUnit { get; set; }
         public int AccountExperiencePerUnit { get; set; }
         public float CriticalChancePerCard { get; set; }
@@ -33,18 +34,21 @@ namespace SimpleGameEditor
             int enemyCount,
             int spawnCount,
             int playerLevelCount,
-            int accountLevelCount)
+            int accountLevelCount,
+            int stringCount)
         {
             EnemyCount = enemyCount;
             SpawnCount = spawnCount;
             PlayerLevelCount = playerLevelCount;
             AccountLevelCount = accountLevelCount;
+            StringCount = stringCount;
         }
 
         public int EnemyCount { get; }
         public int SpawnCount { get; }
         public int PlayerLevelCount { get; }
         public int AccountLevelCount { get; }
+        public int StringCount { get; }
     }
 
     public static class GameDataExcelParser
@@ -106,6 +110,8 @@ namespace SimpleGameEditor
             ParsePlayerBalance(
                 workbook.ReadSheet("PlayerBalance"),
                 model);
+            model.GameStrings.AddRange(ParseGameStrings(
+                workbook.ReadSheet("GameString")));
             ParseLevelUpCards(
                 workbook.ReadSheet("LevelUpCard"),
                 model);
@@ -443,6 +449,33 @@ namespace SimpleGameEditor
             RequireDataRows(table);
         }
 
+        public static List<GameStringEntry> ParseGameStrings(
+            ExcelSheet sheet)
+        {
+            var table = new ExcelTable(sheet, "StringId", "KoKR");
+            var result = new List<GameStringEntry>();
+            var stringIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ExcelRow row in table.DataRows)
+            {
+                string stringId = table.RequiredText(row, "StringId");
+                ValidateIdentifier(sheet.Name, row, "StringId", stringId);
+                if (!stringIds.Add(stringId))
+                {
+                    throw table.Error(
+                        row,
+                        "StringId",
+                        $"duplicate StringId '{stringId}'");
+                }
+
+                result.Add(new GameStringEntry(
+                    stringId,
+                    table.RequiredText(row, "KoKR")));
+            }
+
+            RequireDataRows(table);
+            return result;
+        }
+
         private static void ParseLevelUpCards(
             ExcelSheet sheet,
             GameDataExcelModel model)
@@ -451,8 +484,7 @@ namespace SimpleGameEditor
                 sheet,
                 "CardId",
                 "NameKey",
-                "DisplayName",
-                "Description",
+                "DescriptionKey",
                 "EffectType",
                 "TargetStat",
                 "Operation",
@@ -461,6 +493,7 @@ namespace SimpleGameEditor
                 "SelectionWeight",
                 "MinPlayerLevel",
                 "RequiredCardId",
+                "FusionIngredientCardIds",
                 "Rarity",
                 "IconId",
                 "Enabled");
@@ -488,8 +521,7 @@ namespace SimpleGameEditor
                 model.LevelUpCards.Add(new LevelUpCardDefinition(
                     cardId,
                     table.RequiredText(row, "NameKey"),
-                    table.RequiredText(row, "DisplayName"),
-                    table.RequiredText(row, "Description"),
+                    table.RequiredText(row, "DescriptionKey"),
                     effectType,
                     targetStat,
                     operation,
@@ -500,7 +532,10 @@ namespace SimpleGameEditor
                     table.OptionalText(row, "RequiredCardId"),
                     table.RequiredText(row, "Rarity"),
                     table.RequiredText(row, "IconId"),
-                    table.Boolean(row, "Enabled")));
+                    table.Boolean(row, "Enabled"),
+                    table.OptionalText(
+                        row,
+                        "FusionIngredientCardIds")));
             }
 
             RequireDataRows(table);
@@ -526,22 +561,140 @@ namespace SimpleGameEditor
                 StringComparer.Ordinal);
             foreach (LevelUpCardDefinition card in model.LevelUpCards)
             {
-                if (string.IsNullOrWhiteSpace(card.RequiredCardId))
-                {
-                    continue;
-                }
-
-                if (string.Equals(
-                        card.CardId,
-                        card.RequiredCardId,
-                        StringComparison.Ordinal) ||
-                    !cardIds.Contains(card.RequiredCardId))
+                if (!string.IsNullOrWhiteSpace(card.RequiredCardId) &&
+                    (string.Equals(
+                         card.CardId,
+                         card.RequiredCardId,
+                         StringComparison.Ordinal) ||
+                     !cardIds.Contains(card.RequiredCardId)))
                 {
                     throw new InvalidDataException(
                         $"LevelUpCard '{card.CardId}' has invalid " +
                         $"RequiredCardId '{card.RequiredCardId}'.");
                 }
+
+                IReadOnlyList<string> ingredientIds =
+                    card.FusionIngredientCardIds;
+                bool hasIngredientIds =
+                    !string.IsNullOrWhiteSpace(
+                        card.FusionIngredientCardIdsRaw);
+                if (hasIngredientIds &&
+                    card.FusionIngredientCardIdsRaw
+                        .Split('|')
+                        .Any(string.IsNullOrWhiteSpace))
+                {
+                    throw new InvalidDataException(
+                        $"LevelUpCard '{card.CardId}' has an empty " +
+                        "FusionIngredientCardIds entry.");
+                }
+
+                if (card.EffectType == LevelUpCardEffectType.Fusion)
+                {
+                    if (!hasIngredientIds || ingredientIds.Count < 2)
+                    {
+                        throw new InvalidDataException(
+                            $"LevelUpCard '{card.CardId}' " +
+                            "FusionIngredientCardIds must reference at " +
+                            "least two ingredient cards.");
+                    }
+                }
+                else if (hasIngredientIds)
+                {
+                    throw new InvalidDataException(
+                        $"LevelUpCard '{card.CardId}' " +
+                        "FusionIngredientCardIds must be empty for a " +
+                        "non-fusion card.");
+                }
+
+                var uniqueIngredientIds = new HashSet<string>(
+                    StringComparer.Ordinal);
+                foreach (string ingredientId in ingredientIds)
+                {
+                    if (!uniqueIngredientIds.Add(ingredientId))
+                    {
+                        throw new InvalidDataException(
+                            $"LevelUpCard '{card.CardId}' has duplicate " +
+                            "FusionIngredientCardIds entry " +
+                            $"'{ingredientId}'.");
+                    }
+
+                    if (string.Equals(
+                            card.CardId,
+                            ingredientId,
+                            StringComparison.Ordinal))
+                    {
+                        throw new InvalidDataException(
+                            $"LevelUpCard '{card.CardId}' cannot reference " +
+                            "itself in FusionIngredientCardIds.");
+                    }
+
+                    if (!cardIds.Contains(ingredientId))
+                    {
+                        throw new InvalidDataException(
+                            $"LevelUpCard '{card.CardId}' references " +
+                            $"unknown FusionIngredientCardIds entry " +
+                            $"'{ingredientId}'.");
+                    }
+
+                    LevelUpCardDefinition ingredient =
+                        model.LevelUpCards.Find(value =>
+                            string.Equals(
+                                value.CardId,
+                                ingredientId,
+                                StringComparison.Ordinal));
+                    if (ingredient.EffectType ==
+                        LevelUpCardEffectType.Fusion)
+                    {
+                        throw new InvalidDataException(
+                            $"LevelUpCard '{card.CardId}' cannot use " +
+                            $"fusion card '{ingredientId}' in " +
+                            "FusionIngredientCardIds.");
+                    }
+                }
             }
+
+            var gameStringIds = new HashSet<string>(
+                model.GameStrings.Select(value => value.StringId),
+                StringComparer.Ordinal);
+            foreach (string requiredStringId in GameStringIds.RequiredIds)
+            {
+                if (!gameStringIds.Contains(requiredStringId))
+                {
+                    throw new InvalidDataException(
+                        $"GameString is missing required StringId " +
+                        $"'{requiredStringId}'.");
+                }
+            }
+
+            foreach (LevelUpCardDefinition card in model.LevelUpCards)
+            {
+                RequireGameStringReference(
+                    gameStringIds,
+                    card.CardId,
+                    "NameKey",
+                    card.NameKey);
+                RequireGameStringReference(
+                    gameStringIds,
+                    card.CardId,
+                    "DescriptionKey",
+                    card.DescriptionKey);
+            }
+        }
+
+        private static void RequireGameStringReference(
+            ISet<string> gameStringIds,
+            string cardId,
+            string columnName,
+            string stringId)
+        {
+            if (gameStringIds.Contains(stringId))
+            {
+                return;
+            }
+
+            throw new InvalidDataException(
+                $"LevelUpCard '{cardId}' references unknown GameString " +
+                $"{columnName} '{stringId}'.");
         }
 
         private static void ValidateIdentifier(
@@ -638,7 +791,8 @@ namespace SimpleGameEditor
                 manifest.AccountLevelExperience,
                 manifest.GlobalBalance,
                 manifest.PlayerBalance,
-                manifest.LevelUpCards
+                manifest.LevelUpCards,
+                manifest.GameStrings
             };
             Undo.RecordObjects(generatedAssets, "Import Game Data from Excel");
 
@@ -656,6 +810,7 @@ namespace SimpleGameEditor
                 data.BossRerollReward);
             manifest.PlayerBalance.Configure(data.PlayerDefinitions);
             manifest.LevelUpCards.Configure(data.LevelUpCards);
+            manifest.GameStrings.Configure(data.GameStrings);
 
             foreach (UnityEngine.Object asset in generatedAssets)
             {
@@ -667,7 +822,8 @@ namespace SimpleGameEditor
                 data.EnemyDefinitions.Count,
                 data.SpawnEntries.Count,
                 data.PlayerLevels.Count,
-                data.AccountLevels.Count);
+                data.AccountLevels.Count,
+                data.GameStrings.Count);
         }
 
         private static void ImportFromMenu(string path)
@@ -679,7 +835,8 @@ namespace SimpleGameEditor
                     $"엑셀 불러오기 완료: 적 {summary.EnemyCount}종, " +
                     $"스폰 {summary.SpawnCount}개, " +
                     $"플레이어 레벨 {summary.PlayerLevelCount}개, " +
-                    $"계정 레벨 {summary.AccountLevelCount}개.";
+                    $"계정 레벨 {summary.AccountLevelCount}개, " +
+                    $"문자열 {summary.StringCount}개.";
                 Debug.Log($"{message}\nSource: {path}");
                 if (!Application.isBatchMode)
                 {

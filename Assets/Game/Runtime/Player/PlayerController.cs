@@ -14,12 +14,15 @@ namespace SimpleGame
         public const float AimViewportPadding = 0.5f;
         public const float AimRayWidth = 0.08f;
         public const float AimEndpointSize = 0.42f;
-        public const float AutoAttackInterval = 0.5f;
+        public const float AutoAttackInterval = 0.3f;
+        public const float ModeOneEnemyEngagementInset = 0.02f;
         public const float AimAssistHalfWidth = 0.65f;
         public const float AimAssistRetentionWidthMultiplier = 1.35f;
         public const float MinimumCommandAimMagnitude = 0.01f;
         private const float EnemySelectionRadius =
             EnemyPiercingVerticalRadius;
+        private const float MovementPassDirectionThreshold = 0.25f;
+        private const float MovementPassLateralPadding = 0.05f;
 
         [SerializeField] private SpriteRenderer aimRayRenderer;
         [SerializeField] private SpriteRenderer aimEndpointRenderer;
@@ -48,17 +51,40 @@ namespace SimpleGame
         private EnemyBase autoAttackEnemy;
         private uint autoAttackEnemyGeneration;
         private float nextAutoAttackAt;
+        private EnemyBase lockedEnemy;
+        private uint lockedEnemyGeneration;
+        private bool lockedEnemyAllowsMovementPiercing;
+        private float nextModeOneAttackAt;
+        private Vector2 movementInput;
+        private int remainingMovementPierces;
+        private float movementPiercingRechargeAt =
+            float.PositiveInfinity;
+        private EnemyBase modeOnePassEnemy;
+        private uint modeOnePassEnemyGeneration;
+        private Vector2 modeOnePassDirection;
+        private Vector2 modeOnePassStartPosition;
+        private float modeOnePassStartedAt;
         private Vector2 commandMarkerDestination;
+        private MobileControlMode controlMode =
+            MobileControlMode.AimCommand;
         private bool autoAttackEnabled;
+        private bool autoAttackRepeatCommandActive;
+        private bool manualMovementHeld;
+        private bool modeOneLockedCommandActive;
+        private bool modeOneAttackPending;
         private bool commandMarkerVisible;
         private bool isAiming;
         private readonly List<RaycastResult> uiRaycastResults = new();
+        private readonly Dictionary<EnemyBase, uint>
+            movementPiercedEnemyGenerations = new();
 
         public Vector2 AimInput => aimInput;
         public Vector2 RawAimDestination => rawAimDestination;
         public Vector2 AimDestination => aimDestination;
         public bool IsAiming => isAiming;
         public bool AutoAttackEnabled => autoAttackEnabled;
+        public MobileControlMode ControlMode => controlMode;
+        public bool ManualMovementHeld => manualMovementHeld;
 
         public void ConfigureAimVisuals(
             SpriteRenderer configuredRayRenderer,
@@ -107,8 +133,41 @@ namespace SimpleGame
             }
 
             ReadPointer();
+            bool hasManualMovementInput =
+                HasActiveManualMovementInput();
+            if (controlMode ==
+                    MobileControlMode.DirectMoveAutoAim &&
+                hasManualMovementInput)
+            {
+                if (!root.IsInputLocked)
+                {
+                    if (hasDestination)
+                    {
+                        CancelCommand();
+                    }
+
+                    EnemyBase pathTarget =
+                        FindModeOneMovementPathTarget();
+                    TickModeOneRangeAttackAgainst(pathTarget);
+                    if (!root.IsInputLocked)
+                    {
+                        TickManualMovementTowards(pathTarget);
+                    }
+                }
+
+                return;
+            }
+
             TickCommand();
-            TickAutoAttack();
+            if (controlMode ==
+                MobileControlMode.DirectMoveAutoAim)
+            {
+                TickModeOneLockedTarget();
+            }
+            else
+            {
+                TickAutoAttack();
+            }
         }
 
         private void LateUpdate()
@@ -213,7 +272,11 @@ namespace SimpleGame
         private bool TryIssueCommand(
             Vector2 worldDestination,
             EnemyBase preferredEnemy,
-            bool userInitiated)
+            bool userInitiated,
+            bool interceptPathEnemies = true,
+            bool showCommandMarker = true,
+            bool lockedTargetCommand = false,
+            bool autoAttackRepeatCommand = false)
         {
             if (root == null ||
                 session == null ||
@@ -225,10 +288,19 @@ namespace SimpleGame
                 return false;
             }
 
+            bool replacesPendingAutoAttack =
+                userInitiated && autoAttackRepeatCommandActive;
+            modeOneLockedCommandActive = lockedTargetCommand;
+            autoAttackRepeatCommandActive =
+                autoAttackRepeatCommand;
             destination = worldDestination;
             commandOrigin = transform.position;
             SetIgnoredPathEnemy(null);
-            root.CombatAbilities.BeginPiercingCommand();
+            if (userInitiated)
+            {
+                BeginMovementPiercingCommand();
+            }
+
             EnemyBase directEnemy =
                 preferredEnemy != null && preferredEnemy.IsAlive
                     ? preferredEnemy
@@ -247,27 +319,52 @@ namespace SimpleGame
             Vector2 movementTarget = directEnemy != null
                 ? directEnemy.transform.position
                 : destination;
-            EnemyBase pathEnemy = enemyWorld.FindFirstEnemyOnPath(
-                commandOrigin,
-                movementTarget,
-                EnemyWorldService.GetColliderRadius(root));
+            EnemyBase pathEnemy = interceptPathEnemies
+                ? enemyWorld.FindFirstEnemyOnPath(
+                    commandOrigin,
+                    movementTarget,
+                    EnemyWorldService.GetColliderRadius(root))
+                : null;
             bool interceptedOnPath =
                 pathEnemy != null && pathEnemy != directEnemy;
             EnemyBase selectedEnemy =
                 SelectCommandEnemy(directEnemy, pathEnemy);
             if (userInitiated)
             {
-                SetAutoAttackTarget(selectedEnemy);
+                if (controlMode ==
+                    MobileControlMode.DirectMoveAutoAim)
+                {
+                    SetLockedEnemy(
+                        selectedEnemy,
+                        selectedEnemy != null);
+                }
+                else
+                {
+                    SetAutoAttackTarget(selectedEnemy);
+                }
             }
 
-            ShowCommandMarker(destination);
+            if (showCommandMarker)
+            {
+                ShowCommandMarker(destination);
+            }
+            else
+            {
+                HideCommandMarker();
+            }
             if (selectedEnemy != null &&
                 hasDestination &&
                 pendingEnemy == selectedEnemy)
             {
-                if (!shieldApproachOnly)
+                if (lockedTargetCommand)
                 {
-                    pendingAttackCount++;
+                    pendingAttackCount = 1;
+                }
+                else if (!shieldApproachOnly)
+                {
+                    pendingAttackCount = replacesPendingAutoAttack
+                        ? 1
+                        : pendingAttackCount + 1;
                 }
 
                 return true;
@@ -282,8 +379,6 @@ namespace SimpleGame
                 Vector2.Distance(transform.position, pendingEnemy.transform.position) >
                     pendingEnemy.Definition.ApproachRange;
             hasDestination = true;
-            root.TrySpawnMovingSlash(
-                destination - (Vector2)transform.position);
             BeginCurrentMove();
             return true;
         }
@@ -292,6 +387,22 @@ namespace SimpleGame
         {
             if (!hasDestination)
             {
+                return;
+            }
+
+            if (autoAttackRepeatCommandActive &&
+                controlMode == MobileControlMode.AimCommand &&
+                ResolveAutoAttackEnemy() == null)
+            {
+                CancelCommand();
+                return;
+            }
+
+            if (modeOneLockedCommandActive &&
+                (ResolveLockedEnemy() == null ||
+                 pendingEnemy != lockedEnemy))
+            {
+                CancelCommand();
                 return;
             }
 
@@ -312,6 +423,7 @@ namespace SimpleGame
                     {
                         SetIgnoredPathEnemy(null);
                         postKillEscapeActive = false;
+                        autoAttackRepeatCommandActive = false;
                         HideCommandMarker();
                     }
 
@@ -337,28 +449,28 @@ namespace SimpleGame
 
             if (shieldApproachOnly)
             {
-                session.ShowHint("방패병의 안쪽에 도착했습니다. 다시 누르면 근접 공격합니다.");
+                session.ShowHint(session.GetString(
+                    GameStringIds.HintShieldInside,
+                    "방패병의 안쪽에 도착했습니다. 다시 누르면 " +
+                    "근접 공격합니다."));
                 CancelCommand();
                 return;
             }
 
             EnemyBase targetEnemy = pendingEnemy;
-            bool piercingRequested = IsPiercingTouchRequested(
+            bool movementPiercingRequested =
+                IsPiercingTouchRequested(
                 commandOrigin,
                 targetEnemy.transform.position,
                 destination);
-            bool piercingReserved = false;
+            bool movementPiercingAvailable =
+                movementPiercingRequested &&
+                HasRemainingMovementPierces();
             bool attackExecuted = false;
+            PlayerAttackExecution lastExecution = default;
             while (pendingAttackCount > 0 && targetEnemy.IsAlive)
             {
                 pendingAttackCount--;
-                if (!attackExecuted)
-                {
-                    piercingReserved =
-                        piercingRequested &&
-                        root.CombatAbilities.TryConsumePiercingTarget();
-                }
-
                 attackExecuted = true;
                 if (targetEnemy == ResolveAutoAttackEnemy())
                 {
@@ -366,51 +478,17 @@ namespace SimpleGame
                         Time.time + AutoAttackInterval;
                 }
 
-                bool critical = root.Critical.Roll();
+                if (targetEnemy == ResolveLockedEnemy())
+                {
+                    modeOneAttackPending = false;
+                    nextModeOneAttackAt =
+                        Time.time + AutoAttackInterval;
+                }
 
-                root.PlayAttack(targetEnemy.transform.position);
-                PlayerAttackExecution execution =
-                    root.AttackEnemy(
+                if (ExecuteSingleAttack(
                         targetEnemy,
-                        critical,
-                        piercingReserved);
-                if (piercingReserved &&
-                    !execution.PiercingAllowed)
-                {
-                    root.CombatAbilities.RefundPiercingTarget();
-                    piercingReserved = false;
-                }
-
-                bool shieldRecoil =
-                    execution.PrimaryResult.PlayerReaction ==
-                        PlayerAttackReaction.Recoil &&
-                    targetEnemy.Definition.BlocksFrontAttacks;
-                bool bypassedShield =
-                    shieldRecoil &&
-                    root.CombatAbilities.RollShieldBypass();
-                PlayerAttackReaction effectiveReaction =
-                    shieldRecoil && !bypassedShield
-                        ? PlayerAttackReaction.Recoil
-                        : PlayerAttackReaction.None;
-                if (bypassedShield)
-                {
-                    session.ShowHint(
-                        "방패 우회 성공! 반동과 조작 불가를 무시했습니다.");
-                }
-
-                if (effectiveReaction ==
-                    PlayerAttackReaction.Recoil)
-                {
-                    root.ApplyFrontRecoil(targetEnemy.transform.position);
-                }
-
-                session.PlayCombatFeedback(
-                    execution.AnyDamageApplied,
-                    !targetEnemy.IsAlive,
-                    critical,
-                    effectiveReaction);
-
-                if (effectiveReaction ==
+                        movementPiercingAvailable,
+                        out lastExecution) ==
                     PlayerAttackReaction.Recoil)
                 {
                     CancelCommand();
@@ -419,9 +497,15 @@ namespace SimpleGame
             }
 
             bool defeated = !targetEnemy.IsAlive;
+            bool movementPiercingConsumed =
+                !defeated &&
+                attackExecuted &&
+                movementPiercingAvailable &&
+                lastExecution.PiercingAllowed &&
+                TryConsumeMovementPierce();
             if (!ShouldContinueAfterPathAttack(
                 defeated,
-                piercingReserved,
+                movementPiercingConsumed,
                 attackExecuted))
             {
                 CancelCommand();
@@ -443,6 +527,54 @@ namespace SimpleGame
                     : 1f);
         }
 
+        private PlayerAttackReaction ExecuteSingleAttack(
+            EnemyBase targetEnemy,
+            bool movementPiercingRequested,
+            out PlayerAttackExecution execution)
+        {
+            bool critical = root.Critical.Roll();
+            root.PlayAttack(targetEnemy.transform.position);
+            execution = root.AttackEnemy(
+                targetEnemy,
+                critical,
+                root.CombatAbilities.PiercingLevel > 0,
+                movementPiercingRequested);
+            RetainModeOnePrimaryTarget(
+                targetEnemy,
+                execution.PiercingAllowed);
+
+            bool shieldRecoil =
+                execution.PrimaryResult.PlayerReaction ==
+                    PlayerAttackReaction.Recoil &&
+                targetEnemy.Definition.BlocksFrontAttacks;
+            bool bypassedShield =
+                shieldRecoil &&
+                root.CombatAbilities.RollShieldBypass();
+            PlayerAttackReaction effectiveReaction =
+                shieldRecoil && !bypassedShield
+                    ? PlayerAttackReaction.Recoil
+                    : PlayerAttackReaction.None;
+            if (bypassedShield)
+            {
+                session.ShowHint(session.GetString(
+                    GameStringIds.HintShieldBypassSuccess,
+                    "방패 우회 성공! 반동과 조작 불가를 " +
+                    "무시했습니다."));
+            }
+
+            if (effectiveReaction == PlayerAttackReaction.Recoil)
+            {
+                root.ApplyFrontRecoil(targetEnemy.transform.position);
+            }
+
+            session.PlayCombatFeedback(
+                execution.AnyDamageApplied,
+                !targetEnemy.IsAlive,
+                critical,
+                effectiveReaction);
+            return effectiveReaction;
+        }
+
         private void BeginCurrentMove()
         {
             if (pendingEnemy == null)
@@ -460,6 +592,91 @@ namespace SimpleGame
             root.Movement.BeginMove(
                 pendingEnemy.transform.position,
                 speedMultiplier);
+        }
+
+        public bool BeginControlInput()
+        {
+            if (controlMode == MobileControlMode.AimCommand)
+            {
+                return BeginAim();
+            }
+
+            if (root == null ||
+                session == null ||
+                !session.IsPlaying ||
+                !root.IsAlive ||
+                root.IsInputLocked)
+            {
+                return false;
+            }
+
+            manualMovementHeld = true;
+            movementInput = Vector2.zero;
+            CancelCommand();
+            BeginMovementPiercingCommand();
+            return true;
+        }
+
+        public void SetControlInput(Vector2 normalizedInput)
+        {
+            if (controlMode == MobileControlMode.AimCommand)
+            {
+                SetAimInput(normalizedInput);
+                return;
+            }
+
+            if (!manualMovementHeld)
+            {
+                return;
+            }
+
+            movementInput = Vector2.ClampMagnitude(
+                normalizedInput,
+                1f);
+        }
+
+        public void EndControlInput()
+        {
+            if (controlMode == MobileControlMode.AimCommand)
+            {
+                EndAim();
+                return;
+            }
+
+            manualMovementHeld = false;
+            movementInput = Vector2.zero;
+            EndMovementPiercingCommand();
+            root?.Movement.CancelMove();
+        }
+
+        public bool ExecuteControlAction()
+        {
+            return controlMode ==
+                    MobileControlMode.DirectMoveAutoAim
+                ? LockNearestVisibleEnemy()
+                : ExecuteAimedCommand();
+        }
+
+        public void SetControlMode(MobileControlMode mode)
+        {
+            MobileControlMode resolvedMode = mode ==
+                MobileControlMode.DirectMoveAutoAim
+                    ? MobileControlMode.DirectMoveAutoAim
+                    : MobileControlMode.AimCommand;
+            if (controlMode == resolvedMode)
+            {
+                return;
+            }
+
+            CancelCommand();
+            EndAim();
+            manualMovementHeld = false;
+            movementInput = Vector2.zero;
+            EndMovementPiercingCommand();
+            SetAutoAttackTarget(null);
+            SetLockedEnemy(null, false);
+            controlMode = resolvedMode;
+            RefreshAimVisuals();
         }
 
         public bool BeginAim()
@@ -544,6 +761,8 @@ namespace SimpleGame
             shieldApproachOnly = false;
             postKillEscapeActive = false;
             pendingAttackCount = 0;
+            modeOneLockedCommandActive = false;
+            autoAttackRepeatCommandActive = false;
             root?.Movement.CancelMove();
             HideCommandMarker();
         }
@@ -553,8 +772,303 @@ namespace SimpleGame
             autoAttackEnabled = enabled;
             if (!enabled)
             {
+                if (autoAttackRepeatCommandActive)
+                {
+                    CancelCommand();
+                }
+
                 SetAutoAttackTarget(null);
             }
+            else if (controlMode ==
+                     MobileControlMode.DirectMoveAutoAim &&
+                     ResolveLockedEnemy() != null)
+            {
+                nextModeOneAttackAt = Time.time;
+            }
+        }
+
+        private bool HasActiveManualMovementInput()
+        {
+            return manualMovementHeld &&
+                HasCommandAim(movementInput);
+        }
+
+        private EnemyBase FindModeOneMovementPathTarget()
+        {
+            if (enemyWorld == null ||
+                root == null ||
+                !HasCommandAim(movementInput))
+            {
+                return null;
+            }
+
+            float lookaheadDistance = Mathf.Max(
+                attackRange,
+                attackRange +
+                root.MoveSpeed * Mathf.Max(0f, Time.deltaTime));
+            Vector2 direction = movementInput.normalized;
+            return enemyWorld.FindFirstEnemyOnPath(
+                transform.position,
+                (Vector2)transform.position +
+                    direction * lookaheadDistance,
+                EnemyWorldService.GetColliderRadius(root),
+                null,
+                movementPiercedEnemyGenerations);
+        }
+
+        private void TickManualMovement()
+        {
+            TickManualMovementTowards(
+                FindModeOneMovementPathTarget());
+        }
+
+        private void TickManualMovementTowards(
+            EnemyBase pathTarget)
+        {
+            RefreshMovementPiercingBudget();
+            EnemyBase lockedTarget = ResolveLockedEnemy();
+            EnemyBase target = pathTarget != null &&
+                    pathTarget.IsAlive &&
+                    !HasPassedEnemyDuringCurrentMovement(pathTarget)
+                ? pathTarget
+                : lockedTarget;
+            if (target == null ||
+                HasPassedEnemyDuringCurrentMovement(target))
+            {
+                CancelModeOnePassCandidate();
+                root.Movement.StepInDirection(movementInput);
+                return;
+            }
+
+            bool canStartPass =
+                target == lockedTarget &&
+                lockedEnemyAllowsMovementPiercing &&
+                HasRemainingMovementPierces() &&
+                CanStartModeOnePass(
+                    transform.position,
+                    target.transform.position,
+                    movementInput,
+                    EnemyWorldService.GetColliderRadius(root) +
+                    EnemyWorldService.GetColliderRadius(target));
+            if (modeOnePassEnemy == null && canStartPass)
+            {
+                modeOnePassEnemy = target;
+                modeOnePassEnemyGeneration =
+                    target.SpawnGeneration;
+                modeOnePassDirection = movementInput.normalized;
+                modeOnePassStartPosition = transform.position;
+                modeOnePassStartedAt = Time.time;
+            }
+
+            if (ResolveModeOnePassEnemy() == target)
+            {
+                root.Movement.StepInDirection(movementInput);
+                UpdateModeOnePass();
+                return;
+            }
+
+            root.Movement.StepInDirectionAroundCircle(
+                movementInput,
+                target.transform.position,
+                GetModeOneEngagementRadius(target));
+        }
+
+        private void TickModeOneRangeAttack()
+        {
+            TickModeOneRangeAttackAgainst(
+                FindModeOneMovementPathTarget());
+        }
+
+        private void TickModeOneRangeAttackAgainst(
+            EnemyBase pathTarget)
+        {
+            if (!HasCommandAim(movementInput) ||
+                Time.time < nextModeOneAttackAt)
+            {
+                return;
+            }
+
+            EnemyBase lockedTarget = ResolveLockedEnemy();
+            EnemyBase target = IsEnemyInAttackRange(pathTarget)
+                ? pathTarget
+                : null;
+            if (target == null &&
+                IsEnemyInAttackRange(lockedTarget))
+            {
+                target = lockedTarget;
+            }
+
+            if (target == null)
+            {
+                target = enemyWorld.FindEnemyNear(
+                    transform.position,
+                    attackRange);
+            }
+
+            if (target == null)
+            {
+                return;
+            }
+
+            nextModeOneAttackAt =
+                Time.time + AutoAttackInterval;
+            if (target == lockedTarget)
+            {
+                modeOneAttackPending = false;
+            }
+
+            ExecuteSingleAttack(
+                target,
+                false,
+                out _);
+        }
+
+        private bool IsEnemyInAttackRange(EnemyBase enemy)
+        {
+            return enemy != null &&
+                enemy.IsAlive &&
+                Vector2.Distance(
+                    transform.position,
+                    enemy.transform.position) <= attackRange;
+        }
+
+        private float GetModeOneEngagementRadius(EnemyBase enemy)
+        {
+            if (enemy == null || enemy.Definition == null)
+            {
+                return attackRange;
+            }
+
+            return CalculateModeOneEngagementRadius(
+                attackRange,
+                enemy.Archetype,
+                enemy.Definition.AttackRange);
+        }
+
+        public static float CalculateModeOneEngagementRadius(
+            float playerAttackRange,
+            EnemyArchetype enemyArchetype,
+            float enemyAttackRange)
+        {
+            float safePlayerRange = Mathf.Max(
+                0f,
+                playerAttackRange);
+            if ((enemyArchetype != EnemyArchetype.Melee &&
+                 enemyArchetype != EnemyArchetype.Ranged) ||
+                enemyAttackRange <= 0f)
+            {
+                return safePlayerRange;
+            }
+
+            float safeEnemyRange = Mathf.Max(
+                0f,
+                enemyAttackRange);
+            float inset = Mathf.Min(
+                ModeOneEnemyEngagementInset,
+                safeEnemyRange * 0.1f);
+            return Mathf.Min(
+                safePlayerRange,
+                safeEnemyRange - inset);
+        }
+
+        private void TickModeOneLockedTarget()
+        {
+            EnemyBase target = ResolveLockedEnemy();
+            if (!ShouldStartModeOneLockedTargetCommand(
+                    HasActiveManualMovementInput(),
+                    hasDestination,
+                    target != null,
+                    autoAttackEnabled,
+                    modeOneAttackPending,
+                    Time.time >= nextModeOneAttackAt))
+            {
+                return;
+            }
+
+            bool autoAttackRepeatCommand =
+                autoAttackEnabled && !modeOneAttackPending;
+            TryIssueCommand(
+                target.transform.position,
+                target,
+                false,
+                false,
+                false,
+                true,
+                autoAttackRepeatCommand);
+        }
+
+        public static bool ShouldStartModeOneLockedTargetCommand(
+            bool manualInputHeld,
+            bool commandActive,
+            bool hasTarget,
+            bool autoAttackEnabled,
+            bool oneShotPending,
+            bool intervalElapsed)
+        {
+            return !manualInputHeld &&
+                !commandActive &&
+                hasTarget &&
+                (autoAttackEnabled || oneShotPending) &&
+                intervalElapsed;
+        }
+
+        private bool LockNearestVisibleEnemy()
+        {
+            if (root == null ||
+                session == null ||
+                enemyWorld == null ||
+                worldCamera == null ||
+                !session.IsPlaying ||
+                !root.IsAlive ||
+                root.IsInputLocked)
+            {
+                return false;
+            }
+
+            float halfHeight = worldCamera.orthographicSize;
+            Rect visibleBounds = CalculateVisibleWorldBounds(
+                worldCamera.transform.position,
+                halfHeight,
+                worldCamera.aspect);
+            EnemyBase target =
+                enemyWorld.FindNearestLivingEnemyInBounds(
+                    transform.position,
+                    visibleBounds);
+            SetLockedEnemy(target, target != null);
+            if (target == null)
+            {
+                CancelCommand();
+                return false;
+            }
+
+            if (HasActiveManualMovementInput())
+            {
+                return true;
+            }
+
+            return TryIssueCommand(
+                target.transform.position,
+                target,
+                false,
+                false,
+                false,
+                true);
+        }
+
+        public static Rect CalculateVisibleWorldBounds(
+            Vector2 cameraCenter,
+            float orthographicHalfHeight,
+            float aspect)
+        {
+            float halfHeight = Mathf.Max(
+                0f,
+                orthographicHalfHeight);
+            float halfWidth = halfHeight * Mathf.Max(0f, aspect);
+            return Rect.MinMaxRect(
+                cameraCenter.x - halfWidth,
+                cameraCenter.y - halfHeight,
+                cameraCenter.x + halfWidth,
+                cameraCenter.y + halfHeight);
         }
 
         private void TickAutoAttack()
@@ -571,7 +1085,8 @@ namespace SimpleGame
             TryIssueCommand(
                 target.transform.position,
                 target,
-                false);
+                false,
+                autoAttackRepeatCommand: true);
         }
 
         private EnemyBase ResolveAutoAttackEnemy()
@@ -599,6 +1114,282 @@ namespace SimpleGame
             nextAutoAttackAt = autoAttackEnemy != null
                 ? Time.time + AutoAttackInterval
                 : 0f;
+        }
+
+        private EnemyBase ResolveLockedEnemy()
+        {
+            if (lockedEnemy == null)
+            {
+                return null;
+            }
+
+            if (!lockedEnemy.IsAlive ||
+                lockedEnemy.SpawnGeneration != lockedEnemyGeneration)
+            {
+                lockedEnemy = null;
+                lockedEnemyGeneration = 0u;
+                lockedEnemyAllowsMovementPiercing = false;
+                modeOneAttackPending = false;
+                nextModeOneAttackAt = 0f;
+                CancelModeOnePassCandidate();
+            }
+
+            return lockedEnemy;
+        }
+
+        private void SetLockedEnemy(
+            EnemyBase enemy,
+            bool attackPending)
+        {
+            CancelModeOnePassCandidate();
+            lockedEnemy = enemy != null && enemy.IsAlive
+                ? enemy
+                : null;
+            lockedEnemyGeneration = lockedEnemy != null
+                ? lockedEnemy.SpawnGeneration
+                : 0u;
+            lockedEnemyAllowsMovementPiercing = false;
+            modeOneAttackPending =
+                lockedEnemy != null && attackPending;
+            nextModeOneAttackAt = lockedEnemy != null
+                ? Time.time
+                : 0f;
+            RefreshAimVisuals();
+        }
+
+        private void RetainModeOnePrimaryTarget(
+            EnemyBase enemy,
+            bool movementPiercingAllowed)
+        {
+            if (controlMode !=
+                MobileControlMode.DirectMoveAutoAim)
+            {
+                return;
+            }
+
+            EnemyBase retained = enemy != null && enemy.IsAlive
+                ? enemy
+                : null;
+            if (lockedEnemy != retained ||
+                (retained != null &&
+                 lockedEnemyGeneration != retained.SpawnGeneration))
+            {
+                CancelModeOnePassCandidate();
+            }
+
+            lockedEnemy = retained;
+            lockedEnemyGeneration = retained != null
+                ? retained.SpawnGeneration
+                : 0u;
+            lockedEnemyAllowsMovementPiercing =
+                retained != null && movementPiercingAllowed;
+            modeOneAttackPending = false;
+            RefreshAimVisuals();
+        }
+
+        private void BeginMovementPiercingCommand()
+        {
+            remainingMovementPierces = root != null &&
+                root.CombatAbilities != null
+                    ? root.CombatAbilities.PiercingLevel
+                    : 0;
+            movementPiercingRechargeAt =
+                float.PositiveInfinity;
+            movementPiercedEnemyGenerations.Clear();
+            CancelModeOnePassCandidate();
+        }
+
+        private void EndMovementPiercingCommand()
+        {
+            remainingMovementPierces = 0;
+            movementPiercingRechargeAt =
+                float.PositiveInfinity;
+            movementPiercedEnemyGenerations.Clear();
+            CancelModeOnePassCandidate();
+        }
+
+        private bool HasRemainingMovementPierces()
+        {
+            RefreshMovementPiercingBudget();
+            return remainingMovementPierces > 0 &&
+                root != null &&
+                root.CombatAbilities != null &&
+                root.CombatAbilities.PiercingLevel > 0;
+        }
+
+        private bool TryConsumeMovementPierce()
+        {
+            if (!HasRemainingMovementPierces())
+            {
+                return false;
+            }
+
+            remainingMovementPierces--;
+            if (remainingMovementPierces <= 0)
+            {
+                movementPiercingRechargeAt =
+                    Time.time +
+                    PlayerCombatAbilities.PiercingWindowDuration;
+            }
+
+            return true;
+        }
+
+        private void RefreshMovementPiercingBudget()
+        {
+            if (!ShouldRefreshMovementPiercingBudget(
+                    remainingMovementPierces,
+                    Time.time,
+                    movementPiercingRechargeAt))
+            {
+                return;
+            }
+
+            int currentLevel = root != null &&
+                root.CombatAbilities != null
+                    ? root.CombatAbilities.PiercingLevel
+                    : 0;
+            remainingMovementPierces = Mathf.Max(
+                0,
+                currentLevel);
+            movementPiercingRechargeAt =
+                float.PositiveInfinity;
+        }
+
+        public static bool ShouldRefreshMovementPiercingBudget(
+            int remainingPierces,
+            float currentTime,
+            float rechargeAt)
+        {
+            return remainingPierces <= 0 &&
+                !float.IsInfinity(rechargeAt) &&
+                currentTime >= rechargeAt;
+        }
+
+        private bool HasPassedEnemyDuringCurrentMovement(
+            EnemyBase enemy)
+        {
+            if (enemy == null ||
+                !movementPiercedEnemyGenerations.TryGetValue(
+                    enemy,
+                    out uint generation))
+            {
+                return false;
+            }
+
+            if (generation == enemy.SpawnGeneration)
+            {
+                return true;
+            }
+
+            movementPiercedEnemyGenerations.Remove(enemy);
+            return false;
+        }
+
+        public static bool CanStartModeOnePass(
+            Vector2 playerPosition,
+            Vector2 targetPosition,
+            Vector2 movement,
+            float combinedCollisionRadius)
+        {
+            if (movement.sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+
+            Vector2 direction = movement.normalized;
+            Vector2 targetOffset = targetPosition - playerPosition;
+            float distanceAhead = Vector2.Dot(
+                targetOffset,
+                direction);
+            if (distanceAhead <= 0f)
+            {
+                return false;
+            }
+
+            float lateralDistance = Mathf.Abs(
+                direction.x * targetOffset.y -
+                direction.y * targetOffset.x);
+            return lateralDistance <=
+                Mathf.Max(0f, combinedCollisionRadius);
+        }
+
+        private EnemyBase ResolveModeOnePassEnemy()
+        {
+            if (modeOnePassEnemy == null ||
+                !modeOnePassEnemy.IsAlive ||
+                modeOnePassEnemy.SpawnGeneration !=
+                    modeOnePassEnemyGeneration)
+            {
+                CancelModeOnePassCandidate();
+                return null;
+            }
+
+            if (movementInput.sqrMagnitude > 0.0001f &&
+                Vector2.Dot(
+                    movementInput.normalized,
+                    modeOnePassDirection) <
+                    MovementPassDirectionThreshold)
+            {
+                CancelModeOnePassCandidate();
+                return null;
+            }
+
+            return modeOnePassEnemy;
+        }
+
+        private void UpdateModeOnePass()
+        {
+            EnemyBase target = ResolveModeOnePassEnemy();
+            if (target == null)
+            {
+                return;
+            }
+
+            Vector2 targetOffset =
+                (Vector2)transform.position -
+                (Vector2)target.transform.position;
+            float lateralDistance = Mathf.Abs(
+                modeOnePassDirection.x * targetOffset.y -
+                modeOnePassDirection.y * targetOffset.x);
+            float combinedRadius =
+                EnemyWorldService.GetColliderRadius(root) +
+                EnemyWorldService.GetColliderRadius(target);
+            if (lateralDistance >
+                combinedRadius + MovementPassLateralPadding)
+            {
+                CancelModeOnePassCandidate();
+                return;
+            }
+
+            float clearedDistance = Vector2.Dot(
+                targetOffset,
+                modeOnePassDirection);
+            if (clearedDistance < combinedRadius)
+            {
+                return;
+            }
+
+            if (TryConsumeMovementPierce())
+            {
+                movementPiercedEnemyGenerations[target] =
+                    target.SpawnGeneration;
+                root.CombatAbilities
+                    .TryScheduleSeverForCompletedMovementPierce(
+                        modeOnePassStartPosition,
+                        modeOnePassStartedAt);
+            }
+
+            CancelModeOnePassCandidate();
+        }
+
+        private void CancelModeOnePassCandidate()
+        {
+            modeOnePassEnemy = null;
+            modeOnePassEnemyGeneration = 0u;
+            modeOnePassDirection = Vector2.zero;
+            modeOnePassStartPosition = Vector2.zero;
+            modeOnePassStartedAt = 0f;
         }
 
         public static Vector2 CalculateAimPoint(
@@ -666,6 +1457,25 @@ namespace SimpleGame
         private void RefreshAimVisuals()
         {
             Vector2 playerPosition = transform.position;
+            if (controlMode ==
+                MobileControlMode.DirectMoveAutoAim)
+            {
+                EnemyBase lockedTarget = ResolveLockedEnemy();
+                rawAimDestination = lockedTarget != null
+                    ? lockedTarget.transform.position
+                    : playerPosition;
+                aimDestination = rawAimDestination;
+                SetAimAssistEnemy(null);
+                if (lockedTarget == null)
+                {
+                    SetAimVisualsVisible(false);
+                    return;
+                }
+
+                DrawAimLine(playerPosition, aimDestination);
+                return;
+            }
+
             if (!isAiming ||
                 worldCamera == null)
             {
@@ -702,10 +1512,17 @@ namespace SimpleGame
             aimDestination = assistedEnemy != null
                 ? assistedEnemy.transform.position
                 : rawAimDestination;
+            DrawAimLine(playerPosition, aimDestination);
+        }
+
+        private void DrawAimLine(
+            Vector2 playerPosition,
+            Vector2 targetPosition)
+        {
             SetAimVisualsVisible(true);
 
             Vector2 offset =
-                aimDestination - playerPosition;
+                targetPosition - playerPosition;
             float length = offset.magnitude;
             if (aimRayRenderer != null)
             {
@@ -738,7 +1555,7 @@ namespace SimpleGame
             {
                 Transform endpoint =
                     aimEndpointRenderer.transform;
-                endpoint.position = aimDestination;
+                endpoint.position = targetPosition;
                 float pulse =
                     0.9f +
                     0.1f *
@@ -896,11 +1713,11 @@ namespace SimpleGame
 
         public static bool ShouldContinueAfterPathAttack(
             bool targetDefeated,
-            bool piercingReserved,
+            bool movementPiercingConsumed,
             bool attackExecuted)
         {
             return targetDefeated ||
-                (piercingReserved && attackExecuted);
+                (movementPiercingConsumed && attackExecuted);
         }
 
         public static bool IsPiercingTouchRequested(

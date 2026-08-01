@@ -585,12 +585,12 @@ namespace SimpleGame.Tests
         }
 
         [TestCase(0, 0f, 0, 0f, 0f, 0f)]
-        [TestCase(1, 0.1f, 2, 1f, 6f, 1.8f)]
-        [TestCase(2, 0.13f, 3, 1.15f, 7.5f, 2.15f)]
-        [TestCase(3, 0.16f, 4, 1.3f, 9f, 2.5f)]
-        [TestCase(4, 0.19f, 5, 1.45f, 10.5f, 2.85f)]
-        [TestCase(5, 0.22f, 6, 1.6f, 12f, 3.2f)]
-        [TestCase(6, 0.22f, 6, 1.6f, 12f, 3.2f)]
+        [TestCase(1, 0.15f, 2, 1f, 6f, 1.8f)]
+        [TestCase(2, 0.195f, 3, 1.15f, 7.5f, 2.15f)]
+        [TestCase(3, 0.24f, 4, 1.3f, 9f, 2.5f)]
+        [TestCase(4, 0.285f, 5, 1.45f, 10.5f, 2.85f)]
+        [TestCase(5, 0.33f, 6, 1.6f, 12f, 3.2f)]
+        [TestCase(6, 0.33f, 6, 1.6f, 12f, 3.2f)]
         public void MovingSlash_UpgradeMathMatchesDesign(
             int level,
             float expectedChance,
@@ -784,29 +784,6 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expected));
         }
 
-        [TestCase(1, 0, 0.2f, 0.4f, false, true)]
-        [TestCase(1, 1, 0.2f, 0.4f, false, false)]
-        [TestCase(1, 0, 0.4f, 0.4f, false, false)]
-        [TestCase(1, 1, 0.4f, 0.4f, true, true)]
-        [TestCase(0, 0, 0.4f, 0.4f, true, false)]
-        public void Piercing_CommandCannotReopenExpiredWindowByItself(
-            int level,
-            int consumed,
-            float currentTime,
-            float windowEndsAt,
-            bool canOpenWindow,
-            bool expected)
-        {
-            Assert.That(
-                PlayerCombatAbilities.CanConsumePiercingTarget(
-                    level,
-                    consumed,
-                    currentTime,
-                    windowEndsAt,
-                    canOpenWindow),
-                Is.EqualTo(expected));
-        }
-
         [TestCase(0.099f, 0.1f, false)]
         [TestCase(0.1f, 0.1f, true)]
         public void Sever_CooldownDiscardsEarlyTrigger(
@@ -849,6 +826,22 @@ namespace SimpleGame.Tests
                     piercingAllowed,
                     primaryDamaged),
                 Is.EqualTo(expected));
+        }
+
+        [TestCase(10f, 10f, 0.3f)]
+        [TestCase(10f, 10.1f, 0.2f)]
+        [TestCase(10f, 10.3f, 0f)]
+        [TestCase(10f, 10.5f, 0f)]
+        public void Sever_CompletedMovementUsesRemainingStartDelay(
+            float startedAt,
+            float completedAt,
+            float expectedDelay)
+        {
+            Assert.That(
+                PlayerCombatAbilities.CalculateRemainingSeverDelay(
+                    startedAt,
+                    completedAt),
+                Is.EqualTo(expectedDelay).Within(0.0001f));
         }
 
         [TestCase(0f, 1f)]

@@ -68,9 +68,24 @@ namespace SimpleGame.Tests
                     new Vector2(6f, 0f),
                     0.3f,
                     nearEnemy);
+                var ignoredGenerations =
+                    new Dictionary<EnemyBase, uint>
+                    {
+                        [nearEnemy] = nearEnemy.SpawnGeneration
+                    };
+                EnemyBase afterGenerationIgnore =
+                    service.FindFirstEnemyOnPath(
+                        Vector2.zero,
+                        new Vector2(6f, 0f),
+                        0.3f,
+                        null,
+                        ignoredGenerations);
 
                 Assert.That(first, Is.SameAs(nearEnemy));
                 Assert.That(afterIgnore, Is.SameAs(farEnemy));
+                Assert.That(
+                    afterGenerationIgnore,
+                    Is.SameAs(farEnemy));
             }
             finally
             {
@@ -164,6 +179,51 @@ namespace SimpleGame.Tests
             {
                 DestroyEnemy(outsideEnemy);
                 DestroyEnemy(deadEnemy);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void FindNearestLivingEnemyInBounds_IgnoresDeadAndOutside()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            EnemyBase nearest = null;
+            EnemyBase farther = null;
+            EnemyBase outside = null;
+            EnemyBase dead = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                nearest = CreateLiveEnemy(
+                    "Nearest",
+                    new Vector2(1f, 0f));
+                farther = CreateLiveEnemy(
+                    "Farther",
+                    new Vector2(2f, 0f));
+                outside = CreateLiveEnemy(
+                    "Outside",
+                    new Vector2(4f, 0f));
+                dead = new GameObject("Dead")
+                    .AddComponent<MeleeEnemy>();
+                service.Register(farther);
+                service.Register(outside);
+                service.Register(dead);
+                service.Register(nearest);
+
+                EnemyBase selected =
+                    service.FindNearestLivingEnemyInBounds(
+                        Vector2.zero,
+                        new Rect(-2.5f, -2.5f, 5f, 5f));
+
+                Assert.That(selected, Is.SameAs(nearest));
+            }
+            finally
+            {
+                DestroyEnemy(dead);
+                DestroyEnemy(outside);
+                DestroyEnemy(farther);
+                DestroyEnemy(nearest);
                 Object.DestroyImmediate(serviceObject);
             }
         }
@@ -460,6 +520,949 @@ namespace SimpleGame.Tests
                 Object.DestroyImmediate(playerObject);
                 Object.DestroyImmediate(serviceObject);
             }
+        }
+
+        [Test]
+        public void ModeOne_MissingLockDoesNotClearRangeAttackCooldown()
+        {
+            var playerObject = new GameObject("Player");
+            try
+            {
+                PlayerRoot player =
+                    playerObject.AddComponent<PlayerRoot>();
+                PlayerController controller =
+                    playerObject.GetComponent<PlayerController>();
+                const float scheduledAttackAt = 12.5f;
+                SetPrivateField(
+                    controller,
+                    "nextModeOneAttackAt",
+                    scheduledAttackAt);
+
+                MethodInfo resolveLockedEnemy =
+                    typeof(PlayerController).GetMethod(
+                        "ResolveLockedEnemy",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic);
+                Assert.That(resolveLockedEnemy, Is.Not.Null);
+                Assert.That(
+                    resolveLockedEnemy.Invoke(controller, null),
+                    Is.Null);
+                Assert.That(
+                    GetPrivateField<float>(
+                        controller,
+                        "nextModeOneAttackAt"),
+                    Is.EqualTo(scheduledAttackAt));
+                Assert.That(player, Is.Not.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerObject);
+            }
+        }
+
+        [Test]
+        public void ModeOneMovement_AttacksWithoutAutoAimOrAutoAttackSetting()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            var playerObject = new GameObject("Player");
+            var sessionObject = new GameObject("Session");
+            EnemyBase enemy = null;
+            CombatFeedbackProfile feedbackProfile = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                PrototypeGameSession session =
+                    sessionObject.AddComponent<PrototypeGameSession>();
+                SetPrivateField(session, "state", GameRunState.Playing);
+                feedbackProfile =
+                    ScriptableObject.CreateInstance<CombatFeedbackProfile>();
+                CombatFeedbackController feedback =
+                    sessionObject.AddComponent<CombatFeedbackController>();
+                feedback.Configure(
+                    sessionObject.AddComponent<CameraShakeController>(),
+                    feedbackProfile);
+                SetPrivateField(session, "combatFeedback", feedback);
+
+                enemy = CreateLiveEnemy(
+                    "InRangeTarget",
+                    new Vector2(0.5f, 0f));
+                enemy.gameObject.AddComponent<CharacterSpriteAnimator>();
+                UnityEngine.TestTools.LogAssert.Expect(
+                    LogType.Error,
+                    "Melee prefab has no configured Animator or " +
+                    "SpriteRenderer.");
+                UnityEngine.TestTools.LogAssert.Expect(
+                    LogType.Error,
+                    "Melee prefab requires marker and level visuals.");
+                enemy.Configure(
+                    null,
+                    session,
+                    service,
+                    1,
+                    1,
+                    PrototypeEnemyDefinitions.Create(
+                        EnemyArchetype.Melee));
+                service.Register(enemy);
+
+                PlayerController controller = ConfigureController(
+                    playerObject,
+                    sessionObject,
+                    service,
+                    null);
+                PlayerRoot player =
+                    playerObject.GetComponent<PlayerRoot>();
+                SetPrivateField(
+                    player,
+                    "critical",
+                    playerObject.GetComponent<CriticalSystem>());
+                SetPrivateField(
+                    player,
+                    "progression",
+                    playerObject.GetComponent<PlayerProgression>());
+                SetPrivateField(
+                    player,
+                    "characterAnimation",
+                    playerObject.AddComponent<CharacterSpriteAnimator>());
+                player.CombatAbilities.Configure(
+                    player,
+                    service,
+                    null,
+                    null);
+
+                controller.SetControlMode(
+                    MobileControlMode.DirectMoveAutoAim);
+                controller.SetAutoAttackEnabled(false);
+                Assert.That(controller.BeginControlInput(), Is.True);
+                Assert.That(controller.AutoAttackEnabled, Is.False);
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.Null,
+                    "The auto-aim button was not used.");
+
+                float fullHealth = enemy.CurrentHealth;
+                InvokePrivate(controller, "TickModeOneRangeAttack");
+                Assert.That(
+                    enemy.CurrentHealth,
+                    Is.EqualTo(fullHealth),
+                    "Holding the pad at its neutral center is not movement.");
+
+                controller.SetControlInput(Vector2.right);
+                InvokePrivate(controller, "TickModeOneRangeAttack");
+                float healthAfterFirstAttack = enemy.CurrentHealth;
+                Assert.That(healthAfterFirstAttack, Is.LessThan(fullHealth));
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.SameAs(enemy));
+
+                InvokePrivate(controller, "TickModeOneRangeAttack");
+                Assert.That(
+                    enemy.CurrentHealth,
+                    Is.EqualTo(healthAfterFirstAttack),
+                    "The intrinsic movement attack still uses the 0.3 " +
+                    "second interval.");
+            }
+            finally
+            {
+                DestroyEnemy(enemy);
+                Object.DestroyImmediate(feedbackProfile);
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void ModeOneMovement_PathEnemyOverridesOutOfRangeLockOnHit()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            var playerObject = new GameObject("Player");
+            var sessionObject = new GameObject("Session");
+            EnemyBase lockedEnemy = null;
+            EnemyBase pathEnemy = null;
+            CombatFeedbackProfile feedbackProfile = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                PrototypeGameSession session =
+                    sessionObject.AddComponent<PrototypeGameSession>();
+                SetPrivateField(session, "state", GameRunState.Playing);
+                feedbackProfile =
+                    ScriptableObject.CreateInstance<CombatFeedbackProfile>();
+                CombatFeedbackController feedback =
+                    sessionObject.AddComponent<CombatFeedbackController>();
+                feedback.Configure(
+                    sessionObject.AddComponent<CameraShakeController>(),
+                    feedbackProfile);
+                SetPrivateField(session, "combatFeedback", feedback);
+
+                lockedEnemy = CreateLiveEnemy(
+                    "PreviousTarget",
+                    new Vector2(-2f, 0f));
+                pathEnemy = CreateLiveEnemy(
+                    "PathTarget",
+                    new Vector2(0.5f, 0f));
+                pathEnemy.gameObject.AddComponent<CharacterSpriteAnimator>();
+                UnityEngine.TestTools.LogAssert.Expect(
+                    LogType.Error,
+                    "Melee prefab has no configured Animator or " +
+                    "SpriteRenderer.");
+                UnityEngine.TestTools.LogAssert.Expect(
+                    LogType.Error,
+                    "Melee prefab requires marker and level visuals.");
+                pathEnemy.Configure(
+                    null,
+                    session,
+                    service,
+                    1,
+                    1,
+                    PrototypeEnemyDefinitions.Create(
+                        EnemyArchetype.Melee));
+                service.Register(lockedEnemy);
+                service.Register(pathEnemy);
+
+                PlayerController controller = ConfigureController(
+                    playerObject,
+                    sessionObject,
+                    service,
+                    null);
+                PlayerRoot player =
+                    playerObject.GetComponent<PlayerRoot>();
+                SetPrivateField(
+                    player,
+                    "critical",
+                    playerObject.GetComponent<CriticalSystem>());
+                SetPrivateField(
+                    player,
+                    "progression",
+                    playerObject.GetComponent<PlayerProgression>());
+                SetPrivateField(
+                    player,
+                    "characterAnimation",
+                    playerObject.AddComponent<CharacterSpriteAnimator>());
+                player.CombatAbilities.Configure(
+                    player,
+                    service,
+                    null,
+                    null);
+
+                controller.SetControlMode(
+                    MobileControlMode.DirectMoveAutoAim);
+                Assert.That(controller.BeginControlInput(), Is.True);
+                controller.SetControlInput(Vector2.right);
+                SetPrivateField(controller, "lockedEnemy", lockedEnemy);
+                SetPrivateField(
+                    controller,
+                    "lockedEnemyGeneration",
+                    lockedEnemy.SpawnGeneration);
+                SetPrivateField(controller, "nextModeOneAttackAt", 0f);
+
+                float pathHealth = pathEnemy.CurrentHealth;
+                float lockedHealth = lockedEnemy.CurrentHealth;
+                InvokePrivate(controller, "TickModeOneRangeAttack");
+
+                Assert.That(pathEnemy.CurrentHealth, Is.LessThan(pathHealth));
+                Assert.That(lockedEnemy.CurrentHealth, Is.EqualTo(lockedHealth));
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.SameAs(pathEnemy),
+                    "The last actually hit path enemy becomes the lock.");
+            }
+            finally
+            {
+                DestroyEnemy(pathEnemy);
+                DestroyEnemy(lockedEnemy);
+                Object.DestroyImmediate(feedbackProfile);
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void ModeOne_NeutralHeldPadDoesNotBlockAutoAimCommand()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            var playerObject = new GameObject("Player");
+            var cameraObject = new GameObject("Camera");
+            var sessionObject = new GameObject("Session");
+            EnemyBase enemy = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                enemy = CreateLiveEnemy(
+                    "NearestTarget",
+                    new Vector2(3f, 0f));
+                service.Register(enemy);
+
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.orthographicSize = 5f;
+                camera.aspect = 2f;
+                cameraObject.transform.position =
+                    new Vector3(0f, 0f, -10f);
+
+                PlayerController controller = ConfigureController(
+                    playerObject,
+                    sessionObject,
+                    service,
+                    camera);
+                controller.SetControlMode(
+                    MobileControlMode.DirectMoveAutoAim);
+                Assert.That(controller.BeginControlInput(), Is.True);
+                Assert.That(controller.ManualMovementHeld, Is.True);
+
+                Assert.That(controller.ExecuteControlAction(), Is.True);
+
+                Assert.That(
+                    GetPrivateField<bool>(controller, "hasDestination"),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<EnemyBase>(controller, "pendingEnemy"),
+                    Is.SameAs(enemy));
+                Assert.That(
+                    GetPrivateField<bool>(
+                        playerObject.GetComponent<PlayerMovement>(),
+                        "isMoveActive"),
+                    Is.True);
+            }
+            finally
+            {
+                DestroyEnemy(enemy);
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void MovementPiercing_RechargesWhilePadRemainsHeld()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            var playerObject = new GameObject("Player");
+            var sessionObject = new GameObject("Session");
+            EnemyBase passedEnemy = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                PlayerController controller = ConfigureController(
+                    playerObject,
+                    sessionObject,
+                    service,
+                    null);
+                PlayerCombatAbilities abilities =
+                    playerObject.GetComponent<PlayerCombatAbilities>();
+                SetPrivateField(abilities, "piercingLevel", 2);
+                controller.SetControlMode(
+                    MobileControlMode.DirectMoveAutoAim);
+                Assert.That(controller.BeginControlInput(), Is.True);
+
+                Assert.That(
+                    InvokePrivateWithResult<bool>(
+                        controller,
+                        "TryConsumeMovementPierce"),
+                    Is.True);
+                Assert.That(
+                    InvokePrivateWithResult<bool>(
+                        controller,
+                        "TryConsumeMovementPierce"),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<int>(
+                        controller,
+                        "remainingMovementPierces"),
+                    Is.Zero);
+
+                passedEnemy = CreateLiveEnemy(
+                    "AlreadyPassed",
+                    Vector2.right);
+                Dictionary<EnemyBase, uint> passed =
+                    GetPrivateField<Dictionary<EnemyBase, uint>>(
+                        controller,
+                        "movementPiercedEnemyGenerations");
+                passed[passedEnemy] = passedEnemy.SpawnGeneration;
+                SetPrivateField(
+                    controller,
+                    "movementPiercingRechargeAt",
+                    Time.time - 0.01f);
+
+                Assert.That(
+                    InvokePrivateWithResult<bool>(
+                        controller,
+                        "HasRemainingMovementPierces"),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<int>(
+                        controller,
+                        "remainingMovementPierces"),
+                    Is.EqualTo(2));
+                Assert.That(
+                    passed.ContainsKey(passedEnemy),
+                    Is.True,
+                    "Recharge must not consume the same spawn twice.");
+
+                controller.EndControlInput();
+                Assert.That(
+                    GetPrivateField<int>(
+                        controller,
+                        "remainingMovementPierces"),
+                    Is.Zero);
+                Assert.That(passed, Is.Empty);
+            }
+            finally
+            {
+                DestroyEnemy(passedEnemy);
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void ModeOne_RepeatedAutoAimStaysOneShotAndManualInputWins()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            var playerObject = new GameObject("Player");
+            var cameraObject = new GameObject("Camera");
+            var sessionObject = new GameObject("Session");
+            EnemyBase enemy = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                enemy = CreateLiveEnemy(
+                    "NearestTarget",
+                    new Vector2(3f, 0f));
+                service.Register(enemy);
+
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.orthographicSize = 5f;
+                camera.aspect = 2f;
+                cameraObject.transform.position =
+                    new Vector3(0f, 0f, -10f);
+
+                PlayerRoot player =
+                    playerObject.AddComponent<PlayerRoot>();
+                PlayerController controller =
+                    playerObject.GetComponent<PlayerController>();
+                HealthComponent health =
+                    playerObject.GetComponent<HealthComponent>();
+                health.Configure(10);
+                SetPrivateField(player, "health", health);
+                SetPrivateField(
+                    player,
+                    "movement",
+                    playerObject.GetComponent<PlayerMovement>());
+                SetPrivateField(
+                    player,
+                    "stats",
+                    playerObject.GetComponent<PlayerStats>());
+                SetPrivateField(
+                    player,
+                    "combatAbilities",
+                    playerObject.GetComponent<PlayerCombatAbilities>());
+                PrototypeGameSession session =
+                    sessionObject.AddComponent<PrototypeGameSession>();
+                SetPrivateField(session, "state", GameRunState.Playing);
+                controller.Configure(
+                    player,
+                    session,
+                    service,
+                    camera,
+                    PlayerController.DefaultAttackRange);
+                controller.SetControlMode(
+                    MobileControlMode.DirectMoveAutoAim);
+
+                Assert.That(controller.ExecuteControlAction(), Is.True);
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.SameAs(enemy));
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.True);
+                Assert.That(controller.ExecuteControlAction(), Is.True);
+                Assert.That(controller.ExecuteControlAction(), Is.True);
+                Assert.That(
+                    GetPrivateField<int>(
+                        controller,
+                        "pendingAttackCount"),
+                    Is.EqualTo(1));
+
+                Assert.That(controller.BeginControlInput(), Is.True);
+                controller.SetControlInput(Vector2.right * 0.5f);
+
+                Assert.That(controller.ManualMovementHeld, Is.True);
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.False);
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.SameAs(enemy));
+
+                controller.EndControlInput();
+                MethodInfo tickLockedTarget =
+                    typeof(PlayerController).GetMethod(
+                        "TickModeOneLockedTarget",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic);
+                Assert.That(tickLockedTarget, Is.Not.Null);
+                tickLockedTarget.Invoke(controller, null);
+
+                Assert.That(controller.ManualMovementHeld, Is.False);
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.True);
+
+                Assert.That(
+                    controller.TryIssueCommand(
+                        new Vector2(-2f, 0f)),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.Null);
+                Assert.That(controller.ExecuteControlAction(), Is.True);
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.SameAs(enemy));
+
+                FieldInfo generationField =
+                    typeof(EnemyBase).GetField(
+                        "<SpawnGeneration>k__BackingField",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic);
+                Assert.That(generationField, Is.Not.Null);
+                generationField.SetValue(
+                    enemy,
+                    enemy.SpawnGeneration + 1u);
+                MethodInfo resolveLockedEnemy =
+                    typeof(PlayerController).GetMethod(
+                        "ResolveLockedEnemy",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic);
+                Assert.That(resolveLockedEnemy, Is.Not.Null);
+                Assert.That(
+                    resolveLockedEnemy.Invoke(controller, null),
+                    Is.Null);
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.Null);
+                MethodInfo tickCommand =
+                    typeof(PlayerController).GetMethod(
+                        "TickCommand",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic);
+                Assert.That(tickCommand, Is.Not.Null);
+                tickCommand.Invoke(controller, null);
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.False);
+            }
+            finally
+            {
+                DestroyEnemy(enemy);
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void ModeOne_DisablingAutoAttackCancelsOnlyRepeatCommand()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            var playerObject = new GameObject("Player");
+            var cameraObject = new GameObject("Camera");
+            var sessionObject = new GameObject("Session");
+            EnemyBase enemy = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                enemy = CreateLiveEnemy(
+                    "NearestTarget",
+                    new Vector2(3f, 0f));
+                service.Register(enemy);
+
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.orthographicSize = 5f;
+                camera.aspect = 2f;
+                cameraObject.transform.position =
+                    new Vector3(0f, 0f, -10f);
+
+                PlayerController controller = ConfigureController(
+                    playerObject,
+                    sessionObject,
+                    service,
+                    camera);
+                controller.SetControlMode(
+                    MobileControlMode.DirectMoveAutoAim);
+                controller.SetAutoAttackEnabled(true);
+
+                Assert.That(controller.BeginControlInput(), Is.True);
+                Assert.That(controller.ExecuteControlAction(), Is.True);
+                controller.EndControlInput();
+                InvokePrivate(controller, "TickModeOneLockedTarget");
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "autoAttackRepeatCommandActive"),
+                    Is.False);
+
+                controller.SetAutoAttackEnabled(false);
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.True,
+                    "The pending right-button one-shot is user-owned.");
+
+                controller.CancelCommand();
+                SetPrivateField(
+                    controller,
+                    "modeOneAttackPending",
+                    false);
+                controller.SetAutoAttackEnabled(true);
+                SetPrivateField(
+                    controller,
+                    "nextModeOneAttackAt",
+                    0f);
+                InvokePrivate(controller, "TickModeOneLockedTarget");
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "autoAttackRepeatCommandActive"),
+                    Is.True);
+
+                controller.SetAutoAttackEnabled(false);
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.False);
+                Assert.That(
+                    GetPrivateField<EnemyBase>(
+                        controller,
+                        "lockedEnemy"),
+                    Is.SameAs(enemy));
+            }
+            finally
+            {
+                DestroyEnemy(enemy);
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void ModeTwo_DisablingAutoAttackCancelsOnlyRepeatCommand()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            var playerObject = new GameObject("Player");
+            var sessionObject = new GameObject("Session");
+            EnemyBase enemy = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                enemy = CreateLiveEnemy(
+                    "CommandTarget",
+                    new Vector2(3f, 0f));
+                service.Register(enemy);
+
+                PlayerController controller = ConfigureController(
+                    playerObject,
+                    sessionObject,
+                    service,
+                    null);
+                FieldInfo generationField =
+                    typeof(EnemyBase).GetField(
+                        "<SpawnGeneration>k__BackingField",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic);
+                Assert.That(generationField, Is.Not.Null);
+                controller.SetAutoAttackEnabled(true);
+
+                Assert.That(
+                    controller.TryIssueCommand(
+                        enemy.transform.position),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "autoAttackRepeatCommandActive"),
+                    Is.False);
+
+                generationField.SetValue(
+                    enemy,
+                    enemy.SpawnGeneration + 1u);
+                InvokePrivate(controller, "TickCommand");
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.True,
+                    "Target generation does not revoke a user command.");
+
+                controller.SetAutoAttackEnabled(false);
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.True,
+                    "The original touch command is user-owned.");
+
+                controller.CancelCommand();
+                controller.SetAutoAttackEnabled(true);
+                Assert.That(
+                    controller.TryIssueCommand(
+                        enemy.transform.position),
+                    Is.True);
+                controller.CancelCommand();
+                SetPrivateField(
+                    controller,
+                    "nextAutoAttackAt",
+                    0f);
+                InvokePrivate(controller, "TickAutoAttack");
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "autoAttackRepeatCommandActive"),
+                    Is.True);
+
+                controller.SetAutoAttackEnabled(false);
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.False);
+
+                controller.SetAutoAttackEnabled(true);
+                Assert.That(
+                    controller.TryIssueCommand(
+                        enemy.transform.position),
+                    Is.True);
+                controller.CancelCommand();
+                SetPrivateField(
+                    controller,
+                    "nextAutoAttackAt",
+                    0f);
+                InvokePrivate(controller, "TickAutoAttack");
+                generationField.SetValue(
+                    enemy,
+                    enemy.SpawnGeneration + 1u);
+
+                InvokePrivate(controller, "TickCommand");
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "hasDestination"),
+                    Is.False,
+                    "A stale repeat command must not retarget its path.");
+            }
+            finally
+            {
+                DestroyEnemy(enemy);
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        [Test]
+        public void ModeTwo_ManualAttackReplacesPendingAutoRepeat()
+        {
+            var serviceObject = new GameObject("EnemyWorld");
+            var playerObject = new GameObject("Player");
+            var sessionObject = new GameObject("Session");
+            EnemyBase enemy = null;
+            try
+            {
+                EnemyWorldService service =
+                    serviceObject.AddComponent<EnemyWorldService>();
+                enemy = CreateLiveEnemy(
+                    "CommandTarget",
+                    new Vector2(3f, 0f));
+                service.Register(enemy);
+
+                PlayerController controller = ConfigureController(
+                    playerObject,
+                    sessionObject,
+                    service,
+                    null);
+                controller.SetAutoAttackEnabled(true);
+                Assert.That(
+                    controller.TryIssueCommand(
+                        enemy.transform.position),
+                    Is.True);
+                controller.CancelCommand();
+                SetPrivateField(
+                    controller,
+                    "nextAutoAttackAt",
+                    0f);
+                InvokePrivate(controller, "TickAutoAttack");
+
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "autoAttackRepeatCommandActive"),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<int>(
+                        controller,
+                        "pendingAttackCount"),
+                    Is.EqualTo(1));
+
+                Assert.That(
+                    controller.TryIssueCommand(
+                        enemy.transform.position),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<bool>(
+                        controller,
+                        "autoAttackRepeatCommandActive"),
+                    Is.False);
+                Assert.That(
+                    GetPrivateField<int>(
+                        controller,
+                        "pendingAttackCount"),
+                    Is.EqualTo(1),
+                    "Manual input replaces rather than stacks with the " +
+                    "pending automatic hit.");
+
+                Assert.That(
+                    controller.TryIssueCommand(
+                        enemy.transform.position),
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<int>(
+                        controller,
+                        "pendingAttackCount"),
+                    Is.EqualTo(2),
+                    "Consecutive manual inputs still have no attack " +
+                    "cooldown.");
+            }
+            finally
+            {
+                DestroyEnemy(enemy);
+                Object.DestroyImmediate(sessionObject);
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(serviceObject);
+            }
+        }
+
+        private static PlayerController ConfigureController(
+            GameObject playerObject,
+            GameObject sessionObject,
+            EnemyWorldService service,
+            Camera camera)
+        {
+            PlayerRoot player =
+                playerObject.AddComponent<PlayerRoot>();
+            PlayerController controller =
+                playerObject.GetComponent<PlayerController>();
+            HealthComponent health =
+                playerObject.GetComponent<HealthComponent>();
+            health.Configure(10);
+            SetPrivateField(player, "health", health);
+            SetPrivateField(
+                player,
+                "movement",
+                playerObject.GetComponent<PlayerMovement>());
+            SetPrivateField(
+                player,
+                "stats",
+                playerObject.GetComponent<PlayerStats>());
+            SetPrivateField(
+                player,
+                "combatAbilities",
+                playerObject.GetComponent<PlayerCombatAbilities>());
+            PrototypeGameSession session =
+                sessionObject.GetComponent<PrototypeGameSession>() ??
+                sessionObject.AddComponent<PrototypeGameSession>();
+            SetPrivateField(session, "state", GameRunState.Playing);
+            controller.Configure(
+                player,
+                session,
+                service,
+                camera,
+                PlayerController.DefaultAttackRange);
+            return controller;
+        }
+
+        private static void InvokePrivate(object target, string name)
+        {
+            MethodInfo method = target.GetType().GetMethod(
+                name,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            method.Invoke(target, null);
+        }
+
+        private static T InvokePrivateWithResult<T>(
+            object target,
+            string name)
+        {
+            MethodInfo method = target.GetType().GetMethod(
+                name,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            return (T)method.Invoke(target, null);
         }
 
         private static void SetPrivateField(

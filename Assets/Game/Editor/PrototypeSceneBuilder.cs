@@ -513,16 +513,30 @@ namespace SimpleGameEditor
                     ? controlSettingsPanel.GetComponent<Image>()
                     : null;
             if (pausePrefab.transform.Find(
-                    "ControlPadToggle") == null ||
+                    "SettingsPage") == null ||
                 pausePrefab.transform.Find(
-                    "AutoAttackToggle") == null ||
+                    "SettingsPage/AccountOverview") == null ||
                 pausePrefab.transform.Find(
                     "ControlSettingsButton") == null ||
                 controlSettingsPanel == null ||
+                controlSettingsPanel.Find(
+                    "AutoAttackToggle/Track/Knob") == null ||
+                controlSettingsPanel.Find(
+                    "ControlModeButtons/Mode1Button") == null ||
+                controlSettingsPanel.Find(
+                    "ControlModeButtons/Mode2Button") == null ||
+                controlSettingsPanel.Find(
+                    "ControlModeButtons/HiddenButton") == null ||
+                controlSettingsPanel.Find(
+                    "ControlDragSurface") == null ||
+                controlSettingsPanel.Find(
+                    "JoystickHorizontalSlider") != null ||
+                controlSettingsPanel.Find(
+                    "AttackHorizontalSlider") != null ||
                 controlSettingsBackground == null ||
                 !Mathf.Approximately(
                     controlSettingsBackground.color.a,
-                    0.45f))
+                    0.48f))
             {
                 pausePrefab = CreatePauseDetailsPanelPrefab();
             }
@@ -549,7 +563,8 @@ namespace SimpleGameEditor
                 existingHudView.AttackButton.GetComponent<
                     AttackCommandButton>() == null ||
                 existingHudView.AimJoystick == null ||
-                existingHudView.DifficultySelectionPanelPrefab == null)
+                existingHudView.DifficultySelectionPanelPrefab == null ||
+                hudPrefab.transform.Find("TopPanel/PlayerHp") != null)
             {
                 CreatePrototypeHudPrefab(
                     cardSelectionPrefab,
@@ -604,12 +619,6 @@ namespace SimpleGameEditor
                 "00:00",
                 34f);
             ConfigureTimeLabel(timeLabel);
-            TMP_Text hpLabel = CreateTextObject(
-                topPanel.transform,
-                HudTextId.PlayerHp.ToString(),
-                "체력 10/10",
-                26f);
-            ConfigureHpLabel(hpLabel);
             Slider experienceSlider = CreateExperienceSlider(
                 topPanel.transform,
                 out TMP_Text experienceLabel);
@@ -671,7 +680,6 @@ namespace SimpleGameEditor
                 canvasObject.AddComponent<PrototypeHUDView>();
             hudView.Configure(
                 timeLabel,
-                hpLabel,
                 hintLabel,
                 experienceSlider,
                 experienceLabel,
@@ -717,29 +725,137 @@ namespace SimpleGameEditor
             GameObject panel = CreatePanel(
                 null,
                 "PauseDetailsPanel",
-                new Color(0.025f, 0.035f, 0.045f, 0.96f),
+                new Color(0.025f, 0.035f, 0.045f, 0.72f),
                 Vector2.zero,
                 Vector2.one,
                 Vector2.zero,
                 Vector2.zero);
-            TMP_Text label = CreateTextObject(
-                panel.transform,
-                "PauseDetails",
-                "일시 정지",
-                31f);
-            RectTransform labelRect = label.rectTransform;
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(70f, 410f);
-            labelRect.offsetMax = new Vector2(-70f, -70f);
-            label.alignment = TextAlignmentOptions.TopLeft;
-            CreateControlPadToggle(panel.transform);
-            CreateAutoAttackToggle(panel.transform);
-            CreateControlSettingsButton(panel.transform);
+            CreateSettingsPage(panel.transform);
             CreateControlSettingsPanel(panel.transform);
+            CreateControlSettingsButton(panel.transform);
             return SaveTemporaryPrefab(
                 panel,
                 PauseDetailsPanelPrefabPath);
+        }
+
+        private static void CreateSettingsPage(Transform parent)
+        {
+            var page = new GameObject(
+                "SettingsPage",
+                typeof(RectTransform));
+            page.transform.SetParent(parent, false);
+            StretchRect(page.GetComponent<RectTransform>());
+
+            TMP_Text playerOverview = CreateTextObject(
+                page.transform,
+                "PlayerOverview",
+                "플레이어 레벨 : 1\n난이도 : 보통\n점수 : 0\n생존 시간 : 00:00",
+                28f);
+            RectTransform playerRect = playerOverview.rectTransform;
+            playerRect.anchorMin = new Vector2(0f, 1f);
+            playerRect.anchorMax = new Vector2(0f, 1f);
+            playerRect.pivot = new Vector2(0f, 1f);
+            playerRect.anchoredPosition = new Vector2(34f, -155f);
+            playerRect.sizeDelta = new Vector2(470f, 210f);
+            playerOverview.alignment = TextAlignmentOptions.TopLeft;
+
+            TMP_Text accountOverview = CreateTextObject(
+                page.transform,
+                "AccountOverview",
+                "현재 계정 레벨 : 1\n이번 게임 획득 경험치 : 0\n다음 레벨 진행도 : 0/20",
+                27f);
+            RectTransform accountRect = accountOverview.rectTransform;
+            accountRect.anchorMin = Vector2.one;
+            accountRect.anchorMax = Vector2.one;
+            accountRect.pivot = Vector2.one;
+            accountRect.anchoredPosition = new Vector2(-34f, -155f);
+            accountRect.sizeDelta = new Vector2(520f, 190f);
+            accountOverview.alignment = TextAlignmentOptions.TopRight;
+
+            TMP_Text statsTitle = CreateTextObject(
+                page.transform,
+                "PlayerStatsTitle",
+                "현재 스탯",
+                31f);
+            RectTransform statsTitleRect = statsTitle.rectTransform;
+            statsTitleRect.anchorMin = new Vector2(0f, 1f);
+            statsTitleRect.anchorMax = new Vector2(1f, 1f);
+            statsTitleRect.pivot = new Vector2(0.5f, 1f);
+            statsTitleRect.anchoredPosition = new Vector2(0f, -390f);
+            statsTitleRect.sizeDelta = new Vector2(-68f, 54f);
+            statsTitle.alignment = TextAlignmentOptions.TopLeft;
+            statsTitle.fontStyle = FontStyles.Bold;
+
+            TMP_Text stats = CreateTextObject(
+                page.transform,
+                "PlayerStats",
+                "체력 10/10   공격력 1   치명타 확률 5%\n이동 속도 4   공격 사거리 5",
+                27f);
+            RectTransform statsRect = stats.rectTransform;
+            statsRect.anchorMin = new Vector2(0f, 1f);
+            statsRect.anchorMax = new Vector2(1f, 1f);
+            statsRect.pivot = new Vector2(0.5f, 1f);
+            statsRect.anchoredPosition = new Vector2(0f, -445f);
+            statsRect.sizeDelta = new Vector2(-68f, 150f);
+            stats.alignment = TextAlignmentOptions.TopLeft;
+
+            TMP_Text skillsTitle = CreateTextObject(
+                page.transform,
+                "SkillsTitle",
+                "획득한 스킬",
+                31f);
+            RectTransform skillsTitleRect = skillsTitle.rectTransform;
+            skillsTitleRect.anchorMin = new Vector2(0f, 1f);
+            skillsTitleRect.anchorMax = new Vector2(1f, 1f);
+            skillsTitleRect.pivot = new Vector2(0.5f, 1f);
+            skillsTitleRect.anchoredPosition = new Vector2(0f, -615f);
+            skillsTitleRect.sizeDelta = new Vector2(-68f, 54f);
+            skillsTitle.alignment = TextAlignmentOptions.TopLeft;
+            skillsTitle.fontStyle = FontStyles.Bold;
+            CreateSkillsScrollView(page.transform);
+        }
+
+        private static void CreateSkillsScrollView(Transform parent)
+        {
+            GameObject panel = CreatePanel(
+                parent,
+                "SkillsPanel",
+                new Color(0.07f, 0.09f, 0.11f, 0.88f),
+                new Vector2(0.035f, 0.14f),
+                new Vector2(0.965f, 0.66f),
+                Vector2.zero,
+                new Vector2(0f, -20f));
+            ScrollRect scroll = panel.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+
+            GameObject viewport = CreatePanel(
+                panel.transform,
+                "Viewport",
+                Color.clear,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(20f, 20f),
+                new Vector2(-20f, -20f));
+            viewport.AddComponent<RectMask2D>();
+            viewport.GetComponent<Image>().raycastTarget = true;
+
+            TMP_Text list = CreateTextObject(
+                viewport.transform,
+                "SkillsList",
+                "없음",
+                27f);
+            RectTransform listRect = list.rectTransform;
+            listRect.anchorMin = new Vector2(0f, 1f);
+            listRect.anchorMax = Vector2.one;
+            listRect.pivot = new Vector2(0.5f, 1f);
+            listRect.offsetMin = Vector2.zero;
+            listRect.offsetMax = Vector2.zero;
+            list.alignment = TextAlignmentOptions.TopLeft;
+
+            scroll.viewport = viewport.GetComponent<RectTransform>();
+            scroll.content = listRect;
         }
 
         private static Toggle CreateControlPadToggle(
@@ -879,14 +995,196 @@ namespace SimpleGameEditor
                 "조작");
             button.transform.SetParent(parent, false);
             RectTransform rect = button.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0f);
-            rect.anchorMax = new Vector2(0.5f, 0f);
-            rect.pivot = new Vector2(0.5f, 0f);
-            rect.anchoredPosition = new Vector2(0f, 268f);
-            rect.sizeDelta = new Vector2(480f, 86f);
+            rect.anchorMin = Vector2.one;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = Vector2.one;
+            rect.anchoredPosition = new Vector2(-18f, -150f);
+            rect.sizeDelta = new Vector2(112f, 64f);
         }
 
         private static void CreateControlSettingsPanel(Transform parent)
+        {
+            GameObject panel = CreatePanel(
+                parent,
+                "ControlSettingsPanel",
+                new Color(0.025f, 0.035f, 0.045f, 0.48f),
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            CreateAutoAttackSwitch(panel.transform);
+
+            TMP_Text modeLabel = CreateTextObject(
+                panel.transform,
+                "ControlModeLabel",
+                "조작 모드",
+                29f);
+            RectTransform modeLabelRect = modeLabel.rectTransform;
+            modeLabelRect.anchorMin = new Vector2(0.5f, 1f);
+            modeLabelRect.anchorMax = new Vector2(0.5f, 1f);
+            modeLabelRect.pivot = new Vector2(0.5f, 1f);
+            modeLabelRect.anchoredPosition = new Vector2(0f, -355f);
+            modeLabelRect.sizeDelta = new Vector2(820f, 52f);
+            modeLabel.alignment = TextAlignmentOptions.TopLeft;
+            modeLabel.fontStyle = FontStyles.Bold;
+            CreateControlModeButtons(panel.transform);
+
+            CreateControlSettingsSlider(
+                panel.transform,
+                "JoystickSizeSlider",
+                "왼쪽 조이스틱 크기",
+                MobileControlSettingsStore.MinimumScale,
+                MobileControlSettingsStore.MaximumScale,
+                1f,
+                -620f);
+            CreateControlSettingsSlider(
+                panel.transform,
+                "AttackSizeSlider",
+                "오른쪽 조이스틱 크기",
+                MobileControlSettingsStore.MinimumScale,
+                MobileControlSettingsStore.MaximumScale,
+                1f,
+                -790f);
+
+            CreateControlSettingsActionButton(
+                panel.transform,
+                "ControlDefaultsButton",
+                "기본값",
+                -150f);
+            CreateControlSettingsActionButton(
+                panel.transform,
+                "ControlApplyButton",
+                "적용",
+                150f);
+
+            GameObject dragSurface = CreatePanel(
+                panel.transform,
+                "ControlDragSurface",
+                Color.clear,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            dragSurface.GetComponent<Image>().raycastTarget = true;
+            dragSurface.AddComponent<ControlLayoutDragSurface>();
+            panel.SetActive(false);
+        }
+
+        private static void CreateAutoAttackSwitch(Transform parent)
+        {
+            var toggleObject = new GameObject(
+                "AutoAttackToggle",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Toggle));
+            toggleObject.transform.SetParent(parent, false);
+            RectTransform rect = toggleObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -245f);
+            rect.sizeDelta = new Vector2(820f, 72f);
+            Image hitArea = toggleObject.GetComponent<Image>();
+            hitArea.color = Color.clear;
+            hitArea.raycastTarget = true;
+
+            TMP_Text label = CreateTextObject(
+                toggleObject.transform,
+                "Label",
+                "자동 공격",
+                29f);
+            RectTransform labelRect = label.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = new Vector2(0.55f, 1f);
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.fontStyle = FontStyles.Bold;
+
+            GameObject track = CreatePanel(
+                toggleObject.transform,
+                "Track",
+                new Color(0.34f, 0.36f, 0.39f, 1f),
+                new Vector2(0.62f, 0.5f),
+                new Vector2(0.62f, 0.5f),
+                Vector2.zero,
+                Vector2.zero);
+            RectTransform trackRect = track.GetComponent<RectTransform>();
+            trackRect.pivot = new Vector2(0.5f, 0.5f);
+            trackRect.sizeDelta = new Vector2(116f, 46f);
+
+            var knobObject = new GameObject(
+                "Knob",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            knobObject.transform.SetParent(track.transform, false);
+            RectTransform knobRect = knobObject.GetComponent<RectTransform>();
+            knobRect.anchorMin = new Vector2(0.5f, 0.5f);
+            knobRect.anchorMax = new Vector2(0.5f, 0.5f);
+            knobRect.pivot = new Vector2(0.5f, 0.5f);
+            knobRect.anchoredPosition = new Vector2(-32f, 0f);
+            knobRect.sizeDelta = new Vector2(54f, 54f);
+            Image knob = knobObject.GetComponent<Image>();
+            knob.sprite = LoadBuiltinCircleSprite();
+            knob.color = new Color(0.62f, 0.63f, 0.65f, 1f);
+            knob.raycastTarget = false;
+
+            TMP_Text value = CreateTextObject(
+                toggleObject.transform,
+                "Value",
+                "Off",
+                27f);
+            RectTransform valueRect = value.rectTransform;
+            valueRect.anchorMin = new Vector2(0.76f, 0f);
+            valueRect.anchorMax = Vector2.one;
+            valueRect.offsetMin = Vector2.zero;
+            valueRect.offsetMax = Vector2.zero;
+            value.alignment = TextAlignmentOptions.MidlineLeft;
+
+            Toggle toggle = toggleObject.GetComponent<Toggle>();
+            toggle.targetGraphic = hitArea;
+            toggle.graphic = null;
+            toggle.isOn = false;
+        }
+
+        private static void CreateControlModeButtons(Transform parent)
+        {
+            var group = new GameObject(
+                "ControlModeButtons",
+                typeof(RectTransform));
+            group.transform.SetParent(parent, false);
+            RectTransform groupRect = group.GetComponent<RectTransform>();
+            groupRect.anchorMin = new Vector2(0.5f, 1f);
+            groupRect.anchorMax = new Vector2(0.5f, 1f);
+            groupRect.pivot = new Vector2(0.5f, 1f);
+            groupRect.anchoredPosition = new Vector2(0f, -425f);
+            groupRect.sizeDelta = new Vector2(820f, 88f);
+            CreateModeButton(group.transform, "Mode1Button", "모드 1", -274f);
+            CreateModeButton(group.transform, "Mode2Button", "모드 2", 0f);
+            CreateModeButton(group.transform, "HiddenButton", "숨기기", 274f);
+        }
+
+        private static void CreateModeButton(
+            Transform parent,
+            string objectName,
+            string label,
+            float x)
+        {
+            Button button = CreateButtonVisual(objectName, label);
+            button.transform.SetParent(parent, false);
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(x, 0f);
+            rect.sizeDelta = new Vector2(250f, 76f);
+            button.GetComponent<Image>().color =
+                new Color(0.23f, 0.27f, 0.31f, 0.94f);
+        }
+
+        private static void CreateLegacyControlSettingsPanel(Transform parent)
         {
             GameObject panel = CreatePanel(
                 parent,
@@ -909,6 +1207,8 @@ namespace SimpleGameEditor
             titleRect.sizeDelta = new Vector2(0f, 90f);
             title.alignment = TextAlignmentOptions.Center;
             title.fontStyle = FontStyles.Bold;
+
+            CreateControlModeToggle(panel.transform);
 
             CreateControlSettingsSlider(
                 panel.transform,
@@ -975,6 +1275,84 @@ namespace SimpleGameEditor
                 "적용",
                 280f);
             panel.SetActive(false);
+        }
+
+        private static Toggle CreateControlModeToggle(
+            Transform parent)
+        {
+            var toggleObject = new GameObject(
+                "ControlModeToggle",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Toggle));
+            toggleObject.transform.SetParent(parent, false);
+
+            RectTransform rect =
+                toggleObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -145f);
+            rect.sizeDelta = new Vector2(520f, 56f);
+
+            Image background = toggleObject.GetComponent<Image>();
+            background.color =
+                new Color(0.08f, 0.24f, 0.31f, 0.96f);
+            background.raycastTarget = true;
+
+            var checkmarkObject = new GameObject(
+                "Checkmark",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            checkmarkObject.transform.SetParent(
+                toggleObject.transform,
+                false);
+            RectTransform checkmarkRect =
+                checkmarkObject.GetComponent<RectTransform>();
+            checkmarkRect.anchorMin = new Vector2(0f, 0.5f);
+            checkmarkRect.anchorMax = new Vector2(0f, 0.5f);
+            checkmarkRect.pivot = new Vector2(0.5f, 0.5f);
+            checkmarkRect.anchoredPosition = new Vector2(42f, 0f);
+            checkmarkRect.sizeDelta = new Vector2(34f, 34f);
+            Image checkmark = checkmarkObject.GetComponent<Image>();
+            checkmark.sprite = LoadBuiltinCircleSprite();
+            checkmark.color = new Color(0.25f, 0.88f, 1f, 1f);
+            checkmark.raycastTarget = false;
+
+            TMP_Text label = CreateTextObject(
+                toggleObject.transform,
+                "Label",
+                "조작 모드",
+                25f);
+            RectTransform labelRect = label.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(76f, 8f);
+            labelRect.offsetMax = new Vector2(-140f, -8f);
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.raycastTarget = false;
+
+            TMP_Text value = CreateTextObject(
+                toggleObject.transform,
+                "Value",
+                "모드 2",
+                24f);
+            RectTransform valueRect = value.rectTransform;
+            valueRect.anchorMin = new Vector2(1f, 0f);
+            valueRect.anchorMax = Vector2.one;
+            valueRect.pivot = new Vector2(1f, 0.5f);
+            valueRect.anchoredPosition = new Vector2(-16f, 0f);
+            valueRect.sizeDelta = new Vector2(120f, 48f);
+            value.alignment = TextAlignmentOptions.Center;
+            value.raycastTarget = false;
+
+            Toggle toggle = toggleObject.GetComponent<Toggle>();
+            toggle.targetGraphic = background;
+            toggle.graphic = checkmark;
+            toggle.isOn = false;
+            return toggle;
         }
 
         private static Slider CreateControlSettingsSlider(

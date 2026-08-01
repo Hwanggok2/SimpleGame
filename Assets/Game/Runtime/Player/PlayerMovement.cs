@@ -147,6 +147,95 @@ namespace SimpleGame
             return reached;
         }
 
+        public void StepInDirection(Vector2 normalizedInput)
+        {
+            StepInDirectionInternal(
+                normalizedInput,
+                false,
+                Vector2.zero,
+                0f);
+        }
+
+        public void StepInDirectionAroundCircle(
+            Vector2 normalizedInput,
+            Vector2 circleCenter,
+            float circleRadius)
+        {
+            StepInDirectionInternal(
+                normalizedInput,
+                true,
+                circleCenter,
+                circleRadius);
+        }
+
+        private void StepInDirectionInternal(
+            Vector2 normalizedInput,
+            bool constrainToCircle,
+            Vector2 circleCenter,
+            float circleRadius)
+        {
+            Vector2 input = Vector2.ClampMagnitude(
+                normalizedInput,
+                1f);
+            float inputMagnitude = input.magnitude;
+            if (inputMagnitude <= 0.0001f)
+            {
+                CancelMove();
+                return;
+            }
+
+            Vector2 direction = input / inputMagnitude;
+            if (currentMoveSpeed > 0.01f &&
+                activeDirection.sqrMagnitude > 0.0001f &&
+                Vector2.Dot(direction, activeDirection) < 0f)
+            {
+                ResetMomentum();
+            }
+
+            activeSpeedMultiplier = inputMagnitude;
+            activeDirection = direction;
+            isMoveActive = true;
+            maximumTravelSpeed = 0f;
+
+            float targetSpeed = CalculateDirectionalTargetSpeed(
+                moveSpeed,
+                inputMagnitude);
+            float smoothTime = targetSpeed >= currentMoveSpeed
+                ? accelerationSmoothTime
+                : decelerationSmoothTime;
+            currentMoveSpeed = Mathf.SmoothDamp(
+                currentMoveSpeed,
+                targetSpeed,
+                ref speedSmoothVelocity,
+                smoothTime);
+
+            Vector2 current = transform.position;
+            Vector2 proposed =
+                current +
+                direction * currentMoveSpeed * Time.deltaTime;
+            Vector2 next = constrainToCircle
+                ? CalculateCircleSlidePosition(
+                    current,
+                    proposed,
+                    circleCenter,
+                    circleRadius)
+                : proposed;
+            Vector2 actualMovement = next - current;
+            if (actualMovement.sqrMagnitude > 0.0001f)
+            {
+                characterAnimation?.SetMoving(actualMovement);
+            }
+            else
+            {
+                characterAnimation?.SetIdle();
+            }
+
+            transform.position = new Vector3(
+                next.x,
+                next.y,
+                transform.position.z);
+        }
+
         public void CancelMove()
         {
             isMoveActive = false;
@@ -208,6 +297,117 @@ namespace SimpleGame
         {
             return Mathf.Max(0f, distance) /
                 MaximumSpeedTravelDuration;
+        }
+
+        public static float CalculateDirectionalTargetSpeed(
+            float speed,
+            float inputMagnitude)
+        {
+            return Mathf.Max(0f, speed) *
+                Mathf.Clamp01(inputMagnitude);
+        }
+
+        public static Vector2 CalculateCircleSlidePosition(
+            Vector2 current,
+            Vector2 proposed,
+            Vector2 center,
+            float radius)
+        {
+            float safeRadius = Mathf.Max(0f, radius);
+            if (safeRadius <= 0f)
+            {
+                return proposed;
+            }
+
+            float radiusSquared = safeRadius * safeRadius;
+            Vector2 currentOffset = current - center;
+            Vector2 proposedOffset = proposed - center;
+            if (proposedOffset.sqrMagnitude >= radiusSquared &&
+                (currentOffset.sqrMagnitude < radiusSquared ||
+                 !DoesSegmentEnterCircle(
+                     current,
+                     proposed,
+                     center,
+                     radiusSquared)))
+            {
+                return proposed;
+            }
+
+            Vector2 movement = proposed - current;
+            Vector2 boundary = current;
+            float remainingFraction = 1f;
+            if (currentOffset.sqrMagnitude > radiusSquared &&
+                movement.sqrMagnitude > 0.000001f)
+            {
+                float a = Vector2.Dot(movement, movement);
+                float b = 2f * Vector2.Dot(
+                    currentOffset,
+                    movement);
+                float c = currentOffset.sqrMagnitude -
+                    radiusSquared;
+                float discriminant = b * b - 4f * a * c;
+                if (discriminant >= 0f)
+                {
+                    float entry = Mathf.Clamp01(
+                        (-b - Mathf.Sqrt(discriminant)) /
+                        (2f * a));
+                    boundary = current + movement * entry;
+                    remainingFraction = 1f - entry;
+                }
+            }
+            else
+            {
+                Vector2 outward = currentOffset.sqrMagnitude >
+                        0.000001f
+                    ? currentOffset.normalized
+                    : (proposedOffset.sqrMagnitude > 0.000001f
+                        ? proposedOffset.normalized
+                        : Vector2.right);
+                boundary = center + outward * safeRadius;
+            }
+
+            Vector2 boundaryOffset = boundary - center;
+            Vector2 normal = boundaryOffset.sqrMagnitude > 0.000001f
+                ? boundaryOffset.normalized
+                : Vector2.right;
+            Vector2 remaining = movement * remainingFraction;
+            float inwardAmount = Mathf.Min(
+                0f,
+                Vector2.Dot(remaining, normal));
+            Vector2 result = boundary +
+                remaining - normal * inwardAmount;
+            Vector2 resultOffset = result - center;
+            if (resultOffset.sqrMagnitude < radiusSquared)
+            {
+                Vector2 fallback = resultOffset.sqrMagnitude >
+                        0.000001f
+                    ? resultOffset.normalized
+                    : normal;
+                result = center + fallback * safeRadius;
+            }
+
+            return result;
+        }
+
+        private static bool DoesSegmentEnterCircle(
+            Vector2 start,
+            Vector2 end,
+            Vector2 center,
+            float radiusSquared)
+        {
+            Vector2 segment = end - start;
+            float lengthSquared = segment.sqrMagnitude;
+            if (lengthSquared <= 0.000001f)
+            {
+                return false;
+            }
+
+            float progress = Mathf.Clamp01(
+                Vector2.Dot(center - start, segment) /
+                lengthSquared);
+            Vector2 closestPoint = start + segment * progress;
+            return Vector2.SqrMagnitude(
+                closestPoint - center) < radiusSquared;
         }
 
         private static float SmootherStep(float value)

@@ -58,7 +58,8 @@ namespace SimpleGame
     public enum LevelUpCardEffectType
     {
         StatModifier,
-        UpgradeRank
+        UpgradeRank,
+        Fusion
     }
 
     public enum PlayerStatId
@@ -75,7 +76,10 @@ namespace SimpleGame
         ShieldBypass,
         FlyingSwordCount,
         FlyingSwordHitCount,
-        FilthThrow
+        FilthThrow,
+        FlyingSwordPiercingFusion,
+        FlyingSwordStaticFusion,
+        StaticFilthFusion
     }
 
     public enum StatOperation

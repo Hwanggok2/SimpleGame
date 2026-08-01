@@ -29,6 +29,8 @@ namespace SimpleGame
         public const float FilthThrowDamageGrowthPerLevel = 0.1f;
         public const float FilthThrowBaseRadius = 1.2f;
         public const float FilthThrowRadiusGrowthPerLevel = 0.12f;
+        public const int PiercingMaximumLevel = 5;
+        public const int StaticChargeMaximumLevel = 5;
 
         [SerializeField] private int piercingLevel;
         [SerializeField] private int severLevel;
@@ -47,19 +49,36 @@ namespace SimpleGame
         [SerializeField] private float filthThrowBaseDamageMultiplier =
             FilthThrowBaseDamageMultiplier;
         [SerializeField] private float shieldBypassChancePerLevel = 0.1f;
+        [SerializeField] private bool hasFlyingSwordPiercingFusion;
+        [SerializeField] private bool hasFlyingSwordStaticFusion;
+        [SerializeField] private bool hasStaticFilthFusion;
+        [SerializeField] private int flyingSwordPiercingCountSnapshot;
+        [SerializeField] private int flyingSwordPiercingHitsSnapshot;
+        [SerializeField] private int flyingSwordStaticCountSnapshot;
+        [SerializeField] private int flyingSwordStaticHitsSnapshot;
+        [SerializeField] private int flyingSwordStaticChargeSnapshot;
+        [SerializeField] private float flyingSwordStaticDamageSnapshot;
+        [SerializeField] private int staticFilthLevelSnapshot;
+        [SerializeField] private float staticFilthDamageSnapshot;
+        [SerializeField] private int staticFilthChargeSnapshot;
+        [SerializeField] private float staticFilthChargeDamageSnapshot;
         [SerializeField] private SpriteRenderer severTrailVisual;
         [SerializeField] private MovingSlashProjectile movingSlashPrefab;
         [SerializeField] private FilthProjectile filthProjectilePrefab;
 
         private readonly HashSet<EnemyBase> directTargets = new();
+        private readonly HashSet<EnemyBase> staticBurstExclusions = new();
         private PlayerRoot owner;
         private EnemyWorldService enemyWorld;
+        private SpawnPointRegistry spawnPoints;
         private float piercingWindowEndsAt;
         private int piercingTargetsConsumed;
-        private bool canOpenPiercingWindowForCommand;
         private float nextSeverAvailableTime;
         private float nextFilthThrowAt = float.PositiveInfinity;
+        private float nextStaticFilthThrowAt = float.PositiveInfinity;
         private FlyingSwordController flyingSwords;
+        private FlyingSwordController flyingSwordPiercingFusion;
+        private FlyingSwordController flyingSwordStaticFusion;
         private Camera worldCamera;
 
         public int PiercingLevel => piercingLevel;
@@ -69,6 +88,29 @@ namespace SimpleGame
         public int FlyingSwordCountLevel => flyingSwordCountLevel;
         public int FlyingSwordHitCountLevel => flyingSwordHitCountLevel;
         public int FilthThrowLevel => filthThrowLevel;
+        public bool HasFlyingSwordPiercingFusion =>
+            hasFlyingSwordPiercingFusion;
+        public bool HasFlyingSwordStaticFusion =>
+            hasFlyingSwordStaticFusion;
+        public bool HasStaticFilthFusion => hasStaticFilthFusion;
+        public int FlyingSwordPiercingCountSnapshot =>
+            flyingSwordPiercingCountSnapshot;
+        public int FlyingSwordPiercingHitsSnapshot =>
+            flyingSwordPiercingHitsSnapshot;
+        public int FlyingSwordStaticCountSnapshot =>
+            flyingSwordStaticCountSnapshot;
+        public int FlyingSwordStaticHitsSnapshot =>
+            flyingSwordStaticHitsSnapshot;
+        public int FlyingSwordStaticChargeSnapshot =>
+            flyingSwordStaticChargeSnapshot;
+        public float FlyingSwordStaticDamageSnapshot =>
+            flyingSwordStaticDamageSnapshot;
+        public int StaticFilthLevelSnapshot => staticFilthLevelSnapshot;
+        public int StaticFilthChargeSnapshot => staticFilthChargeSnapshot;
+        public float StaticFilthDamageSnapshot =>
+            staticFilthDamageSnapshot;
+        public float StaticFilthChargeDamageSnapshot =>
+            staticFilthChargeDamageSnapshot;
         public float ShieldBypassChance =>
             CalculateShieldBypassChance(
                 shieldBypassLevel,
@@ -105,6 +147,7 @@ namespace SimpleGame
         {
             owner = configuredOwner;
             enemyWorld = configuredEnemyWorld;
+            spawnPoints = configuredSpawnPoints;
             worldCamera = configuredWorldCamera;
             piercingLevel = 0;
             severLevel = 0;
@@ -123,11 +166,26 @@ namespace SimpleGame
             filthThrowBaseDamageMultiplier =
                 FilthThrowBaseDamageMultiplier;
             shieldBypassChancePerLevel = 0.1f;
+            hasFlyingSwordPiercingFusion = false;
+            hasFlyingSwordStaticFusion = false;
+            hasStaticFilthFusion = false;
+            flyingSwordPiercingCountSnapshot = 0;
+            flyingSwordPiercingHitsSnapshot = 0;
+            flyingSwordStaticCountSnapshot = 0;
+            flyingSwordStaticHitsSnapshot = 0;
+            flyingSwordStaticChargeSnapshot = 0;
+            flyingSwordStaticDamageSnapshot = 0f;
+            staticFilthLevelSnapshot = 0;
+            staticFilthDamageSnapshot = 0f;
+            staticFilthChargeSnapshot = 0;
+            staticFilthChargeDamageSnapshot = 0f;
             piercingWindowEndsAt = 0f;
             piercingTargetsConsumed = 0;
-            canOpenPiercingWindowForCommand = false;
             nextSeverAvailableTime = 0f;
             nextFilthThrowAt = float.PositiveInfinity;
+            nextStaticFilthThrowAt = float.PositiveInfinity;
+            DestroyFusionController(ref flyingSwordPiercingFusion);
+            DestroyFusionController(ref flyingSwordStaticFusion);
             if (severTrailVisual == null)
             {
                 severTrailVisual =
@@ -240,6 +298,12 @@ namespace SimpleGame
                     }
 
                     break;
+                case PlayerStatId.FlyingSwordPiercingFusion:
+                    return ApplyFlyingSwordPiercingFusion();
+                case PlayerStatId.FlyingSwordStaticFusion:
+                    return ApplyFlyingSwordStaticFusion();
+                case PlayerStatId.StaticFilthFusion:
+                    return ApplyStaticFilthFusion();
                 default:
                     return false;
             }
@@ -250,10 +314,145 @@ namespace SimpleGame
             return true;
         }
 
+        private bool ApplyFlyingSwordPiercingFusion()
+        {
+            if (hasFlyingSwordPiercingFusion ||
+                flyingSwordCountLevel <
+                    FlyingSwordController.MaximumSwordCount ||
+                flyingSwordHitCountLevel <
+                    FlyingSwordController.MaximumHitUpgradeLevel ||
+                piercingLevel < PiercingMaximumLevel)
+            {
+                return false;
+            }
+
+            flyingSwordPiercingCountSnapshot =
+                flyingSwordCountLevel;
+            flyingSwordPiercingHitsSnapshot =
+                flyingSwordHitCountLevel;
+            flyingSwordPiercingFusion = CreateFusionSwordController(
+                "FlyingSwordPiercingFusion",
+                true,
+                0,
+                0f,
+                flyingSwordPiercingCountSnapshot,
+                flyingSwordPiercingHitsSnapshot);
+            hasFlyingSwordPiercingFusion = true;
+            ResetBaseFlyingSword();
+            ResetBasePiercing();
+            return true;
+        }
+
+        private bool ApplyFlyingSwordStaticFusion()
+        {
+            if (hasFlyingSwordStaticFusion ||
+                flyingSwordCountLevel <
+                    FlyingSwordController.MaximumSwordCount ||
+                flyingSwordHitCountLevel <
+                    FlyingSwordController.MaximumHitUpgradeLevel ||
+                staticChargeLevel < StaticChargeMaximumLevel)
+            {
+                return false;
+            }
+
+            flyingSwordStaticCountSnapshot =
+                flyingSwordCountLevel;
+            flyingSwordStaticHitsSnapshot =
+                flyingSwordHitCountLevel;
+            flyingSwordStaticChargeSnapshot =
+                staticChargeLevel;
+            flyingSwordStaticDamageSnapshot =
+                staticDamageMultiplier;
+            flyingSwordStaticFusion = CreateFusionSwordController(
+                "FlyingSwordStaticFusion",
+                false,
+                flyingSwordStaticChargeSnapshot,
+                flyingSwordStaticDamageSnapshot,
+                flyingSwordStaticCountSnapshot,
+                flyingSwordStaticHitsSnapshot);
+            hasFlyingSwordStaticFusion = true;
+            ResetBaseFlyingSword();
+            ResetBaseStaticCharge();
+            return true;
+        }
+
+        private bool ApplyStaticFilthFusion()
+        {
+            if (hasStaticFilthFusion ||
+                staticChargeLevel < StaticChargeMaximumLevel ||
+                filthThrowLevel < FilthThrowMaximumLevel)
+            {
+                return false;
+            }
+
+            staticFilthLevelSnapshot = filthThrowLevel;
+            staticFilthDamageSnapshot =
+                filthThrowBaseDamageMultiplier;
+            staticFilthChargeSnapshot = staticChargeLevel;
+            staticFilthChargeDamageSnapshot =
+                staticDamageMultiplier;
+            nextStaticFilthThrowAt = nextFilthThrowAt;
+            hasStaticFilthFusion = true;
+            ResetBaseStaticCharge();
+            ResetBaseFilthThrow();
+            return true;
+        }
+
+        private FlyingSwordController CreateFusionSwordController(
+            string objectName,
+            bool piercesEntirePath,
+            int fusionStaticChargeLevel,
+            float fusionStaticDamageMultiplier,
+            int swordCount,
+            int swordHits)
+        {
+            var controllerObject = new GameObject(objectName);
+            controllerObject.transform.SetParent(transform, false);
+            FlyingSwordController controller =
+                controllerObject.AddComponent<FlyingSwordController>();
+            controller.Configure(
+                owner,
+                enemyWorld,
+                spawnPoints,
+                false);
+            controller.ConfigureFusionEffects(
+                piercesEntirePath,
+                fusionStaticChargeLevel,
+                fusionStaticDamageMultiplier);
+            controller.SetLevels(swordCount, swordHits);
+            return controller;
+        }
+
+        private void ResetBaseFlyingSword()
+        {
+            flyingSwordCountLevel = 0;
+            flyingSwordHitCountLevel = 0;
+            flyingSwords?.SetLevels(0, 0);
+        }
+
+        private void ResetBasePiercing()
+        {
+            piercingLevel = 0;
+            piercingWindowEndsAt = 0f;
+            piercingTargetsConsumed = 0;
+        }
+
+        private void ResetBaseStaticCharge()
+        {
+            staticChargeLevel = 0;
+        }
+
+        private void ResetBaseFilthThrow()
+        {
+            filthThrowLevel = 0;
+            nextFilthThrowAt = float.PositiveInfinity;
+        }
+
         public PlayerAttackExecution ExecuteNormalAttack(
             EnemyBase primary,
             bool critical,
-            bool allowPiercing)
+            bool allowAttackPiercing,
+            bool movementPiercingRequested)
         {
             if (primary == null ||
                 !primary.IsAlive ||
@@ -263,13 +462,16 @@ namespace SimpleGame
                 return default;
             }
 
+            TrySpawnMovingSlash(
+                primary.transform.position -
+                owner.transform.position);
             AttackSide primarySide = ResolveSide(primary);
             CombatResult primaryPreview = BuildNormalAttackResult(
                 primary,
                 primarySide,
                 critical,
                 true);
-            bool piercingAllowed = allowPiercing &&
+            bool piercingAllowed = allowAttackPiercing &&
                 CombatResolver.CanPiercePastTarget(
                     primary.Definition,
                     primarySide,
@@ -333,16 +535,20 @@ namespace SimpleGame
             if (primaryDamaged)
             {
                 flyingSwords?.HandlePrimaryHit(primary);
+                flyingSwordPiercingFusion?.HandlePrimaryHit(primary);
+                flyingSwordStaticFusion?.HandlePrimaryHit(primary);
             }
 
             if (CanTriggerSever(
                     HasSever,
-                    piercingAllowed,
+                    movementPiercingRequested &&
+                        piercingAllowed,
                     primaryDamaged) &&
                 TryReserveSever())
             {
                 StartCoroutine(SpawnSeverAfterDelay(
-                    owner.transform.position));
+                    owner.transform.position,
+                    SeverDelay));
             }
 
             if (staticChargeLevel > 0)
@@ -412,10 +618,60 @@ namespace SimpleGame
             return damaged;
         }
 
-        public void TrySpawnMovingSlash(Vector2 movementDirection)
+        public bool ApplySkillHitWithStaticBurst(
+            EnemyBase enemy,
+            float baseDamageMultiplier,
+            int burstLevel,
+            float burstDamageMultiplier)
+        {
+            if (burstLevel <= 0 || burstDamageMultiplier <= 0f)
+            {
+                return ApplySkillHit(enemy, baseDamageMultiplier);
+            }
+
+            if (enemy == null || !enemy.IsAlive)
+            {
+                return false;
+            }
+
+            Vector2 burstCenter = enemy.transform.position;
+            bool damaged = ApplySkillHit(
+                enemy,
+                Mathf.Max(0f, baseDamageMultiplier) +
+                Mathf.Max(0f, burstDamageMultiplier));
+            if (!damaged || enemyWorld == null)
+            {
+                return damaged;
+            }
+
+            staticBurstExclusions.Clear();
+            staticBurstExclusions.Add(enemy);
+            List<EnemyBase> adjacent =
+                enemyWorld.CollectNearestEnemies(
+                    burstCenter,
+                    StaticSearchRadius,
+                    CalculateStaticAdjacentTargetCount(burstLevel),
+                    staticBurstExclusions);
+            foreach (EnemyBase adjacentEnemy in adjacent)
+            {
+                Vector2 arcEnd = adjacentEnemy.transform.position;
+                if (ApplySkillHit(
+                        adjacentEnemy,
+                        burstDamageMultiplier))
+                {
+                    SlashTrailEffect.ShowStaticArc(
+                        burstCenter,
+                        arcEnd);
+                }
+            }
+
+            staticBurstExclusions.Clear();
+            return true;
+        }
+
+        private void TrySpawnMovingSlash(Vector2 attackDirection)
         {
             if (movingSlashLevel <= 0 ||
-                movementDirection.sqrMagnitude <= 0.0001f ||
                 Random.value > CalculateMovingSlashChance(
                     movingSlashLevel))
             {
@@ -426,11 +682,37 @@ namespace SimpleGame
                 movingSlashPrefab,
                 owner,
                 enemyWorld,
-                movementDirection,
+                attackDirection,
                 CalculateMovingSlashMaximumHits(movingSlashLevel),
                 CalculateMovingSlashSize(movingSlashLevel),
                 CalculateMovingSlashTravelDistance(movingSlashLevel),
                 movingSlashDamageMultiplier);
+        }
+
+        public void TryScheduleSeverForCompletedMovementPierce(
+            Vector2 piercingStartPosition,
+            float piercingStartedAt)
+        {
+            if (owner == null || !HasSever || !TryReserveSever())
+            {
+                return;
+            }
+
+            StartCoroutine(SpawnSeverAfterDelay(
+                piercingStartPosition,
+                CalculateRemainingSeverDelay(
+                    piercingStartedAt,
+                    Time.time)));
+        }
+
+        public static float CalculateRemainingSeverDelay(
+            float piercingStartedAt,
+            float piercingCompletedAt)
+        {
+            float elapsed = Mathf.Max(
+                0f,
+                piercingCompletedAt - piercingStartedAt);
+            return Mathf.Max(0f, SeverDelay - elapsed);
         }
 
         public static int CalculateStaticAdjacentTargetCount(int level)
@@ -443,8 +725,9 @@ namespace SimpleGame
             return level <= 0
                 ? 0f
                 : Mathf.Clamp01(
-                    0.1f +
-                    0.03f * (ClampMovingSlashLevel(level) - 1));
+                    (0.1f +
+                     0.03f * (ClampMovingSlashLevel(level) - 1)) *
+                    1.5f);
         }
 
         public static int CalculateMovingSlashMaximumHits(int level)
@@ -558,13 +841,40 @@ namespace SimpleGame
 
         private void Update()
         {
-            if (filthThrowLevel <= 0 ||
-                owner == null ||
+            if (owner == null ||
                 enemyWorld == null ||
                 worldCamera == null ||
                 !owner.IsAlive ||
-                Time.timeScale <= 0f ||
-                Time.time < nextFilthThrowAt)
+                Time.timeScale <= 0f)
+            {
+                return;
+            }
+
+            TryThrowFilth(
+                filthThrowLevel,
+                filthThrowBaseDamageMultiplier,
+                ref nextFilthThrowAt,
+                0,
+                0f);
+            if (hasStaticFilthFusion)
+            {
+                TryThrowFilth(
+                    staticFilthLevelSnapshot,
+                    staticFilthDamageSnapshot,
+                    ref nextStaticFilthThrowAt,
+                    staticFilthChargeSnapshot,
+                    staticFilthChargeDamageSnapshot);
+            }
+        }
+
+        private void TryThrowFilth(
+            int level,
+            float baseDamageMultiplier,
+            ref float nextThrowAt,
+            int fusionStaticLevel,
+            float fusionStaticDamageMultiplier)
+        {
+            if (level <= 0 || Time.time < nextThrowAt)
             {
                 return;
             }
@@ -588,17 +898,17 @@ namespace SimpleGame
                 return;
             }
 
-            nextFilthThrowAt =
+            nextThrowAt =
                 Time.time +
-                CalculateFilthThrowInterval(filthThrowLevel);
+                CalculateFilthThrowInterval(level);
             float damageRadius =
-                CalculateFilthThrowRadius(filthThrowLevel);
+                CalculateFilthThrowRadius(level);
             float damageMultiplier =
                 CalculateFilthThrowDamageMultiplier(
-                    filthThrowLevel,
-                    filthThrowBaseDamageMultiplier);
+                    level,
+                    baseDamageMultiplier);
             int throwCount =
-                CalculateFilthThrowCount(filthThrowLevel);
+                CalculateFilthThrowCount(level);
             for (int index = 0; index < throwCount; index++)
             {
                 EnemyBase target = index == 0
@@ -617,7 +927,9 @@ namespace SimpleGame
                     enemyWorld,
                     target.transform.position,
                     damageMultiplier,
-                    damageRadius);
+                    damageRadius,
+                    fusionStaticLevel,
+                    fusionStaticDamageMultiplier);
             }
         }
 
@@ -649,30 +961,6 @@ namespace SimpleGame
             return currentTime >= windowEndsAt;
         }
 
-        public static bool CanConsumePiercingTarget(
-            int level,
-            int consumed,
-            float currentTime,
-            float windowEndsAt,
-            bool canOpenWindow)
-        {
-            if (level <= 0)
-            {
-                return false;
-            }
-
-            if (ShouldRefreshPiercingWindow(
-                    currentTime,
-                    windowEndsAt))
-            {
-                return canOpenWindow;
-            }
-
-            return CalculateRemainingPiercingTargets(
-                level,
-                consumed) > 0;
-        }
-
         public static bool IsSeverCooldownReady(
             float currentTime,
             float nextAvailableTime)
@@ -696,45 +984,24 @@ namespace SimpleGame
                 Random.value < ShieldBypassChance;
         }
 
-        public void BeginPiercingCommand()
+        private static void DestroyFusionController(
+            ref FlyingSwordController controller)
         {
-            canOpenPiercingWindowForCommand =
-                piercingLevel > 0 &&
-                ShouldRefreshPiercingWindow(
-                    Time.time,
-                    piercingWindowEndsAt);
-        }
-
-        public bool TryConsumePiercingTarget()
-        {
-            if (!CanConsumePiercingTarget(
-                    piercingLevel,
-                    piercingTargetsConsumed,
-                    Time.time,
-                    piercingWindowEndsAt,
-                    canOpenPiercingWindowForCommand))
+            if (controller == null)
             {
-                return false;
+                return;
             }
 
-            if (ShouldRefreshPiercingWindow(
-                    Time.time,
-                    piercingWindowEndsAt))
+            GameObject controllerObject = controller.gameObject;
+            controller = null;
+            if (Application.isPlaying)
             {
-                piercingWindowEndsAt =
-                    Time.time + PiercingWindowDuration;
-                piercingTargetsConsumed = 0;
-                canOpenPiercingWindowForCommand = false;
+                Destroy(controllerObject);
             }
-
-            ConsumePiercingTargets(1);
-            return true;
-        }
-
-        public void RefundPiercingTarget()
-        {
-            piercingTargetsConsumed =
-                Mathf.Max(0, piercingTargetsConsumed - 1);
+            else
+            {
+                DestroyImmediate(controllerObject);
+            }
         }
 
         private static int AddLevel(
@@ -817,6 +1084,20 @@ namespace SimpleGame
 
         private int GetRemainingPiercingTargetCount()
         {
+            if (piercingLevel <= 0)
+            {
+                return 0;
+            }
+
+            if (ShouldRefreshPiercingWindow(
+                    Time.time,
+                    piercingWindowEndsAt))
+            {
+                piercingWindowEndsAt =
+                    Time.time + PiercingWindowDuration;
+                piercingTargetsConsumed = 0;
+            }
+
             return CalculateRemainingPiercingTargets(
                 piercingLevel,
                 piercingTargetsConsumed);
@@ -845,9 +1126,14 @@ namespace SimpleGame
         }
 
         private IEnumerator SpawnSeverAfterDelay(
-            Vector2 piercingStartPosition)
+            Vector2 piercingStartPosition,
+            float delay)
         {
-            yield return new WaitForSeconds(SeverDelay);
+            if (delay > 0f)
+            {
+                yield return new WaitForSeconds(delay);
+            }
+
             if (owner == null ||
                 enemyWorld == null ||
                 !owner.IsAlive)

@@ -1000,7 +1000,13 @@ namespace SimpleGameEditor
                 new Vector3(0f, 0.72f, 0f),
                 2.5f,
                 35);
-            playerRoot.ConfigureVisuals(attackRange, levelLabel);
+            PlayerHealthBar healthBar = CreatePlayerWorldHealthBar(
+                root.transform,
+                -0.72f);
+            playerRoot.ConfigureVisuals(
+                attackRange,
+                levelLabel,
+                healthBar);
             PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
             UnityEngine.Object.DestroyImmediate(root);
         }
@@ -1435,6 +1441,76 @@ namespace SimpleGameEditor
             label.rectTransform.sizeDelta = new Vector2(3f, 1f);
             child.GetComponent<MeshRenderer>().sortingOrder = sortingOrder;
             return label;
+        }
+
+        private static PlayerHealthBar CreatePlayerWorldHealthBar(
+            Transform parent,
+            float localY)
+        {
+            var canvasObject = new GameObject(
+                "HealthBarCanvas",
+                typeof(RectTransform),
+                typeof(Canvas),
+                typeof(CanvasScaler));
+            canvasObject.transform.SetParent(parent, false);
+            canvasObject.transform.localPosition =
+                new Vector3(0f, localY, 0f);
+            canvasObject.transform.localScale =
+                Vector3.one * 0.01f;
+
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 40;
+
+            RectTransform canvasRect =
+                canvasObject.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(105f, 12f);
+
+            var sliderObject = new GameObject(
+                "HealthSlider",
+                typeof(RectTransform),
+                typeof(Slider));
+            sliderObject.transform.SetParent(
+                canvasObject.transform,
+                false);
+            RectTransform sliderRect =
+                sliderObject.GetComponent<RectTransform>();
+            sliderRect.anchorMin = Vector2.zero;
+            sliderRect.anchorMax = Vector2.one;
+            sliderRect.offsetMin = Vector2.zero;
+            sliderRect.offsetMax = Vector2.zero;
+
+            Image background = CreateHealthBarImage(
+                sliderObject.transform,
+                "Background",
+                new Color(0.08f, 0.08f, 0.08f, 0.95f),
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            Image fill = CreateHealthBarImage(
+                sliderObject.transform,
+                "Fill",
+                new Color(0.15f, 0.85f, 0.25f, 1f),
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(1.5f, 1.5f),
+                new Vector2(-1.5f, -1.5f));
+
+            Slider slider = sliderObject.GetComponent<Slider>();
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = 1f;
+            slider.interactable = false;
+            slider.transition = Selectable.Transition.None;
+            slider.fillRect = fill.rectTransform;
+            slider.targetGraphic = background;
+
+            PlayerHealthBar healthBar =
+                parent.gameObject.AddComponent<PlayerHealthBar>();
+            healthBar.Configure(canvasObject, slider);
+            return healthBar;
         }
 
         private static EnemyHealthBar CreateWorldHealthBar(

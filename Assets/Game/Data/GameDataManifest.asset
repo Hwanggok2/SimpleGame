@@ -19,5 +19,6 @@ MonoBehaviour:
   globalBalance: {fileID: 11400000, guid: 0c0272f66c4cdca44bc8a84cbce63e35, type: 2}
   playerBalance: {fileID: 11400000, guid: 0c4eb97b06172c04d8d658b1c5ff78a1, type: 2}
   levelUpCards: {fileID: 11400000, guid: 22bb4d298d7462d46ae255045781b220, type: 2}
+  gameStrings: {fileID: 11400000, guid: 7e8ff93291e9ab44fa3face793b6d6dd, type: 2}
   enemyAssets: {fileID: 11400000, guid: e9806be1e373d924ba00e1fdd739cbb3, type: 2}
   combatFeedback: {fileID: 11400000, guid: 93ce08b6cd9e73b4ab5dc095db21fae1, type: 2}

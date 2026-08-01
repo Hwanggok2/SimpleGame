@@ -16,7 +16,10 @@ namespace SimpleGame
         public void Initialize(PrototypeGameSession gameSession)
         {
             session = gameSession;
-            view.Initialize();
+            view.Initialize(session.GameStrings);
+            view.SetDifficultyContext(
+                session.StageDisplayName,
+                session.StageDescription);
             view.InitializeAimControls(session.Player);
 
             view.Bind(HudButtonId.CardChoice0, () => session.SelectCard(0));
@@ -29,7 +32,7 @@ namespace SimpleGame
             view.Bind(HudButtonId.ContinueAd, session.SimulateRewardedContinue);
             view.Bind(
                 HudButtonId.Attack,
-                () => session.Player.ExecuteAimedCommand());
+                () => session.Player.ExecuteControlAction());
             view.Bind(
                 HudButtonId.DifficultyEasy,
                 () => session.SelectDifficulty(GameDifficulty.Easy));
@@ -100,9 +103,6 @@ namespace SimpleGame
                 HudTextId.Time,
                 PrototypeGameSession.FormatElapsedTime(
                     session.ElapsedTime));
-            view.SetText(
-                HudTextId.PlayerHp,
-                $"체력  {session.Player.Health.CurrentHealth}/{session.Player.Health.MaxHealth}");
             if (session.Player.Progression.TryGetRequiredExperience(
                     out int requiredExperience))
             {
@@ -115,9 +115,11 @@ namespace SimpleGame
                 view.SetExperience(0, 0);
             }
 
-            view.SetGameOverDetails(
-                $"게임 종료\n점수 {session.Score} / " +
-                $"계정 경험치 {session.AccountExperience}");
+            view.SetGameOverDetails(session.FormatString(
+                GameStringIds.HudGameOverSummaryFormat,
+                "게임 종료\n점수 {0} / 계정 경험치 {1}",
+                session.Score,
+                session.AccountExperience));
         }
     }
 }

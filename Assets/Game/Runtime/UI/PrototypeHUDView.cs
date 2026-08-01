@@ -25,7 +25,6 @@ namespace SimpleGame
     public enum HudTextId
     {
         Time,
-        PlayerHp,
         Hint,
         Count
     }
@@ -34,7 +33,6 @@ namespace SimpleGame
     {
         [Header("Persistent HUD")]
         [SerializeField] private TMP_Text timeLabel;
-        [SerializeField] private TMP_Text playerHpLabel;
         [SerializeField] private TMP_Text hintLabel;
         [SerializeField] private Slider experienceSlider;
         [SerializeField] private TMP_Text experienceLabel;
@@ -56,21 +54,25 @@ namespace SimpleGame
             new LevelUpCardView[3];
         private GameObject cardSelectionPanel;
         private GameObject pauseDetailsPanel;
-        private TMP_Text pauseDetailsLabel;
-        private Toggle commandControlsToggle;
+        private GameObject settingsPage;
+        private TMP_Text playerOverviewLabel;
+        private TMP_Text accountOverviewLabel;
+        private TMP_Text playerStatsLabel;
+        private TMP_Text acquiredSkillsLabel;
         private Toggle autoAttackToggle;
+        private Image autoAttackTrack;
+        private RectTransform autoAttackKnob;
+        private Image autoAttackKnobImage;
+        private TMP_Text autoAttackValueLabel;
         private Button controlSettingsButton;
         private GameObject controlSettingsPanel;
-        private Image pauseDetailsBackground;
-        private Image controlSettingsBackground;
-        private Color pauseDetailsBackgroundColor;
-        private Color controlSettingsBackgroundColor;
+        private CanvasGroup settingsButtonGroup;
         private Slider joystickSizeSlider;
-        private Slider joystickHorizontalSlider;
-        private Slider joystickVerticalSlider;
         private Slider attackSizeSlider;
-        private Slider attackHorizontalSlider;
-        private Slider attackVerticalSlider;
+        private Button modeOneButton;
+        private Button modeTwoButton;
+        private Button hiddenModeButton;
+        private ControlLayoutDragSurface controlDragSurface;
         private GameObject gameOverPanel;
         private GameObject difficultySelectionPanel;
         private Button difficultyEasyButton;
@@ -80,7 +82,7 @@ namespace SimpleGame
         private bool cardChoicesInteractable;
         private bool hasCardRerollAlternative;
         private int remainingCardRerolls;
-        private string pauseDetails = string.Empty;
+        private PauseDetailsData pauseDetails;
         private string gameOverDetails = string.Empty;
         private bool commandControlsEnabled = true;
         private bool editingControlSettings;
@@ -89,6 +91,9 @@ namespace SimpleGame
         private Vector2 joystickBaseSize;
         private Vector2 attackBaseSize;
         private PlayerRoot aimControlsPlayer;
+        private GameStringTable gameStrings;
+        private string difficultyStageName = string.Empty;
+        private string difficultyStageDescription = string.Empty;
 
         public GameObject CardSelectionPanelPrefab =>
             cardSelectionPanelPrefab;
@@ -107,7 +112,6 @@ namespace SimpleGame
 
         public void Configure(
             TMP_Text configuredTimeLabel,
-            TMP_Text configuredPlayerHpLabel,
             TMP_Text configuredHintLabel,
             Slider configuredExperienceSlider,
             TMP_Text configuredExperienceLabel,
@@ -121,7 +125,6 @@ namespace SimpleGame
             GameObject configuredDifficultySelectionPanelPrefab)
         {
             timeLabel = configuredTimeLabel;
-            playerHpLabel = configuredPlayerHpLabel;
             hintLabel = configuredHintLabel;
             experienceSlider = configuredExperienceSlider;
             experienceLabel = configuredExperienceLabel;
@@ -140,6 +143,12 @@ namespace SimpleGame
 
         public void Initialize()
         {
+            Initialize(null);
+        }
+
+        public void Initialize(GameStringTable configuredGameStrings)
+        {
+            gameStrings = configuredGameStrings;
             ValidateConfiguration();
             cardChoicesInteractable = false;
             if (settingsButton != null)
@@ -152,13 +161,25 @@ namespace SimpleGame
             pendingControlSettings = controlSettings;
             commandControlsEnabled = controlSettings.controlsEnabled;
             ApplyControlLayout(controlSettings);
+            ApplyControlModePresentation(controlSettings.controlMode);
             ApplyCommandControlsVisibility(commandControlsEnabled);
+            ApplyPersistentStrings();
+        }
+
+        public void SetDifficultyContext(
+            string stageName,
+            string stageDescription)
+        {
+            difficultyStageName = stageName ?? string.Empty;
+            difficultyStageDescription = stageDescription ?? string.Empty;
+            ApplyDifficultyStrings();
         }
 
         public void InitializeAimControls(PlayerRoot player)
         {
             aimControlsPlayer = player;
             aimJoystick?.Initialize(player);
+            player?.SetControlMode(controlSettings.controlMode);
             player?.SetAutoAttackEnabled(
                 controlSettings.autoAttackEnabled);
         }
@@ -178,6 +199,7 @@ namespace SimpleGame
             MobileControlSettingsStore.Save(controlSettings);
             aimControlsPlayer?.SetAutoAttackEnabled(enabled);
             autoAttackToggle?.SetIsOnWithoutNotify(enabled);
+            RefreshAutoAttackSwitch();
         }
 
         private void ApplyCommandControlsVisibility(bool enabled)
@@ -194,7 +216,6 @@ namespace SimpleGame
                 attackButton.gameObject.SetActive(enabled);
             }
 
-            commandControlsToggle?.SetIsOnWithoutNotify(enabled);
         }
 
         public void Bind(HudButtonId id, Action callback)
@@ -213,7 +234,6 @@ namespace SimpleGame
             TMP_Text label = id switch
             {
                 HudTextId.Time => timeLabel,
-                HudTextId.PlayerHp => playerHpLabel,
                 HudTextId.Hint => hintLabel,
                 _ => null
             };
@@ -337,7 +357,9 @@ namespace SimpleGame
             if (required <= 0)
             {
                 experienceSlider.SetValueWithoutNotify(1f);
-                experienceLabel.text = "최대 레벨";
+                experienceLabel.text = Text(
+                    GameStringIds.HudMaxLevel,
+                    "최대 레벨");
                 return;
             }
 
@@ -345,17 +367,16 @@ namespace SimpleGame
             int remaining = Mathf.Max(0, required - clampedCurrent);
             experienceSlider.SetValueWithoutNotify(
                 (float)clampedCurrent / required);
-            experienceLabel.text =
-                $"다음 레벨까지 경험치 {remaining}";
+            experienceLabel.text = Format(
+                GameStringIds.HudExperienceRemainingFormat,
+                "다음 레벨까지 경험치 {0}",
+                remaining);
         }
 
-        public void SetPauseDetails(string value)
+        public void SetPauseDetails(PauseDetailsData value)
         {
             pauseDetails = value;
-            if (pauseDetailsLabel != null)
-            {
-                pauseDetailsLabel.text = value;
-            }
+            ApplyPauseDetails();
         }
 
         public void ShowPauseDetails(bool visible)
@@ -363,14 +384,15 @@ namespace SimpleGame
             if (visible)
             {
                 EnsurePauseDetailsPanel();
-                if (pauseDetailsLabel != null)
-                {
-                    pauseDetailsLabel.text = pauseDetails;
-                }
+                pendingControlSettings = controlSettings;
+                editingControlSettings = false;
+                ApplyPauseDetails();
+                RestoreAppliedControlPresentation();
+                SetControlSettingsPageVisible(false);
             }
-            else if (editingControlSettings)
+            else
             {
-                CancelControlSettings();
+                DiscardControlSettingsDraft();
             }
 
             if (pauseDetailsPanel != null)
@@ -380,6 +402,33 @@ namespace SimpleGame
                 {
                     pauseDetailsPanel.transform.SetAsLastSibling();
                 }
+            }
+        }
+
+        private void ApplyPauseDetails()
+        {
+            if (playerOverviewLabel != null)
+            {
+                playerOverviewLabel.text = pauseDetails.PlayerOverview;
+            }
+
+            if (accountOverviewLabel != null)
+            {
+                accountOverviewLabel.text = pauseDetails.AccountOverview;
+            }
+
+            if (playerStatsLabel != null)
+            {
+                playerStatsLabel.text = pauseDetails.Stats;
+            }
+
+            if (acquiredSkillsLabel != null)
+            {
+                acquiredSkillsLabel.text = pauseDetails.Skills;
+                RectTransform rect = acquiredSkillsLabel.rectTransform;
+                rect.sizeDelta = new Vector2(
+                    rect.sizeDelta.x,
+                    Mathf.Max(0f, acquiredSkillsLabel.preferredHeight));
             }
         }
 
@@ -413,6 +462,7 @@ namespace SimpleGame
                     choice.GetComponent<Button>();
                 cardChoiceViews[index] =
                     choice.GetComponent<LevelUpCardView>();
+                cardChoiceViews[index]?.ConfigureStrings(gameStrings);
                 cardRerollButtons[index] =
                     cardChoiceViews[index] != null
                         ? cardChoiceViews[index].RerollButton
@@ -436,6 +486,11 @@ namespace SimpleGame
                         (int)HudButtonId.CardReroll0 + index]);
             }
 
+            SetTextAtPath(
+                cardSelectionPanel.transform,
+                "CardTitle",
+                GameStringIds.UiCardSelectionTitle,
+                "레벨 업\n카드를 선택하세요");
             ApplyCardRerollState();
         }
 
@@ -475,6 +530,7 @@ namespace SimpleGame
             BindButton(
                 difficultyNormalButton,
                 buttonCallbacks[(int)HudButtonId.DifficultyNormal]);
+            ApplyDifficultyStrings();
         }
 
         private void EnsurePauseDetailsPanel()
@@ -487,150 +543,158 @@ namespace SimpleGame
 
             pauseDetailsPanel = InstantiatePopup(
                 pauseDetailsPanelPrefab);
-            Transform label =
-                pauseDetailsPanel.transform.Find("PauseDetails");
-            pauseDetailsLabel =
-                label != null ? label.GetComponent<TMP_Text>() : null;
-            if (pauseDetailsLabel == null)
-            {
-                Debug.LogError(
-                    "Pause prefab is missing PauseDetails text.",
-                    pauseDetailsPanel);
-            }
-
-            Transform toggle =
-                pauseDetailsPanel.transform.Find(
-                    "ControlPadToggle");
-            commandControlsToggle =
-                toggle != null
-                    ? toggle.GetComponent<Toggle>()
-                    : null;
-            if (commandControlsToggle == null)
-            {
-                Debug.LogError(
-                    "Pause prefab is missing ControlPadToggle.",
-                    pauseDetailsPanel);
-                return;
-            }
-
-            commandControlsToggle.SetIsOnWithoutNotify(
-                commandControlsEnabled);
-            commandControlsToggle.onValueChanged.AddListener(
-                SetCommandControlsEnabled);
-
-            Transform autoAttackToggleTransform =
-                pauseDetailsPanel.transform.Find(
-                    "AutoAttackToggle");
-            autoAttackToggle = autoAttackToggleTransform != null
-                ? autoAttackToggleTransform.GetComponent<Toggle>()
+            Transform root = pauseDetailsPanel.transform;
+            Transform settingsPageTransform = root.Find("SettingsPage");
+            settingsPage = settingsPageTransform != null
+                ? settingsPageTransform.gameObject
                 : null;
-            if (autoAttackToggle == null)
-            {
-                Debug.LogError(
-                    "Pause prefab is missing AutoAttackToggle.",
-                    pauseDetailsPanel);
-                return;
-            }
-
-            autoAttackToggle.SetIsOnWithoutNotify(
-                controlSettings.autoAttackEnabled);
-            autoAttackToggle.onValueChanged.AddListener(
-                SetAutoAttackEnabled);
+            playerOverviewLabel = FindText(
+                settingsPageTransform,
+                "PlayerOverview");
+            accountOverviewLabel = FindText(
+                settingsPageTransform,
+                "AccountOverview");
+            playerStatsLabel = FindText(
+                settingsPageTransform,
+                "PlayerStats");
+            acquiredSkillsLabel = FindText(
+                settingsPageTransform,
+                "SkillsPanel/Viewport/SkillsList");
 
             Transform settingsButtonTransform =
-                pauseDetailsPanel.transform.Find(
-                    "ControlSettingsButton");
+                root.Find("ControlSettingsButton");
             controlSettingsButton = settingsButtonTransform != null
                 ? settingsButtonTransform.GetComponent<Button>()
                 : null;
             Transform settingsPanelTransform =
-                pauseDetailsPanel.transform.Find(
-                    "ControlSettingsPanel");
+                root.Find("ControlSettingsPanel");
             controlSettingsPanel = settingsPanelTransform != null
                 ? settingsPanelTransform.gameObject
                 : null;
-            if (controlSettingsButton == null ||
-                controlSettingsPanel == null)
-            {
-                Debug.LogError(
-                    "Pause prefab is missing control settings UI.",
-                    pauseDetailsPanel);
-                return;
-            }
-
-            pauseDetailsBackground =
-                pauseDetailsPanel.GetComponent<Image>();
-            controlSettingsBackground =
-                controlSettingsPanel.GetComponent<Image>();
-            if (pauseDetailsBackground != null)
-            {
-                pauseDetailsBackgroundColor =
-                    pauseDetailsBackground.color;
-            }
-
-            if (controlSettingsBackground != null)
-            {
-                controlSettingsBackgroundColor =
-                    controlSettingsBackground.color;
-            }
+            Transform autoAttackToggleTransform =
+                settingsPanelTransform != null
+                    ? settingsPanelTransform.Find("AutoAttackToggle")
+                    : null;
+            autoAttackToggle = autoAttackToggleTransform != null
+                ? autoAttackToggleTransform.GetComponent<Toggle>()
+                : null;
+            autoAttackTrack = FindImage(
+                autoAttackToggleTransform,
+                "Track");
+            autoAttackKnobImage = FindImage(
+                autoAttackToggleTransform,
+                "Track/Knob");
+            autoAttackKnob = autoAttackKnobImage != null
+                ? autoAttackKnobImage.rectTransform
+                : null;
+            autoAttackValueLabel = FindText(
+                autoAttackToggleTransform,
+                "Value");
 
             joystickSizeSlider = FindControlSlider(
                 settingsPanelTransform,
                 "JoystickSizeSlider");
-            joystickHorizontalSlider = FindControlSlider(
-                settingsPanelTransform,
-                "JoystickHorizontalSlider");
-            joystickVerticalSlider = FindControlSlider(
-                settingsPanelTransform,
-                "JoystickVerticalSlider");
             attackSizeSlider = FindControlSlider(
                 settingsPanelTransform,
                 "AttackSizeSlider");
-            attackHorizontalSlider = FindControlSlider(
+            modeOneButton = FindControlButton(
                 settingsPanelTransform,
-                "AttackHorizontalSlider");
-            attackVerticalSlider = FindControlSlider(
+                "ControlModeButtons/Mode1Button");
+            modeTwoButton = FindControlButton(
                 settingsPanelTransform,
-                "AttackVerticalSlider");
+                "ControlModeButtons/Mode2Button");
+            hiddenModeButton = FindControlButton(
+                settingsPanelTransform,
+                "ControlModeButtons/HiddenButton");
             Button defaultsButton = FindControlButton(
                 settingsPanelTransform,
                 "ControlDefaultsButton");
-            Button cancelButton = FindControlButton(
-                settingsPanelTransform,
-                "ControlCancelButton");
             Button applyButton = FindControlButton(
                 settingsPanelTransform,
                 "ControlApplyButton");
-            if (joystickSizeSlider == null ||
-                joystickHorizontalSlider == null ||
-                joystickVerticalSlider == null ||
+            Transform dragSurfaceTransform = settingsPanelTransform != null
+                ? settingsPanelTransform.Find("ControlDragSurface")
+                : null;
+            controlDragSurface = dragSurfaceTransform != null
+                ? dragSurfaceTransform.GetComponent<ControlLayoutDragSurface>()
+                : null;
+
+            if (settingsPage == null ||
+                playerOverviewLabel == null ||
+                accountOverviewLabel == null ||
+                playerStatsLabel == null ||
+                acquiredSkillsLabel == null ||
+                controlSettingsButton == null ||
+                controlSettingsPanel == null ||
+                autoAttackToggle == null ||
+                autoAttackTrack == null ||
+                autoAttackKnob == null ||
+                autoAttackValueLabel == null ||
+                joystickSizeSlider == null ||
                 attackSizeSlider == null ||
-                attackHorizontalSlider == null ||
-                attackVerticalSlider == null ||
+                modeOneButton == null ||
+                modeTwoButton == null ||
+                hiddenModeButton == null ||
                 defaultsButton == null ||
-                cancelButton == null ||
-                applyButton == null)
+                applyButton == null ||
+                controlDragSurface == null)
             {
                 Debug.LogError(
-                    "Control settings panel references are incomplete.",
+                    "Pause prefab settings references are incomplete.",
                     pauseDetailsPanel);
                 return;
             }
 
-            BindButton(controlSettingsButton, OpenControlSettings);
+            settingsButtonGroup = settingsButton.GetComponent<CanvasGroup>();
+            if (settingsButtonGroup == null)
+            {
+                settingsButtonGroup =
+                    settingsButton.gameObject.AddComponent<CanvasGroup>();
+            }
+
+            BindButton(controlSettingsButton, ToggleControlSettingsPage);
             BindButton(defaultsButton, RestoreDefaultControlSettings);
-            BindButton(cancelButton, CancelControlSettings);
             BindButton(applyButton, ApplyPendingControlSettings);
+            BindButton(
+                modeOneButton,
+                () => SelectControlMode(
+                    MobileControlMode.DirectMoveAutoAim));
+            BindButton(
+                modeTwoButton,
+                () => SelectControlMode(MobileControlMode.AimCommand));
+            BindButton(hiddenModeButton, SelectHiddenControlMode);
+            autoAttackToggle.onValueChanged.RemoveAllListeners();
+            autoAttackToggle.onValueChanged.AddListener(
+                OnAutoAttackDraftChanged);
             BindControlSettingSliders();
-            ArrangeControlSettingsPanel();
+            controlDragSurface.Configure(
+                aimJoystick != null ? aimJoystick.TouchArea : null,
+                attackButton != null
+                    ? attackButton.GetComponent<RectTransform>()
+                    : null,
+                OnControlDragged);
+            ApplyPauseStrings();
+            ApplyPauseDetails();
             SetControlSettingsPageVisible(false);
+        }
+
+        private static TMP_Text FindText(Transform parent, string path)
+        {
+            Transform child = parent != null ? parent.Find(path) : null;
+            return child != null ? child.GetComponent<TMP_Text>() : null;
+        }
+
+        private static Image FindImage(Transform parent, string path)
+        {
+            Transform child = parent != null ? parent.Find(path) : null;
+            return child != null ? child.GetComponent<Image>() : null;
         }
 
         private static Slider FindControlSlider(
             Transform parent,
             string name)
         {
-            Transform child = parent.Find(name);
+            Transform child = parent != null ? parent.Find(name) : null;
             return child != null ? child.GetComponent<Slider>() : null;
         }
 
@@ -638,7 +702,7 @@ namespace SimpleGame
             Transform parent,
             string name)
         {
-            Transform child = parent.Find(name);
+            Transform child = parent != null ? parent.Find(name) : null;
             return child != null ? child.GetComponent<Button>() : null;
         }
 
@@ -650,30 +714,10 @@ namespace SimpleGame
                 MobileControlSettingsStore.MaximumScale,
                 OnJoystickSizeChanged);
             ConfigureControlSlider(
-                joystickHorizontalSlider,
-                0f,
-                1f,
-                OnJoystickHorizontalChanged);
-            ConfigureControlSlider(
-                joystickVerticalSlider,
-                0f,
-                1f,
-                OnJoystickVerticalChanged);
-            ConfigureControlSlider(
                 attackSizeSlider,
                 MobileControlSettingsStore.MinimumScale,
                 MobileControlSettingsStore.MaximumScale,
                 OnAttackSizeChanged);
-            ConfigureControlSlider(
-                attackHorizontalSlider,
-                0f,
-                1f,
-                OnAttackHorizontalChanged);
-            ConfigureControlSlider(
-                attackVerticalSlider,
-                0f,
-                1f,
-                OnAttackVerticalChanged);
         }
 
         private static void ConfigureControlSlider(
@@ -689,101 +733,116 @@ namespace SimpleGame
             slider.onValueChanged.AddListener(callback);
         }
 
-        private void OpenControlSettings()
+        private void ToggleControlSettingsPage()
         {
-            pendingControlSettings = controlSettings;
+            if (editingControlSettings)
+            {
+                CloseControlSettingsPage();
+            }
+            else
+            {
+                OpenControlSettingsPage();
+            }
+        }
+
+        private void OpenControlSettingsPage()
+        {
             editingControlSettings = true;
-            SynchronizeControlSettingSliders();
+            SynchronizeControlSettingsUi();
             ApplyControlLayout(pendingControlSettings);
-            ApplyCommandControlsVisibility(true);
+            ApplyControlModePresentation(
+                pendingControlSettings.controlMode);
+            ApplyCommandControlsVisibility(
+                pendingControlSettings.controlsEnabled);
             SetControlSettingsPageVisible(true);
+        }
+
+        private void CloseControlSettingsPage()
+        {
+            editingControlSettings = false;
+            RestoreAppliedControlPresentation();
+            SetControlSettingsPageVisible(false);
         }
 
         private void RestoreDefaultControlSettings()
         {
-            bool controlsEnabled = commandControlsEnabled;
-            bool autoAttackEnabled =
-                controlSettings.autoAttackEnabled;
             pendingControlSettings = MobileControlSettings.Default;
-            pendingControlSettings.controlsEnabled = controlsEnabled;
-            pendingControlSettings.autoAttackEnabled =
-                autoAttackEnabled;
-            SynchronizeControlSettingSliders();
-            ApplyControlLayout(pendingControlSettings);
+            SynchronizeControlSettingsUi();
+            PreviewPendingControlSettings();
         }
 
         private void ApplyPendingControlSettings()
         {
+            MobileControlMode previousMode =
+                controlSettings.controlMode;
             controlSettings = MobileControlSettingsStore.Clamp(
                 pendingControlSettings);
-            controlSettings.controlsEnabled = commandControlsEnabled;
+            commandControlsEnabled = controlSettings.controlsEnabled;
             pendingControlSettings = controlSettings;
             MobileControlSettingsStore.Save(controlSettings);
             editingControlSettings = false;
-            ApplyControlLayout(controlSettings);
-            ApplyCommandControlsVisibility(commandControlsEnabled);
+            if (previousMode != controlSettings.controlMode ||
+                !commandControlsEnabled)
+            {
+                aimJoystick?.CancelInput();
+            }
+
+            aimControlsPlayer?.SetControlMode(
+                controlSettings.controlMode);
+            aimControlsPlayer?.SetAutoAttackEnabled(
+                controlSettings.autoAttackEnabled);
+            RestoreAppliedControlPresentation();
             SetControlSettingsPageVisible(false);
         }
 
-        private void CancelControlSettings()
+        private void DiscardControlSettingsDraft()
         {
             pendingControlSettings = controlSettings;
             editingControlSettings = false;
-            ApplyControlLayout(controlSettings);
-            ApplyCommandControlsVisibility(commandControlsEnabled);
+            RestoreAppliedControlPresentation();
             SetControlSettingsPageVisible(false);
+        }
+
+        private void RestoreAppliedControlPresentation()
+        {
+            ApplyControlModePresentation(
+                controlSettings.controlMode);
+            ApplyControlLayout(controlSettings);
+            ApplyCommandControlsVisibility(
+                controlSettings.controlsEnabled);
         }
 
         private void SetControlSettingsPageVisible(bool visible)
         {
-            pauseDetailsLabel?.gameObject.SetActive(!visible);
-            commandControlsToggle?.gameObject.SetActive(!visible);
-            autoAttackToggle?.gameObject.SetActive(!visible);
-            controlSettingsButton?.gameObject.SetActive(!visible);
+            settingsPage?.SetActive(!visible);
             controlSettingsPanel?.SetActive(visible);
-            SetPreviewBackgroundAlpha(visible);
-        }
-
-        private void SetPreviewBackgroundAlpha(bool previewVisible)
-        {
-            if (pauseDetailsBackground != null)
+            if (settingsButton != null)
             {
-                Color color = pauseDetailsBackgroundColor;
-                if (previewVisible)
-                {
-                    color.a = 0.12f;
-                }
-
-                pauseDetailsBackground.color = color;
+                settingsButton.interactable = !visible;
             }
 
-            if (controlSettingsBackground != null)
+            if (settingsButtonGroup != null)
             {
-                Color color = controlSettingsBackgroundColor;
-                if (previewVisible)
-                {
-                    color.a = 0.45f;
-                }
-
-                controlSettingsBackground.color = color;
+                settingsButtonGroup.alpha = visible ? 0.35f : 1f;
+                settingsButtonGroup.interactable = !visible;
+                settingsButtonGroup.blocksRaycasts = !visible;
             }
+
+            controlDragSurface?.SetDragEnabled(
+                visible && pendingControlSettings.controlsEnabled);
         }
 
-        private void SynchronizeControlSettingSliders()
+        private void SynchronizeControlSettingsUi()
         {
             joystickSizeSlider.SetValueWithoutNotify(
                 pendingControlSettings.joystickScale);
-            joystickHorizontalSlider.SetValueWithoutNotify(
-                pendingControlSettings.joystickPosition.x);
-            joystickVerticalSlider.SetValueWithoutNotify(
-                pendingControlSettings.joystickPosition.y);
             attackSizeSlider.SetValueWithoutNotify(
                 pendingControlSettings.attackScale);
-            attackHorizontalSlider.SetValueWithoutNotify(
-                pendingControlSettings.attackPosition.x);
-            attackVerticalSlider.SetValueWithoutNotify(
-                pendingControlSettings.attackPosition.y);
+            autoAttackToggle.SetIsOnWithoutNotify(
+                pendingControlSettings.autoAttackEnabled);
             RefreshControlSettingLabels();
+            ApplyControlModePresentation(
+                pendingControlSettings.controlMode);
         }
 
         private void OnJoystickSizeChanged(float value)
@@ -792,15 +851,22 @@ namespace SimpleGame
             PreviewPendingControlSettings();
         }
 
-        private void OnJoystickHorizontalChanged(float value)
+        private void OnAutoAttackDraftChanged(bool enabled)
         {
-            pendingControlSettings.joystickPosition.x = value;
+            pendingControlSettings.autoAttackEnabled = enabled;
+            RefreshAutoAttackSwitch();
+        }
+
+        private void SelectControlMode(MobileControlMode mode)
+        {
+            pendingControlSettings.controlsEnabled = true;
+            pendingControlSettings.controlMode = mode;
             PreviewPendingControlSettings();
         }
 
-        private void OnJoystickVerticalChanged(float value)
+        private void SelectHiddenControlMode()
         {
-            pendingControlSettings.joystickPosition.y = value;
+            pendingControlSettings.controlsEnabled = false;
             PreviewPendingControlSettings();
         }
 
@@ -810,24 +876,19 @@ namespace SimpleGame
             PreviewPendingControlSettings();
         }
 
-        private void OnAttackHorizontalChanged(float value)
-        {
-            pendingControlSettings.attackPosition.x = value;
-            PreviewPendingControlSettings();
-        }
-
-        private void OnAttackVerticalChanged(float value)
-        {
-            pendingControlSettings.attackPosition.y = value;
-            PreviewPendingControlSettings();
-        }
-
         private void PreviewPendingControlSettings()
         {
             pendingControlSettings = MobileControlSettingsStore.Clamp(
                 pendingControlSettings);
             RefreshControlSettingLabels();
             ApplyControlLayout(pendingControlSettings);
+            ApplyControlModePresentation(
+                pendingControlSettings.controlMode);
+            ApplyCommandControlsVisibility(
+                pendingControlSettings.controlsEnabled);
+            controlDragSurface?.SetDragEnabled(
+                editingControlSettings &&
+                pendingControlSettings.controlsEnabled);
         }
 
         private void RefreshControlSettingLabels()
@@ -836,20 +897,10 @@ namespace SimpleGame
                 joystickSizeSlider,
                 pendingControlSettings.joystickScale);
             SetControlSettingLabel(
-                joystickHorizontalSlider,
-                pendingControlSettings.joystickPosition.x);
-            SetControlSettingLabel(
-                joystickVerticalSlider,
-                pendingControlSettings.joystickPosition.y);
-            SetControlSettingLabel(
                 attackSizeSlider,
                 pendingControlSettings.attackScale);
-            SetControlSettingLabel(
-                attackHorizontalSlider,
-                pendingControlSettings.attackPosition.x);
-            SetControlSettingLabel(
-                attackVerticalSlider,
-                pendingControlSettings.attackPosition.y);
+            RefreshControlModeButtons();
+            RefreshAutoAttackSwitch();
         }
 
         private static void SetControlSettingLabel(
@@ -866,90 +917,142 @@ namespace SimpleGame
             }
         }
 
-        private void ArrangeControlSettingsPanel()
+        private void RefreshControlModeButtons()
         {
-            RectTransform panelRect = controlSettingsPanel != null
-                ? controlSettingsPanel.GetComponent<RectTransform>()
-                : null;
-            if (panelRect == null ||
-                panelRect.rect.width <= 0f ||
-                panelRect.rect.height <= 0f)
-            {
-                return;
-            }
-
-            Vector2 panelSize = panelRect.rect.size;
-            float sliderWidth =
-                MobileControlSettingsStore
-                    .CalculateSettingsSliderWidth(panelSize);
-            ArrangeControlSlider(
-                joystickSizeSlider,
-                panelSize,
-                false,
-                0,
-                sliderWidth);
-            ArrangeControlSlider(
-                joystickHorizontalSlider,
-                panelSize,
-                false,
-                1,
-                sliderWidth);
-            ArrangeControlSlider(
-                joystickVerticalSlider,
-                panelSize,
-                false,
-                2,
-                sliderWidth);
-            ArrangeControlSlider(
-                attackSizeSlider,
-                panelSize,
-                true,
-                0,
-                sliderWidth);
-            ArrangeControlSlider(
-                attackHorizontalSlider,
-                panelSize,
-                true,
-                1,
-                sliderWidth);
-            ArrangeControlSlider(
-                attackVerticalSlider,
-                panelSize,
-                true,
-                2,
-                sliderWidth);
+            bool hidden = !pendingControlSettings.controlsEnabled;
+            SetControlModeButtonSelected(
+                modeOneButton,
+                !hidden && pendingControlSettings.controlMode ==
+                    MobileControlMode.DirectMoveAutoAim);
+            SetControlModeButtonSelected(
+                modeTwoButton,
+                !hidden && pendingControlSettings.controlMode ==
+                    MobileControlMode.AimCommand);
+            SetControlModeButtonSelected(hiddenModeButton, hidden);
         }
 
-        private static void ArrangeControlSlider(
-            Slider slider,
-            Vector2 panelSize,
-            bool attackControl,
-            int row,
-            float width)
+        private static void SetControlModeButtonSelected(
+            Button button,
+            bool selected)
         {
-            if (slider == null)
+            Image image = button != null
+                ? button.GetComponent<Image>()
+                : null;
+            if (image != null)
+            {
+                image.color = selected
+                    ? new Color(0.16f, 0.56f, 0.92f, 0.98f)
+                    : new Color(0.23f, 0.27f, 0.31f, 0.94f);
+            }
+        }
+
+        private void RefreshAutoAttackSwitch()
+        {
+            if (autoAttackToggle == null)
             {
                 return;
             }
 
-            RectTransform rect =
-                slider.GetComponent<RectTransform>();
-            rect.anchoredPosition =
-                MobileControlSettingsStore
-                    .CalculateSettingsSliderPosition(
-                        panelSize,
-                        attackControl,
-                        row);
-            rect.sizeDelta = new Vector2(width, rect.sizeDelta.y);
-            Transform labelTransform = slider.transform.Find("Label");
-            RectTransform labelRect = labelTransform != null
-                ? labelTransform.GetComponent<RectTransform>()
-                : null;
-            if (labelRect != null)
+            bool enabled = pendingControlSettings.autoAttackEnabled;
+            autoAttackToggle.SetIsOnWithoutNotify(enabled);
+            if (autoAttackTrack != null)
             {
-                labelRect.sizeDelta = new Vector2(
-                    Mathf.Max(140f, width - 140f),
-                    labelRect.sizeDelta.y);
+                autoAttackTrack.color = enabled
+                    ? new Color(0.16f, 0.56f, 0.92f, 1f)
+                    : new Color(0.34f, 0.36f, 0.39f, 1f);
+            }
+
+            if (autoAttackKnob != null)
+            {
+                Vector2 position = autoAttackKnob.anchoredPosition;
+                position.x = enabled ? 32f : -32f;
+                autoAttackKnob.anchoredPosition = position;
+            }
+
+            if (autoAttackKnobImage != null)
+            {
+                autoAttackKnobImage.color = enabled
+                    ? new Color(0.52f, 0.78f, 1f, 1f)
+                    : new Color(0.62f, 0.63f, 0.65f, 1f);
+            }
+
+            if (autoAttackValueLabel != null)
+            {
+                autoAttackValueLabel.text = enabled
+                    ? Text(GameStringIds.UiAutoAttackOn, "On")
+                    : Text(GameStringIds.UiAutoAttackOff, "Off");
+            }
+        }
+
+        private void OnControlDragged(
+            ControlLayoutDragTarget target,
+            Vector2 screenPoint,
+            Camera eventCamera)
+        {
+            RectTransform control = target ==
+                ControlLayoutDragTarget.Joystick
+                    ? aimJoystick?.TouchArea
+                    : attackButton != null
+                        ? attackButton.GetComponent<RectTransform>()
+                        : null;
+            RectTransform parent = control != null
+                ? control.parent as RectTransform
+                : null;
+            if (parent == null ||
+                !RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parent,
+                    screenPoint,
+                    eventCamera,
+                    out Vector2 localPoint))
+            {
+                return;
+            }
+
+            Vector2 baseSize = target == ControlLayoutDragTarget.Joystick
+                ? joystickBaseSize
+                : attackBaseSize;
+            float scale = target == ControlLayoutDragTarget.Joystick
+                ? pendingControlSettings.joystickScale
+                : pendingControlSettings.attackScale;
+            Rect safeArea = MobileControlSettingsStore
+                .CalculateSafeAreaInParent(
+                    parent.rect,
+                    Screen.safeArea,
+                    new Vector2(Screen.width, Screen.height));
+            Vector2 normalized = MobileControlSettingsStore
+                .CalculateNormalizedPosition(
+                    safeArea,
+                    baseSize,
+                    scale,
+                    localPoint);
+            if (target == ControlLayoutDragTarget.Joystick)
+            {
+                pendingControlSettings.joystickPosition = normalized;
+            }
+            else
+            {
+                pendingControlSettings.attackPosition = normalized;
+            }
+
+            PreviewPendingControlSettings();
+        }
+
+        private void ApplyControlModePresentation(
+            MobileControlMode mode)
+        {
+            TMP_Text label = attackButton != null
+                ? attackButton.GetComponentInChildren<TMP_Text>(true)
+                : null;
+            if (label != null)
+            {
+                label.text = mode ==
+                    MobileControlMode.DirectMoveAutoAim
+                        ? Text(
+                            GameStringIds.UiAutoAimButton,
+                            "자동 조준")
+                        : Text(
+                            GameStringIds.UiAttackButton,
+                            "공격");
             }
         }
 
@@ -980,9 +1083,21 @@ namespace SimpleGame
                     gameOverPanel);
             }
 
+            if (gameOverTitle != null &&
+                string.IsNullOrWhiteSpace(gameOverDetails))
+            {
+                gameOverTitle.text = Text(
+                    GameStringIds.UiGameOverTitle,
+                    "게임 종료");
+            }
+
             BindButton(
                 continueButton,
                 buttonCallbacks[(int)HudButtonId.ContinueAd]);
+            SetButtonText(
+                continueButton,
+                GameStringIds.UiContinueButton,
+                "이어하기");
         }
 
         private GameObject InstantiatePopup(GameObject prefab)
@@ -1077,6 +1192,212 @@ namespace SimpleGame
             }
         }
 
+        private void ApplyPersistentStrings()
+        {
+            SetButtonText(
+                settingsButton,
+                GameStringIds.UiSettingsButton,
+                "설정");
+            ApplyControlModePresentation(controlSettings.controlMode);
+        }
+
+        private void ApplyDifficultyStrings()
+        {
+            if (difficultySelectionPanel == null)
+            {
+                return;
+            }
+
+            Transform root = difficultySelectionPanel.transform;
+            SetTextAtPath(
+                root,
+                "DifficultyTitle",
+                GameStringIds.UiDifficultyTitle,
+                "난이도 선택");
+
+            Transform descriptionTransform = root.Find(
+                "DifficultyDescription");
+            TMP_Text description = descriptionTransform != null
+                ? descriptionTransform.GetComponent<TMP_Text>()
+                : null;
+            if (description != null)
+            {
+                description.text = Format(
+                    GameStringIds.UiDifficultyStageFormat,
+                    "{0}\n{1}\n난이도는 이번 게임의 적 수와 " +
+                    "적 레벨에 적용됩니다.",
+                    difficultyStageName,
+                    difficultyStageDescription);
+            }
+
+            string optionFallback = "{0}\n{1}";
+            SetButtonText(
+                difficultyEasyButton,
+                Format(
+                    GameStringIds.UiDifficultyOptionFormat,
+                    optionFallback,
+                    Text(
+                        GameStringIds.DifficultyEasyName,
+                        "쉬움"),
+                    Text(
+                        GameStringIds.DifficultyEasyDescription,
+                        "적 수 75% · 적 레벨 80%")));
+            SetButtonText(
+                difficultyNormalButton,
+                Format(
+                    GameStringIds.UiDifficultyOptionFormat,
+                    optionFallback,
+                    Text(
+                        GameStringIds.DifficultyNormalName,
+                        "보통"),
+                    Text(
+                        GameStringIds.DifficultyNormalDescription,
+                        "현재 밸런스")));
+        }
+
+        private void ApplyPauseStrings()
+        {
+            if (pauseDetailsPanel == null)
+            {
+                return;
+            }
+
+            Transform root = pauseDetailsPanel.transform;
+            SetTextAtPath(
+                root,
+                "SettingsPage/PlayerStatsTitle",
+                GameStringIds.PauseStatsTitle,
+                "현재 스탯");
+            SetTextAtPath(
+                root,
+                "SettingsPage/SkillsTitle",
+                GameStringIds.PauseSkillsTitle,
+                "획득한 스킬");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/AutoAttackToggle/Label",
+                GameStringIds.UiAutoAttack,
+                "자동 공격");
+            SetTextAtPath(
+                root,
+                "ControlSettingsButton/Label",
+                GameStringIds.UiControlButton,
+                "조작");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/ControlSettingsTitle",
+                GameStringIds.UiControlTitle,
+                "조작 패널 설정");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/JoystickSizeSlider/Label",
+                GameStringIds.UiJoystickSize,
+                "왼쪽 조이스틱 크기");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/AttackSizeSlider/Label",
+                GameStringIds.UiAttackSize,
+                "오른쪽 공격 버튼 크기");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/ControlModeLabel",
+                GameStringIds.UiControlMode,
+                "조작 모드");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/ControlModeButtons/Mode1Button/Label",
+                GameStringIds.ControlModeOneName,
+                "모드 1");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/ControlModeButtons/Mode2Button/Label",
+                GameStringIds.ControlModeTwoName,
+                "모드 2");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/ControlModeButtons/HiddenButton/Label",
+                GameStringIds.ControlModeHiddenName,
+                "숨기기");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/ControlDefaultsButton/Label",
+                GameStringIds.UiDefaults,
+                "기본값");
+            SetTextAtPath(
+                root,
+                "ControlSettingsPanel/ControlApplyButton/Label",
+                GameStringIds.UiApply,
+                "적용");
+            RefreshControlSettingLabels();
+        }
+
+        private string Text(string stringId, string fallback)
+        {
+            return gameStrings != null
+                ? gameStrings.Get(stringId, fallback)
+                : fallback;
+        }
+
+        private string Format(
+            string stringId,
+            string fallbackTemplate,
+            params object[] arguments)
+        {
+            if (gameStrings != null)
+            {
+                return gameStrings.Format(
+                    stringId,
+                    fallbackTemplate,
+                    arguments);
+            }
+
+            try
+            {
+                return string.Format(
+                    fallbackTemplate,
+                    arguments ?? Array.Empty<object>());
+            }
+            catch (FormatException)
+            {
+                return fallbackTemplate;
+            }
+        }
+
+        private void SetTextAtPath(
+            Transform root,
+            string path,
+            string stringId,
+            string fallback)
+        {
+            Transform child = root != null ? root.Find(path) : null;
+            TMP_Text label = child != null
+                ? child.GetComponent<TMP_Text>()
+                : null;
+            if (label != null)
+            {
+                label.text = Text(stringId, fallback);
+            }
+        }
+
+        private static void SetButtonText(Button button, string value)
+        {
+            TMP_Text label = button != null
+                ? button.GetComponentInChildren<TMP_Text>(true)
+                : null;
+            if (label != null)
+            {
+                label.text = value;
+            }
+        }
+
+        private void SetButtonText(
+            Button button,
+            string stringId,
+            string fallback)
+        {
+            SetButtonText(button, Text(stringId, fallback));
+        }
+
         private static void BindButton(
             Button button,
             Action callback)
@@ -1169,7 +1490,6 @@ namespace SimpleGame
 
         private void OnRectTransformDimensionsChange()
         {
-            ArrangeControlSettingsPanel();
             if (joystickBaseSize.x <= 0f || attackBaseSize.x <= 0f)
             {
                 return;
@@ -1184,7 +1504,6 @@ namespace SimpleGame
         private void ValidateConfiguration()
         {
             if (timeLabel == null ||
-                playerHpLabel == null ||
                 hintLabel == null ||
                 experienceSlider == null ||
                 experienceLabel == null ||

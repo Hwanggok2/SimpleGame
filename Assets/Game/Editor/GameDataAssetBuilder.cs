@@ -35,6 +35,8 @@ namespace SimpleGameEditor
             GeneratedPath + "/PlayerBalanceTable.asset";
         private const string LevelUpCardPath =
             GeneratedPath + "/LevelUpCardTable.asset";
+        private const string GameStringPath =
+            GeneratedPath + "/GameStringTable.asset";
 
         [MenuItem("SimpleGame/Data/Create or Update Data Assets")]
         public static void BuildAndWireActiveScene()
@@ -234,6 +236,11 @@ namespace SimpleGameEditor
                 levelUpCards.Configure(CreateDefaultLevelUpCards());
             }
 
+            GameStringTable gameStrings =
+                CreateOrLoad<GameStringTable>(
+                    GameStringPath,
+                    out _);
+
             EnemyAssetCatalog enemyCatalog =
                 CreateOrLoad<EnemyAssetCatalog>(
                     EnemyCatalogPath,
@@ -289,7 +296,8 @@ namespace SimpleGameEditor
                 playerBalance,
                 levelUpCards,
                 enemyCatalog,
-                feedback);
+                feedback,
+                gameStrings);
 
             MarkDirty(
                 enemyBalance,
@@ -299,6 +307,7 @@ namespace SimpleGameEditor
                 globalBalance,
                 playerBalance,
                 levelUpCards,
+                gameStrings,
                 enemyCatalog,
                 feedback,
                 manifest);
@@ -572,7 +581,7 @@ namespace SimpleGameEditor
                     80,
                     2,
                     string.Empty,
-                    "희귀",
+                    "일반",
                     "ICON_SPEED",
                     true),
                 new LevelUpCardDefinition(
@@ -588,14 +597,14 @@ namespace SimpleGameEditor
                     70,
                     3,
                     string.Empty,
-                    "희귀",
+                    "일반",
                     "ICON_RANGE",
                     true),
                 new LevelUpCardDefinition(
                     "PIERCING_UP",
                     "CARD_PIERCING_NAME",
                     "관통",
-                    "0.4초 판정창 동안 적 1명을 추가로 관통합니다. 반복 공격해도 판정창이 끝날 때까지 카드 레벨만큼만 추가 관통하며, 최대 5명입니다.",
+                    "일반 공격은 0.4초 판정창마다 카드 레벨만큼 주 대상 뒤의 적에게 추가 피해를 줍니다. 이동 관통은 카드 레벨만큼 적을 지나간 뒤 0.4초 후 횟수가 재충전되며, 이동 입력을 유지하는 중에도 충전됩니다. 공격 관통 수와 이동 관통 수는 서로 별도로 소비합니다.",
                     LevelUpCardEffectType.UpgradeRank,
                     PlayerStatId.Piercing,
                     StatOperation.Add,
@@ -604,14 +613,14 @@ namespace SimpleGameEditor
                     90,
                     2,
                     string.Empty,
-                    "일반",
+                    "희귀",
                     "ICON_PIERCING",
                     true),
                 new LevelUpCardDefinition(
                     "SEVER_TRAIL",
                     "CARD_SEVER_NAME",
                     "절단",
-                    "실제 관통 0.3초 뒤 관통 시작 위치부터 현재 위치까지 검은 절단선을 만듭니다. 선은 0.1초 동안 사라지며 재사용 대기시간은 0.1초, 피해는 공격력의 2배입니다.",
+                    "실제 이동 관통 0.3초 뒤 관통 시작 위치부터 현재 위치까지 검은 절단선을 만듭니다. 선은 0.1초 동안 사라지며 재사용 대기시간은 0.1초, 피해는 공격력의 2배입니다.",
                     LevelUpCardEffectType.UpgradeRank,
                     PlayerStatId.Sever,
                     StatOperation.Add,
@@ -620,7 +629,7 @@ namespace SimpleGameEditor
                     45,
                     3,
                     "PIERCING_UP",
-                    "영웅",
+                    "에픽",
                     "ICON_SEVER",
                     true),
                 new LevelUpCardDefinition(
@@ -633,7 +642,7 @@ namespace SimpleGameEditor
                     StatOperation.Add,
                     2f,
                     3,
-                    60,
+                    55,
                     4,
                     string.Empty,
                     "희귀",
@@ -659,7 +668,7 @@ namespace SimpleGameEditor
                     "MOVING_SLASH",
                     "CARD_MOVING_SLASH_NAME",
                     "참격",
-                    "이동 시 초승달 검기를 생성합니다. 레벨마다 피해·크기·사거리·최대 타격 수가 증가합니다. 1~5레벨: 피해 1.8/2.15/2.5/2.85/3.2배, 크기 100/115/130/145/160%, 사거리 6/7.5/9/10.5/12, 최대 타격 2/3/4/5/6.",
+                    "기본 공격 시 주 대상 방향으로 초승달 검기의 발동을 판정합니다. 방패에 막힌 공격도 판정하고 연속 발동할 수 있으며, 추가 피해로는 재발동하지 않습니다. 1~5레벨: 확률 15/19.5/24/28.5/33%, 피해 1.8/2.15/2.5/2.85/3.2배, 크기 100/115/130/145/160%, 사거리 6/7.5/9/10.5/12, 최대 타격 2/3/4/5/6.",
                     LevelUpCardEffectType.UpgradeRank,
                     PlayerStatId.MovingSlash,
                     StatOperation.Add,
@@ -683,7 +692,7 @@ namespace SimpleGameEditor
                         .FilthThrowBaseDamageMultiplier,
                     PlayerCombatAbilities
                         .FilthThrowMaximumLevel,
-                    55,
+                    60,
                     3,
                     string.Empty,
                     "희귀",
@@ -736,7 +745,58 @@ namespace SimpleGameEditor
                     "FLYING_SWORD_COUNT",
                     "희귀",
                     "ICON_FLYING_SWORD_HITS",
-                    true)
+                    true),
+                new LevelUpCardDefinition(
+                    "FUSION_FLYING_SWORD_PIERCING",
+                    "CARD_FUSION_FLYING_SWORD_PIERCING_NAME",
+                    "이기어검·관통 융합",
+                    "이기어검이 경로상의 모든 적을 관통합니다.",
+                    LevelUpCardEffectType.Fusion,
+                    PlayerStatId.FlyingSwordPiercingFusion,
+                    StatOperation.Add,
+                    1f,
+                    1,
+                    10,
+                    1,
+                    string.Empty,
+                    "레전더리",
+                    "ICON_FLYING_SWORD_COUNT",
+                    true,
+                    "FLYING_SWORD_COUNT|FLYING_SWORD_HITS|PIERCING_UP"),
+                new LevelUpCardDefinition(
+                    "FUSION_FLYING_SWORD_STATIC",
+                    "CARD_FUSION_FLYING_SWORD_STATIC_NAME",
+                    "이기어검·정전기 융합",
+                    "이기어검에 적중한 각 적을 중심으로 정전기가 발생합니다.",
+                    LevelUpCardEffectType.Fusion,
+                    PlayerStatId.FlyingSwordStaticFusion,
+                    StatOperation.Add,
+                    1f,
+                    1,
+                    10,
+                    1,
+                    string.Empty,
+                    "레전더리",
+                    "ICON_STATIC",
+                    true,
+                    "FLYING_SWORD_COUNT|FLYING_SWORD_HITS|STATIC_CHARGE"),
+                new LevelUpCardDefinition(
+                    "FUSION_STATIC_FILTH",
+                    "CARD_FUSION_STATIC_FILTH_NAME",
+                    "정전기·오물 투척 융합",
+                    "오물에 처음 적중한 각 적을 중심으로 정전기가 발생합니다.",
+                    LevelUpCardEffectType.Fusion,
+                    PlayerStatId.StaticFilthFusion,
+                    StatOperation.Add,
+                    1f,
+                    1,
+                    10,
+                    1,
+                    string.Empty,
+                    "레전더리",
+                    "ICON_FILTH_THROW",
+                    true,
+                    "STATIC_CHARGE|FILTH_THROW")
             };
         }
 

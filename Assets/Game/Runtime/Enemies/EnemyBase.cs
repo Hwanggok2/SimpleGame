@@ -270,18 +270,37 @@ namespace SimpleGame
                 (Vector2)attacker.transform.position -
                 (Vector2)transform.position;
 
-            string enemyName =
+            string fallbackEnemyName =
                 PrototypeEnemyDefinitions.GetDisplayName(
                     Definition.EnemyId,
                     Archetype);
+            string enemyName = Session.GetString(
+                GameStringIds.EnemyName(Definition.EnemyId),
+                fallbackEnemyName);
             string sideText = side == AttackSide.Front
-                ? "정면"
-                : "후면";
+                ? Session.GetString(
+                    GameStringIds.CombatSideFront,
+                    "정면")
+                : Session.GetString(
+                    GameStringIds.CombatSideRear,
+                    "후면");
             string resultText = damaged
-                ? $"{enemyName} 레벨 {level}: {sideText} " +
-                    $"{(critical ? "치명타 " : string.Empty)}" +
-                    $"피해 {result.Damage:0.##}"
-                : $"{enemyName} 레벨 {level}: 정면 방어";
+                ? Session.FormatString(
+                    critical
+                        ? GameStringIds.HintEnemyCriticalDamageFormat
+                        : GameStringIds.HintEnemyDamageFormat,
+                    critical
+                        ? "{0} 레벨 {1}: {2} 치명타 피해 {3:0.##}"
+                        : "{0} 레벨 {1}: {2} 피해 {3:0.##}",
+                    enemyName,
+                    level,
+                    sideText,
+                    result.Damage)
+                : Session.FormatString(
+                    GameStringIds.HintEnemyFrontBlockFormat,
+                    "{0} 레벨 {1}: 정면 방어",
+                    enemyName,
+                    level);
             Session.ShowHint(resultText);
 
             if (!health.IsAlive)
@@ -418,11 +437,22 @@ namespace SimpleGame
             facingMarker.transform.localPosition = new Vector3(0f, -size * 0.55f, 0f);
             levelLabel.transform.localPosition =
                 new Vector3(0f, size * 0.82f, 0f);
-            string displayName =
+            string fallbackDisplayName =
                 PrototypeEnemyDefinitions.GetDisplayName(
                     Definition.EnemyId,
                     Archetype);
-            levelLabel.text = $"{displayName} 레벨 {level}";
+            string displayName = Session != null
+                ? Session.GetString(
+                    GameStringIds.EnemyName(Definition.EnemyId),
+                    fallbackDisplayName)
+                : fallbackDisplayName;
+            levelLabel.text = Session != null
+                ? Session.FormatString(
+                    GameStringIds.EnemyLevelLabelFormat,
+                    "{0} 레벨 {1}",
+                    displayName,
+                    level)
+                : $"{displayName} 레벨 {level}";
             RefreshLevelLabel();
         }
 

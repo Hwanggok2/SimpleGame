@@ -19,6 +19,7 @@ namespace SimpleGame
 
         private Color glowColor;
         private float glowStrength;
+        private GameStringTable gameStrings;
 
         public Image RarityFrame => rarityFrame;
         public Image InnerBackground => innerBackground;
@@ -62,6 +63,11 @@ namespace SimpleGame
             ApplyRarity(choice.Rarity);
         }
 
+        public void ConfigureStrings(GameStringTable configuredStrings)
+        {
+            gameStrings = configuredStrings;
+        }
+
         public void SetRerollState(
             int remainingRerolls,
             bool interactable)
@@ -69,7 +75,12 @@ namespace SimpleGame
             int remaining = Mathf.Max(0, remainingRerolls);
             if (rerollLabel != null)
             {
-                rerollLabel.text = $"교체 {remaining}";
+                rerollLabel.text = gameStrings != null
+                    ? gameStrings.Format(
+                        GameStringIds.CardRerollFormat,
+                        "교체 {0}",
+                        remaining)
+                    : $"교체 {remaining}";
             }
 
             if (rerollButton != null)
@@ -85,9 +96,9 @@ namespace SimpleGame
             {
                 "희귀" or "Rare" =>
                     new Color(0.12f, 0.55f, 0.95f, 0.96f),
-                "영웅" or "Epic" or "Hero" =>
+                "에픽" or "영웅" or "Epic" or "Hero" =>
                     new Color(0.64f, 0.28f, 0.92f, 0.96f),
-                "전설" or "Legendary" =>
+                "레전더리" or "전설" or "Legendary" =>
                     new Color(1f, 0.61f, 0.12f, 0.96f),
                 _ => new Color(0.34f, 0.43f, 0.51f, 0.96f)
             };
@@ -141,8 +152,8 @@ namespace SimpleGame
             return rarity?.Trim() switch
             {
                 "희귀" or "Rare" => 0.72f,
-                "영웅" or "Epic" or "Hero" => 0.9f,
-                "전설" or "Legendary" => 1f,
+                "에픽" or "영웅" or "Epic" or "Hero" => 0.9f,
+                "레전더리" or "전설" or "Legendary" => 1f,
                 _ => 0.45f
             };
         }

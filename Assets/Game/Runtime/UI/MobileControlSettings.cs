@@ -3,12 +3,19 @@ using UnityEngine;
 
 namespace SimpleGame
 {
+    public enum MobileControlMode
+    {
+        DirectMoveAutoAim = 1,
+        AimCommand = 2
+    }
+
     [Serializable]
     public struct MobileControlSettings
     {
         public int version;
         public bool controlsEnabled;
         public bool autoAttackEnabled;
+        public MobileControlMode controlMode;
         public float joystickScale;
         public Vector2 joystickPosition;
         public float attackScale;
@@ -19,6 +26,7 @@ namespace SimpleGame
             version = MobileControlSettingsStore.CurrentVersion,
             controlsEnabled = true,
             autoAttackEnabled = false,
+            controlMode = MobileControlMode.AimCommand,
             joystickScale = 1f,
             joystickPosition = new Vector2(0.05f, 0.11f),
             attackScale = 1f,
@@ -28,7 +36,7 @@ namespace SimpleGame
 
     public static class MobileControlSettingsStore
     {
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
         public const float MinimumScale = 0.7f;
         public const float MaximumScale = 1.5f;
 
@@ -47,6 +55,13 @@ namespace SimpleGame
                 MobileControlSettings settings =
                     JsonUtility.FromJson<MobileControlSettings>(
                         PlayerPrefs.GetString(PreferencesKey));
+                if (settings.version == 1)
+                {
+                    settings.controlMode =
+                        MobileControlMode.AimCommand;
+                    return Clamp(settings);
+                }
+
                 return settings.version == CurrentVersion
                     ? Clamp(settings)
                     : MobileControlSettings.Default;
@@ -71,6 +86,15 @@ namespace SimpleGame
             MobileControlSettings settings)
         {
             settings.version = CurrentVersion;
+            if (settings.controlMode !=
+                    MobileControlMode.DirectMoveAutoAim &&
+                settings.controlMode !=
+                    MobileControlMode.AimCommand)
+            {
+                settings.controlMode =
+                    MobileControlMode.AimCommand;
+            }
+
             settings.joystickScale = Mathf.Clamp(
                 settings.joystickScale,
                 MinimumScale,
@@ -136,6 +160,27 @@ namespace SimpleGame
                     safeAreaInParent.yMax,
                     halfSize.y,
                     normalizedPosition.y));
+        }
+
+        public static Vector2 CalculateNormalizedPosition(
+            Rect safeAreaInParent,
+            Vector2 baseSize,
+            float scale,
+            Vector2 center)
+        {
+            scale = Mathf.Clamp(scale, MinimumScale, MaximumScale);
+            Vector2 halfSize = baseSize * scale * 0.5f;
+            return new Vector2(
+                InverseCenter(
+                    safeAreaInParent.xMin,
+                    safeAreaInParent.xMax,
+                    halfSize.x,
+                    center.x),
+                InverseCenter(
+                    safeAreaInParent.yMin,
+                    safeAreaInParent.yMax,
+                    halfSize.y,
+                    center.y));
         }
 
         public static bool UsesTwoColumnSettingsLayout(
@@ -227,6 +272,22 @@ namespace SimpleGame
                     availableMaximum,
                     normalizedPosition)
                 : (minimum + maximum) * 0.5f;
+        }
+
+        private static float InverseCenter(
+            float minimum,
+            float maximum,
+            float halfSize,
+            float center)
+        {
+            float availableMinimum = minimum + Mathf.Max(0f, halfSize);
+            float availableMaximum = maximum - Mathf.Max(0f, halfSize);
+            return availableMinimum < availableMaximum
+                ? Mathf.InverseLerp(
+                    availableMinimum,
+                    availableMaximum,
+                    center)
+                : 0.5f;
         }
     }
 }

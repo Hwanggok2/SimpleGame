@@ -9,14 +9,34 @@ namespace SimpleGame
         public LevelUpCardChoiceData(
             LevelUpCardDefinition definition,
             int currentStack)
+            : this(definition, currentStack, null)
         {
-            DisplayName = definition.DisplayName;
-            Description = definition.Description;
+        }
+
+        public LevelUpCardChoiceData(
+            LevelUpCardDefinition definition,
+            int currentStack,
+            GameStringTable strings)
+        {
+            DisplayName = definition.ResolveDisplayName(strings);
+            Description = definition.ResolveDescription(strings);
             Rarity = definition.Rarity;
             MaxLevel = definition.MaxStack;
             NextLevel = Mathf.Min(
                 definition.MaxStack,
                 Mathf.Max(0, currentStack) + 1);
+            string fallback =
+                $"{DisplayName}\n{Rarity} · 획득 후 레벨 " +
+                $"{NextLevel}/{MaxLevel}";
+            HeaderText = strings != null
+                ? strings.Format(
+                    GameStringIds.CardHeaderFormat,
+                    fallback,
+                    DisplayName,
+                    Rarity,
+                    NextLevel,
+                    MaxLevel)
+                : fallback;
         }
 
         public string DisplayName { get; }
@@ -24,9 +44,7 @@ namespace SimpleGame
         public string Rarity { get; }
         public int NextLevel { get; }
         public int MaxLevel { get; }
-        public string HeaderText =>
-            $"{DisplayName}\n{Rarity} · 획득 후 레벨 " +
-            $"{NextLevel}/{MaxLevel}";
+        public string HeaderText { get; }
     }
 
     [Serializable]
@@ -34,6 +52,7 @@ namespace SimpleGame
     {
         [SerializeField] private string cardId;
         [SerializeField] private string nameKey;
+        [SerializeField] private string descriptionKey;
         [SerializeField] private string displayName;
         [SerializeField] private string description;
         [SerializeField] private LevelUpCardEffectType effectType;
@@ -47,6 +66,7 @@ namespace SimpleGame
         [SerializeField] private string rarity;
         [SerializeField] private string iconId;
         [SerializeField] private bool enabled;
+        [SerializeField] private string fusionIngredientCardIds;
 
         public LevelUpCardDefinition(
             string cardId,
@@ -63,10 +83,12 @@ namespace SimpleGame
             string requiredCardId,
             string rarity,
             string iconId,
-            bool enabled)
+            bool enabled,
+            string fusionIngredientCardIds = "")
         {
             this.cardId = cardId;
             this.nameKey = nameKey;
+            descriptionKey = string.Empty;
             this.displayName = displayName;
             this.description = description;
             this.effectType = effectType;
@@ -80,10 +102,50 @@ namespace SimpleGame
             this.rarity = rarity;
             this.iconId = iconId;
             this.enabled = enabled;
+            this.fusionIngredientCardIds =
+                fusionIngredientCardIds ?? string.Empty;
+        }
+
+        public LevelUpCardDefinition(
+            string cardId,
+            string nameKey,
+            string descriptionKey,
+            LevelUpCardEffectType effectType,
+            PlayerStatId targetStat,
+            StatOperation operation,
+            float value,
+            int maxStack,
+            int selectionWeight,
+            int minPlayerLevel,
+            string requiredCardId,
+            string rarity,
+            string iconId,
+            bool enabled,
+            string fusionIngredientCardIds = "")
+            : this(
+                cardId,
+                nameKey,
+                string.Empty,
+                string.Empty,
+                effectType,
+                targetStat,
+                operation,
+                value,
+                maxStack,
+                selectionWeight,
+                minPlayerLevel,
+                requiredCardId,
+                rarity,
+                iconId,
+                enabled,
+                fusionIngredientCardIds)
+        {
+            this.descriptionKey = descriptionKey;
         }
 
         public string CardId => cardId;
         public string NameKey => nameKey;
+        public string DescriptionKey => descriptionKey;
         public string Description => description;
         public LevelUpCardEffectType EffectType => effectType;
         public PlayerStatId TargetStat => targetStat;
@@ -96,19 +158,74 @@ namespace SimpleGame
         public string Rarity => rarity;
         public string IconId => iconId;
         public bool Enabled => enabled;
+        public string FusionIngredientCardIdsRaw =>
+            fusionIngredientCardIds ?? string.Empty;
+        public IReadOnlyList<string> FusionIngredientCardIds
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(
+                        fusionIngredientCardIds))
+                {
+                    return Array.Empty<string>();
+                }
+
+                string[] rawIds = fusionIngredientCardIds.Split('|');
+                var parsedIds = new List<string>(rawIds.Length);
+                foreach (string rawId in rawIds)
+                {
+                    string parsedId = rawId.Trim();
+                    if (!string.IsNullOrWhiteSpace(parsedId))
+                    {
+                        parsedIds.Add(parsedId);
+                    }
+                }
+
+                return parsedIds;
+            }
+        }
         public string DisplayName =>
             string.IsNullOrWhiteSpace(displayName)
                 ? nameKey
                 : displayName;
 
-        public string GetDisplayText(int currentStack)
+        public string ResolveDisplayName(GameStringTable strings)
+        {
+            return strings != null
+                ? strings.Get(NameKey, DisplayName)
+                : DisplayName;
+        }
+
+        public string ResolveDescription(GameStringTable strings)
+        {
+            string fallback = string.IsNullOrWhiteSpace(description)
+                ? descriptionKey
+                : description;
+            return strings != null
+                ? strings.Get(descriptionKey, fallback)
+                : fallback;
+        }
+
+        public string GetDisplayText(
+            int currentStack,
+            GameStringTable strings = null)
         {
             int nextStack = Mathf.Min(maxStack, currentStack + 1);
-            string body = string.IsNullOrWhiteSpace(description)
-                ? nameKey
-                : description;
-            return $"{DisplayName}\n{body}\n" +
-                $"{rarity} · 획득 후 레벨 {nextStack}/{maxStack}";
+            string resolvedName = ResolveDisplayName(strings);
+            string body = ResolveDescription(strings);
+            string headerFallback =
+                $"{resolvedName}\n{rarity} · 획득 후 레벨 " +
+                $"{nextStack}/{maxStack}";
+            string header = strings != null
+                ? strings.Format(
+                    GameStringIds.CardHeaderFormat,
+                    headerFallback,
+                    resolvedName,
+                    rarity,
+                    nextStack,
+                    maxStack)
+                : headerFallback;
+            return $"{header}\n{body}";
         }
     }
 
@@ -189,7 +306,7 @@ namespace SimpleGame
             definitions = new List<LevelUpCardDefinition>(values);
         }
 
-        private static bool IsEligible(
+        private bool IsEligible(
             LevelUpCardDefinition definition,
             int unlockLevel,
             Func<string, int> getStackCount,
@@ -201,10 +318,47 @@ namespace SimpleGame
                 (string.IsNullOrWhiteSpace(
                      definition.RequiredCardId) ||
                  getStackCount(definition.RequiredCardId) > 0) &&
+                HasMasteredFusionIngredients(
+                    definition,
+                    getStackCount) &&
                 getStackCount(definition.CardId) <
                     definition.MaxStack &&
                 (excludedCardIds == null ||
                  !excludedCardIds.Contains(definition.CardId));
+        }
+
+        private bool HasMasteredFusionIngredients(
+            LevelUpCardDefinition definition,
+            Func<string, int> getStackCount)
+        {
+            if (definition.EffectType != LevelUpCardEffectType.Fusion)
+            {
+                return true;
+            }
+
+            IReadOnlyList<string> ingredientIds =
+                definition.FusionIngredientCardIds;
+            if (ingredientIds.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (string ingredientId in ingredientIds)
+            {
+                LevelUpCardDefinition ingredient = definitions.Find(
+                    value => value != null &&
+                        string.Equals(
+                            value.CardId,
+                            ingredientId,
+                            StringComparison.Ordinal));
+                if (ingredient == null ||
+                    getStackCount(ingredientId) < ingredient.MaxStack)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static int FindWeightedIndex(

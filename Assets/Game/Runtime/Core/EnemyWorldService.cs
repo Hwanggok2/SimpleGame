@@ -95,11 +95,40 @@ namespace SimpleGame
             return null;
         }
 
+        public EnemyBase FindNearestLivingEnemyInBounds(
+            Vector2 origin,
+            Rect worldBounds)
+        {
+            EnemyBase nearest = null;
+            float nearestDistanceSquared = float.MaxValue;
+            foreach (EnemyBase enemy in enemies)
+            {
+                if (enemy == null ||
+                    !enemy.IsAlive ||
+                    !worldBounds.Contains(enemy.transform.position))
+                {
+                    continue;
+                }
+
+                float distanceSquared = Vector2.SqrMagnitude(
+                    (Vector2)enemy.transform.position - origin);
+                if (distanceSquared < nearestDistanceSquared)
+                {
+                    nearestDistanceSquared = distanceSquared;
+                    nearest = enemy;
+                }
+            }
+
+            return nearest;
+        }
+
         public EnemyBase FindFirstEnemyOnPath(
             Vector2 start,
             Vector2 destination,
             float moverRadius,
-            EnemyBase ignoredEnemy = null)
+            EnemyBase ignoredEnemy = null,
+            IReadOnlyDictionary<EnemyBase, uint>
+                ignoredEnemyGenerations = null)
         {
             Vector2 path = destination - start;
             float pathLengthSquared = path.sqrMagnitude;
@@ -115,6 +144,15 @@ namespace SimpleGame
                 if (enemy == null ||
                     enemy == ignoredEnemy ||
                     !enemy.IsAlive)
+                {
+                    continue;
+                }
+
+                if (ignoredEnemyGenerations != null &&
+                    ignoredEnemyGenerations.TryGetValue(
+                        enemy,
+                        out uint ignoredGeneration) &&
+                    ignoredGeneration == enemy.SpawnGeneration)
                 {
                     continue;
                 }

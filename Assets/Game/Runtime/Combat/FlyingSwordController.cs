@@ -36,9 +36,15 @@ namespace SimpleGame
         private int hitCountLevel;
         private float nextLaunchAt;
         private bool missingVisualsLogged;
+        private bool showReadyIndicators = true;
+        private bool piercesEntirePath;
+        private int staticChargeLevel;
+        private float staticDamageMultiplier;
 
         public int SwordCountLevel => swordCountLevel;
         public int HitCountLevel => hitCountLevel;
+        public bool PiercesEntirePath => piercesEntirePath;
+        public int StaticChargeLevel => staticChargeLevel;
 
         public void ConfigureVisuals(
             SpriteRenderer[] configuredReadySwordVisuals,
@@ -51,11 +57,16 @@ namespace SimpleGame
         public void Configure(
             PlayerRoot configuredOwner,
             EnemyWorldService configuredEnemyWorld,
-            SpawnPointRegistry configuredSpawnPoints)
+            SpawnPointRegistry configuredSpawnPoints,
+            bool configuredShowReadyIndicators = true)
         {
             owner = configuredOwner;
             enemyWorld = configuredEnemyWorld;
             spawnPoints = configuredSpawnPoints;
+            showReadyIndicators = configuredShowReadyIndicators;
+            piercesEntirePath = false;
+            staticChargeLevel = 0;
+            staticDamageMultiplier = 0f;
             swordCountLevel = 0;
             hitCountLevel = 0;
             nextLaunchAt = 0f;
@@ -66,9 +77,23 @@ namespace SimpleGame
             {
                 slot.State = SwordState.Locked;
                 slot.PrimaryTarget = null;
-                slot.HitEnemies.Clear();
+                slot.HitEnemyGenerations.Clear();
                 HideSlotVisuals(slot);
             }
+        }
+
+        public void ConfigureFusionEffects(
+            bool configuredPiercesEntirePath,
+            int configuredStaticChargeLevel,
+            float configuredStaticDamageMultiplier)
+        {
+            piercesEntirePath = configuredPiercesEntirePath;
+            staticChargeLevel = Mathf.Max(
+                0,
+                configuredStaticChargeLevel);
+            staticDamageMultiplier = Mathf.Max(
+                0f,
+                configuredStaticDamageMultiplier);
         }
 
         public void SetLevels(
@@ -100,7 +125,7 @@ namespace SimpleGame
 
                 slot.State = SwordState.Locked;
                 slot.PrimaryTarget = null;
-                slot.HitEnemies.Clear();
+                slot.HitEnemyGenerations.Clear();
                 HideSlotVisuals(slot);
             }
 
@@ -151,6 +176,24 @@ namespace SimpleGame
         {
             return BaseHitCount +
                 Mathf.Clamp(level, 0, MaximumHitUpgradeLevel);
+        }
+
+        public static int CalculateMaximumHits(
+            int level,
+            bool piercesEntirePath)
+        {
+            return piercesEntirePath
+                ? int.MaxValue
+                : CalculateMaximumHits(level);
+        }
+
+        public static bool WasCurrentSpawnHit(
+            bool hasRecordedGeneration,
+            uint recordedGeneration,
+            uint currentGeneration)
+        {
+            return hasRecordedGeneration &&
+                recordedGeneration == currentGeneration;
         }
 
         public static bool IsLaunchReady(
@@ -243,10 +286,14 @@ namespace SimpleGame
             slot.Speed = speed;
             slot.RemainingPassDuration =
                 PostTargetTravelDuration;
-            slot.RemainingHits =
-                CalculateMaximumHits(hitCountLevel);
+            slot.PiercesEntirePath = piercesEntirePath;
+            slot.StaticChargeLevel = staticChargeLevel;
+            slot.StaticDamageMultiplier = staticDamageMultiplier;
+            slot.RemainingHits = CalculateMaximumHits(
+                hitCountLevel,
+                slot.PiercesEntirePath);
             slot.ReadyAt = Time.time + RechargeDuration;
-            slot.HitEnemies.Clear();
+            slot.HitEnemyGenerations.Clear();
             slot.State = SwordState.Approaching;
 
             slot.Transform.position = new Vector3(
@@ -254,7 +301,7 @@ namespace SimpleGame
                 start.y,
                 owner.transform.position.z);
             FaceDirection(slot.Transform, direction);
-            slot.IndicatorVisual.SetActive(false);
+            slot.IndicatorVisual?.SetActive(false);
             RestoreAttackColor(slot);
             slot.AttackVisual.SetActive(true);
             RefreshAttackVisual(slot);
@@ -270,15 +317,30 @@ namespace SimpleGame
             float frameDistance = slot.Speed * Time.deltaTime;
             if (frameDistance + 0.0001f < distanceToTarget)
             {
+                Vector2 next =
+                    previous + slot.Direction * frameDistance;
+                if (slot.PiercesEntirePath)
+                {
+                    HitSecondaryEnemies(slot, previous, next);
+                }
+
                 SetWorldPosition(
                     slot,
-                    previous + slot.Direction * frameDistance);
+                    next);
                 RefreshAttackVisual(slot);
                 return;
             }
 
             SetWorldPosition(slot, slot.TargetPosition);
             RefreshAttackVisual(slot);
+            if (slot.PiercesEntirePath)
+            {
+                HitSecondaryEnemies(
+                    slot,
+                    previous,
+                    slot.TargetPosition);
+            }
+
             HitPrimary(slot);
             slot.State = SwordState.Passing;
 
@@ -331,13 +393,14 @@ namespace SimpleGame
             EnemyBase primary = slot.PrimaryTarget;
             if (primary == null ||
                 !primary.IsAlive ||
-                slot.RemainingHits <= 0)
+                slot.RemainingHits <= 0 ||
+                HasHitCurrentSpawn(slot, primary))
             {
                 return;
             }
 
-            slot.HitEnemies.Add(primary);
-            if (ApplySwordHit(primary))
+            RememberHit(slot, primary);
+            if (ApplySwordHit(slot, primary))
             {
                 slot.RemainingHits--;
             }
@@ -361,7 +424,7 @@ namespace SimpleGame
                 EnemyBase enemy = enemies[index];
                 if (enemy == null ||
                     !enemy.IsAlive ||
-                    slot.HitEnemies.Contains(enemy))
+                    HasHitCurrentSpawn(slot, enemy))
                 {
                     continue;
                 }
@@ -403,13 +466,13 @@ namespace SimpleGame
                 EnemyBase enemy = candidate.Enemy;
                 if (enemy == null ||
                     !enemy.IsAlive ||
-                    slot.HitEnemies.Contains(enemy))
+                    HasHitCurrentSpawn(slot, enemy))
                 {
                     continue;
                 }
 
-                slot.HitEnemies.Add(enemy);
-                if (ApplySwordHit(enemy))
+                RememberHit(slot, enemy);
+                if (ApplySwordHit(slot, enemy))
                 {
                     slot.RemainingHits--;
                 }
@@ -418,11 +481,37 @@ namespace SimpleGame
             hitCandidates.Clear();
         }
 
-        private bool ApplySwordHit(EnemyBase enemy)
+        private static bool HasHitCurrentSpawn(
+            SwordSlot slot,
+            EnemyBase enemy)
         {
-            bool damageApplied = owner.ApplySkillHit(
+            bool hasRecordedGeneration =
+                slot.HitEnemyGenerations.TryGetValue(
+                    enemy,
+                    out uint generation);
+            return WasCurrentSpawnHit(
+                hasRecordedGeneration,
+                generation,
+                enemy.SpawnGeneration);
+        }
+
+        private static void RememberHit(
+            SwordSlot slot,
+            EnemyBase enemy)
+        {
+            slot.HitEnemyGenerations[enemy] =
+                enemy.SpawnGeneration;
+        }
+
+        private bool ApplySwordHit(
+            SwordSlot slot,
+            EnemyBase enemy)
+        {
+            bool damageApplied = owner.ApplySkillHitWithStaticBurst(
                 enemy,
-                DamageMultiplier);
+                DamageMultiplier,
+                slot.StaticChargeLevel,
+                slot.StaticDamageMultiplier);
             if (damageApplied)
             {
                 enemy.Session?.PlayCombatFeedback(
@@ -439,7 +528,7 @@ namespace SimpleGame
         {
             slot.State = SwordState.Cooling;
             slot.PrimaryTarget = null;
-            slot.HitEnemies.Clear();
+            slot.HitEnemyGenerations.Clear();
             slot.AttackVisual.SetActive(false);
             RestoreAttackColor(slot);
         }
@@ -526,10 +615,13 @@ namespace SimpleGame
 
         private SwordSlot CreateSlot(int index)
         {
-            if (readySwordVisuals == null ||
-                index < 0 ||
-                index >= readySwordVisuals.Length ||
-                readySwordVisuals[index] == null ||
+            bool missingReadyIndicator = showReadyIndicators &&
+                (readySwordVisuals == null ||
+                 index < 0 ||
+                 index >= readySwordVisuals.Length ||
+                 readySwordVisuals[index] == null);
+            if (index < 0 ||
+                missingReadyIndicator ||
                 attackVisualTemplate == null)
             {
                 if (!missingVisualsLogged)
@@ -577,17 +669,24 @@ namespace SimpleGame
                     ? attackRenderer.sprite.bounds.size.y
                     : 1f;
 
-            SpriteRenderer readyRenderer =
-                readySwordVisuals[index];
-            readyRenderer.sortingOrder = Mathf.Max(
-                VisualSortingOrder,
-                readyRenderer.sortingOrder);
-            readyRenderer.gameObject.SetActive(false);
+            SpriteRenderer readyRenderer = showReadyIndicators
+                ? readySwordVisuals[index]
+                : null;
+            if (readyRenderer != null)
+            {
+                readyRenderer.sortingOrder = Mathf.Max(
+                    VisualSortingOrder,
+                    readyRenderer.sortingOrder);
+                readyRenderer.gameObject.SetActive(false);
+            }
+
             attackVisual.SetActive(false);
 
             return new SwordSlot(
                 root,
-                readyRenderer.gameObject,
+                readyRenderer != null
+                    ? readyRenderer.gameObject
+                    : null,
                 attackVisual,
                 attackRenderer,
                 templateScale.x,
@@ -602,8 +701,8 @@ namespace SimpleGame
         {
             if (visualRoot == null)
             {
-                var rootObject =
-                    new GameObject("FlyingSwordAttacks");
+                var rootObject = new GameObject(
+                    $"FlyingSwordAttacks_{gameObject.name}");
                 visualRoot = rootObject.transform;
             }
 
@@ -617,8 +716,9 @@ namespace SimpleGame
 
         private void ResolvePrefabVisuals()
         {
-            if (readySwordVisuals == null ||
-                readySwordVisuals.Length != MaximumSwordCount)
+            if (showReadyIndicators &&
+                (readySwordVisuals == null ||
+                 readySwordVisuals.Length != MaximumSwordCount))
             {
                 SpriteRenderer[] previous = readySwordVisuals;
                 readySwordVisuals =
@@ -637,32 +737,35 @@ namespace SimpleGame
                 }
             }
 
-            Transform readyRoot = owner != null
-                ? owner.transform.Find("Visual")
-                : null;
-            for (int index = 0;
-                 index < readySwordVisuals.Length;
-                 index++)
+            if (showReadyIndicators)
             {
-                if (readySwordVisuals[index] == null &&
-                    readyRoot != null)
+                Transform readyRoot = owner != null
+                    ? owner.transform.Find("Visual")
+                    : null;
+                for (int index = 0;
+                     index < readySwordVisuals.Length;
+                     index++)
                 {
-                    Transform candidate = readyRoot.Find(
-                        $"Flying_Sword{index + 1}");
-                    readySwordVisuals[index] =
-                        candidate != null
-                            ? candidate.GetComponent<SpriteRenderer>()
-                            : null;
-                }
+                    if (readySwordVisuals[index] == null &&
+                        readyRoot != null)
+                    {
+                        Transform candidate = readyRoot.Find(
+                            $"Flying_Sword{index + 1}");
+                        readySwordVisuals[index] =
+                            candidate != null
+                                ? candidate.GetComponent<SpriteRenderer>()
+                                : null;
+                    }
 
-                SpriteRenderer readyRenderer =
-                    readySwordVisuals[index];
-                if (readyRenderer != null)
-                {
-                    readyRenderer.sortingOrder = Mathf.Max(
-                        VisualSortingOrder,
-                        readyRenderer.sortingOrder);
-                    readyRenderer.gameObject.SetActive(false);
+                    SpriteRenderer readyRenderer =
+                        readySwordVisuals[index];
+                    if (readyRenderer != null)
+                    {
+                        readyRenderer.sortingOrder = Mathf.Max(
+                            VisualSortingOrder,
+                            readyRenderer.sortingOrder);
+                        readyRenderer.gameObject.SetActive(false);
+                    }
                 }
             }
 
@@ -688,7 +791,7 @@ namespace SimpleGame
 
         private void RefreshReadyIndicators()
         {
-            if (readySwordVisuals == null)
+            if (!showReadyIndicators || readySwordVisuals == null)
             {
                 return;
             }
@@ -753,7 +856,7 @@ namespace SimpleGame
         private static void HideSlotVisuals(
             SwordSlot slot)
         {
-            slot.IndicatorVisual.SetActive(false);
+            slot.IndicatorVisual?.SetActive(false);
             slot.AttackVisual.SetActive(false);
             RestoreAttackColor(slot);
         }
@@ -770,7 +873,7 @@ namespace SimpleGame
 
                 slot.State = SwordState.Cooling;
                 slot.PrimaryTarget = null;
-                slot.HitEnemies.Clear();
+                slot.HitEnemyGenerations.Clear();
                 slot.AttackVisual.SetActive(false);
                 RestoreAttackColor(slot);
                 slot.ReadyAt = Mathf.Max(
@@ -788,7 +891,7 @@ namespace SimpleGame
                 HideSlotVisuals(slot);
             }
 
-            if (readySwordVisuals != null)
+            if (showReadyIndicators && readySwordVisuals != null)
             {
                 foreach (SpriteRenderer readyRenderer in
                          readySwordVisuals)
@@ -892,7 +995,8 @@ namespace SimpleGame
             public float AttackDepthScale { get; }
             public float AttackDepthOffset { get; }
             public float AttackSpriteHeight { get; }
-            public HashSet<EnemyBase> HitEnemies { get; } = new();
+            public Dictionary<EnemyBase, uint> HitEnemyGenerations { get; } =
+                new();
             public SwordState State { get; set; }
             public EnemyBase PrimaryTarget { get; set; }
             public Vector2 TargetPosition { get; set; }
@@ -902,6 +1006,9 @@ namespace SimpleGame
             public float RemainingPassDuration { get; set; }
             public float ReadyAt { get; set; }
             public int RemainingHits { get; set; }
+            public bool PiercesEntirePath { get; set; }
+            public int StaticChargeLevel { get; set; }
+            public float StaticDamageMultiplier { get; set; }
         }
 
         private readonly struct HitCandidate

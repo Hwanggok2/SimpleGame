@@ -71,7 +71,32 @@ namespace SimpleGame.Tests
             Assert.That(model.PlayerLevels, Has.Count.EqualTo(50));
             Assert.That(model.AccountLevels, Has.Count.EqualTo(4));
             Assert.That(model.PlayerDefinitions, Has.Count.EqualTo(1));
-            Assert.That(model.LevelUpCards, Has.Count.EqualTo(13));
+            Assert.That(model.LevelUpCards, Has.Count.EqualTo(16));
+            Assert.That(model.GameStrings, Is.Not.Empty);
+            string GetGameString(string stringId) => model.GameStrings
+                .Single(value => value.StringId == stringId)
+                .Text;
+            CollectionAssert.IsSubsetOf(
+                GameStringIds.RequiredIds,
+                model.GameStrings.Select(value => value.StringId));
+            var parsedStringIds = model.GameStrings
+                .Select(value => value.StringId)
+                .ToHashSet(StringComparer.Ordinal);
+            Assert.That(
+                model.LevelUpCards.All(card =>
+                    parsedStringIds.Contains(card.NameKey) &&
+                    parsedStringIds.Contains(card.DescriptionKey)),
+                Is.True);
+            Assert.That(
+                GetGameString("CARD_CRIT_NAME"),
+                Is.EqualTo("치명타 강화"));
+            Assert.That(
+                GetGameString(GameStringIds.DifficultyEasyName),
+                Is.EqualTo("쉬움"));
+            Assert.That(
+                GetGameString(GameStringIds.Stage01Description),
+                Is.EqualTo(
+                    "10분 동안 몰려오는 적을 처치하며 생존하세요."));
             Assert.That(model.AccountExperienceScoreUnit, Is.EqualTo(5));
             Assert.That(model.CriticalChancePerCard, Is.EqualTo(0.05f));
             Assert.That(model.MaximumCriticalChance, Is.EqualTo(0.5f));
@@ -164,23 +189,29 @@ namespace SimpleGame.Tests
                 Is.EqualTo(PlayerStatId.MoveSpeed));
             Assert.That(speedCard.Value, Is.EqualTo(1f));
             Assert.That(speedCard.MaxStack, Is.EqualTo(5));
+            Assert.That(
+                speedCard.DescriptionKey,
+                Is.EqualTo("CARD_SPEED_DESCRIPTION"));
             StringAssert.Contains(
                 "약 0.15초",
-                speedCard.Description);
+                GetGameString(speedCard.DescriptionKey));
 
             LevelUpCardDefinition movingSlashCard =
                 model.LevelUpCards.Find(
                     card => card.CardId == "MOVING_SLASH");
             Assert.That(movingSlashCard, Is.Not.Null);
             StringAssert.Contains(
-                "초승달 검기",
-                movingSlashCard.Description);
+                "기본 공격 시",
+                GetGameString(movingSlashCard.DescriptionKey));
             StringAssert.Contains(
-                "피해·크기·사거리·최대 타격 수",
-                movingSlashCard.Description);
+                "확률 15/19.5/24/28.5/33%",
+                GetGameString(movingSlashCard.DescriptionKey));
+            StringAssert.Contains(
+                "추가 피해로는 재발동하지 않습니다",
+                GetGameString(movingSlashCard.DescriptionKey));
             StringAssert.Contains(
                 "최대 타격 2/3/4/5/6",
-                movingSlashCard.Description);
+                GetGameString(movingSlashCard.DescriptionKey));
             Assert.That(movingSlashCard.Value, Is.EqualTo(1.8f));
 
             LevelUpCardDefinition severCard = model.LevelUpCards.Find(
@@ -191,29 +222,33 @@ namespace SimpleGame.Tests
                 Is.EqualTo("PIERCING_UP"));
             Assert.That(severCard.Value, Is.EqualTo(2f));
             StringAssert.Contains(
-                "실제 관통 0.3초 뒤",
-                severCard.Description);
+                "실제 이동 관통 0.3초 뒤",
+                GetGameString(severCard.DescriptionKey));
             StringAssert.Contains(
                 "재사용 대기시간은 0.1초",
-                severCard.Description);
+                GetGameString(severCard.DescriptionKey));
 
             LevelUpCardDefinition hitHealCard = model.LevelUpCards.Find(
                 card => card.CardId == "HIT_HEAL");
             Assert.That(hitHealCard, Is.Not.Null);
-            Assert.That(hitHealCard.DisplayName, Is.EqualTo("흡혈"));
+            Assert.That(
+                GetGameString(hitHealCard.NameKey),
+                Is.EqualTo("흡혈"));
             Assert.That(hitHealCard.Value, Is.EqualTo(2f));
             Assert.That(hitHealCard.MaxStack, Is.EqualTo(3));
             StringAssert.Contains(
                 "적을 처치할 때마다",
-                hitHealCard.Description);
+                GetGameString(hitHealCard.DescriptionKey));
 
             LevelUpCardDefinition bypassCard = model.LevelUpCards.Find(
                 card => card.CardId == "SHIELD_BYPASS");
             Assert.That(bypassCard, Is.Not.Null);
             Assert.That(
-                bypassCard.DisplayName,
+                GetGameString(bypassCard.NameKey),
                 Is.EqualTo("방패 우회"));
-            StringAssert.Contains("0.5초", bypassCard.Description);
+            StringAssert.Contains(
+                "0.5초",
+                GetGameString(bypassCard.DescriptionKey));
             Assert.That(
                 bypassCard.TargetStat,
                 Is.EqualTo(PlayerStatId.ShieldBypass));
@@ -253,10 +288,10 @@ namespace SimpleGame.Tests
             Assert.That(filthThrowCard.SelectionWeight, Is.EqualTo(60));
             StringAssert.Contains(
                 "투척 수 1/2/3/4/5",
-                filthThrowCard.Description);
+                GetGameString(filthThrowCard.DescriptionKey));
             StringAssert.Contains(
                 "3초 동안 0.5초마다",
-                filthThrowCard.Description);
+                GetGameString(filthThrowCard.DescriptionKey));
         }
 
         [Test]
@@ -280,15 +315,66 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void GeneratedCards_ContainFlyingSwordUpgrades()
+        public void GeneratedCards_ContainFlyingSwordAndFusionUpgrades()
         {
             LevelUpCardTable table =
                 AssetDatabase.LoadAssetAtPath<LevelUpCardTable>(
                     "Assets/Game/Data/Generated/" +
                     "LevelUpCardTable.asset");
+            GameStringTable strings =
+                AssetDatabase.LoadAssetAtPath<GameStringTable>(
+                    "Assets/Game/Data/Generated/" +
+                    "GameStringTable.asset");
+            GameDataManifest manifest =
+                AssetDatabase.LoadAssetAtPath<GameDataManifest>(
+                    GameDataAssetBuilder.ManifestPath);
 
             Assert.That(table, Is.Not.Null);
-            Assert.That(table.Definitions, Has.Count.EqualTo(13));
+            Assert.That(strings, Is.Not.Null);
+            Assert.That(manifest, Is.Not.Null);
+            Assert.That(manifest.GameStrings, Is.SameAs(strings));
+            Assert.That(table.Definitions, Has.Count.EqualTo(16));
+            Assert.That(strings.Entries, Is.Not.Empty);
+            Assert.That(
+                strings.Get("CARD_CRIT_NAME"),
+                Is.EqualTo("치명타 강화"));
+            Assert.That(
+                table.Definitions.All(card =>
+                    strings.TryGet(card.NameKey, out _) &&
+                    strings.TryGet(card.DescriptionKey, out _)),
+                Is.True);
+
+            LevelUpCardDefinition[] fusionCards = table.Definitions
+                .Where(card =>
+                    card.EffectType == LevelUpCardEffectType.Fusion)
+                .ToArray();
+            Assert.That(fusionCards, Has.Length.EqualTo(3));
+            CollectionAssert.AreEquivalent(
+                new[]
+                {
+                    "FUSION_FLYING_SWORD_PIERCING",
+                    "FUSION_FLYING_SWORD_STATIC",
+                    "FUSION_STATIC_FILTH"
+                },
+                fusionCards.Select(card => card.CardId));
+            Assert.That(
+                fusionCards.All(card =>
+                    card.MaxStack == 1 &&
+                    card.SelectionWeight == 10 &&
+                    card.Rarity == "레전더리"),
+                Is.True);
+
+            LevelUpCardDefinition piercingFusion = fusionCards.Single(
+                card => card.CardId ==
+                    "FUSION_FLYING_SWORD_PIERCING");
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "FLYING_SWORD_COUNT",
+                    "FLYING_SWORD_HITS",
+                    "PIERCING_UP"
+                },
+                piercingFusion.FusionIngredientCardIds);
 
             LevelUpCardDefinition countCard =
                 table.Definitions.Single(
@@ -314,38 +400,41 @@ namespace SimpleGame.Tests
                     card => card.CardId == "MOVE_SPEED_UP");
             StringAssert.Contains(
                 "약 0.15초",
-                speedCard.Description);
+                speedCard.ResolveDescription(strings));
 
             LevelUpCardDefinition movingSlashCard =
                 table.Definitions.Single(
                     card => card.CardId == "MOVING_SLASH");
             StringAssert.Contains(
-                "초승달 검기",
-                movingSlashCard.Description);
+                "기본 공격 시",
+                movingSlashCard.ResolveDescription(strings));
             StringAssert.Contains(
-                "피해·크기·사거리·최대 타격 수",
-                movingSlashCard.Description);
+                "확률 15/19.5/24/28.5/33%",
+                movingSlashCard.ResolveDescription(strings));
+            StringAssert.Contains(
+                "추가 피해로는 재발동하지 않습니다",
+                movingSlashCard.ResolveDescription(strings));
             StringAssert.Contains(
                 "최대 타격 2/3/4/5/6",
-                movingSlashCard.Description);
+                movingSlashCard.ResolveDescription(strings));
             Assert.That(movingSlashCard.Value, Is.EqualTo(1.8f));
 
             LevelUpCardDefinition severCard =
                 table.Definitions.Single(
                     card => card.CardId == "SEVER_TRAIL");
             StringAssert.Contains(
-                "실제 관통 0.3초 뒤",
-                severCard.Description);
+                "실제 이동 관통 0.3초 뒤",
+                severCard.ResolveDescription(strings));
             StringAssert.Contains(
                 "재사용 대기시간은 0.1초",
-                severCard.Description);
+                severCard.ResolveDescription(strings));
 
             LevelUpCardDefinition hitHealCard =
                 table.Definitions.Single(
                     card => card.CardId == "HIT_HEAL");
             StringAssert.Contains(
                 "적을 처치할 때마다",
-                hitHealCard.Description);
+                hitHealCard.ResolveDescription(strings));
 
             LevelUpCardDefinition filthThrowCard =
                 table.Definitions.Single(
@@ -357,7 +446,7 @@ namespace SimpleGame.Tests
             Assert.That(filthThrowCard.MaxStack, Is.EqualTo(5));
             StringAssert.Contains(
                 "투척 수 1/2/3/4/5",
-                filthThrowCard.Description);
+                filthThrowCard.ResolveDescription(strings));
         }
 
         [Test]
@@ -845,6 +934,9 @@ namespace SimpleGame.Tests
             Assert.That(gameOver, Is.Not.Null);
             Assert.That(difficulty, Is.Not.Null);
             Assert.That(hud.transform.Find("TopPanel"), Is.Not.Null);
+            Assert.That(
+                hud.transform.Find("TopPanel/PlayerHp"),
+                Is.Null);
             Transform hintPanel = hud.transform.Find("HintPanel");
             Assert.That(hintPanel, Is.Not.Null);
             Assert.That(
@@ -947,33 +1039,42 @@ namespace SimpleGame.Tests
                 Assert.That(cardView.RerollButton, Is.Not.Null);
                 Assert.That(cardView.RerollLabel, Is.Not.Null);
             }
+            Image pauseBackground = pause.GetComponent<Image>();
+            Assert.That(pauseBackground, Is.Not.Null);
+            Assert.That(pauseBackground.raycastTarget, Is.True);
             Assert.That(
-                pause.transform.Find("PauseDetails"),
-                Is.Not.Null);
-            Transform controlPadToggle =
-                pause.transform.Find("ControlPadToggle");
-            Assert.That(controlPadToggle, Is.Not.Null);
-            Toggle toggle =
-                controlPadToggle.GetComponent<Toggle>();
-            Assert.That(toggle, Is.Not.Null);
-            Assert.That(toggle.isOn, Is.True);
-            Assert.That(toggle.graphic, Is.Not.Null);
+                pauseBackground.color.a,
+                Is.EqualTo(0.72f).Within(0.001f));
+            Transform settingsPage =
+                pause.transform.Find("SettingsPage");
+            Assert.That(settingsPage, Is.Not.Null);
+            Assert.That(settingsPage.gameObject.activeSelf, Is.True);
+            foreach (string path in new[]
+                     {
+                         "PlayerOverview",
+                         "AccountOverview",
+                         "PlayerStats",
+                         "SkillsPanel/Viewport/SkillsList"
+                     })
+            {
+                Assert.That(
+                    settingsPage.Find(path)?.GetComponent<TMP_Text>(),
+                    Is.Not.Null,
+                    path);
+            }
+
+            TMP_Text accountOverview = settingsPage
+                .Find("AccountOverview")
+                .GetComponent<TMP_Text>();
+            Assert.That(accountOverview.rectTransform.anchorMin,
+                Is.EqualTo(Vector2.one));
+            Assert.That(accountOverview.rectTransform.anchorMax,
+                Is.EqualTo(Vector2.one));
+            Assert.That(accountOverview.rectTransform.pivot,
+                Is.EqualTo(Vector2.one));
             Assert.That(
-                controlPadToggle.Find("Label")
-                    .GetComponent<TMP_Text>()
-                    .text,
-                Is.EqualTo("조작 패드 표시"));
-            Transform autoAttackToggle =
-                pause.transform.Find("AutoAttackToggle");
-            Assert.That(autoAttackToggle, Is.Not.Null);
-            Assert.That(
-                autoAttackToggle.GetComponent<Toggle>().isOn,
-                Is.False);
-            Assert.That(
-                autoAttackToggle.Find("Label")
-                    .GetComponent<TMP_Text>()
-                    .text,
-                Is.EqualTo("자동 공격"));
+                accountOverview.alignment,
+                Is.EqualTo(TextAlignmentOptions.TopRight));
             Transform controlSettingsButton =
                 pause.transform.Find("ControlSettingsButton");
             Transform controlSettingsPanel =
@@ -987,14 +1088,34 @@ namespace SimpleGame.Tests
             Assert.That(
                 controlSettingsPanel.GetComponent<Image>().color.a,
                 Is.LessThanOrEqualTo(0.5f));
+            Transform autoAttackToggle =
+                controlSettingsPanel.Find("AutoAttackToggle");
+            Assert.That(
+                autoAttackToggle?.GetComponent<Toggle>(),
+                Is.Not.Null);
+            Assert.That(autoAttackToggle.Find("Track/Knob"), Is.Not.Null);
+            Assert.That(
+                controlSettingsPanel.Find("ControlModeLabel")
+                    ?.GetComponent<TMP_Text>(),
+                Is.Not.Null);
+            foreach (string modeButton in new[]
+                     {
+                         "ControlModeButtons/Mode1Button",
+                         "ControlModeButtons/Mode2Button",
+                         "ControlModeButtons/HiddenButton"
+                     })
+            {
+                Assert.That(
+                    controlSettingsPanel.Find(modeButton)
+                        ?.GetComponent<Button>(),
+                    Is.Not.Null,
+                    modeButton);
+            }
+
             foreach (string sliderName in new[]
                      {
                          "JoystickSizeSlider",
-                         "JoystickHorizontalSlider",
-                         "JoystickVerticalSlider",
-                         "AttackSizeSlider",
-                         "AttackHorizontalSlider",
-                         "AttackVerticalSlider"
+                         "AttackSizeSlider"
                      })
             {
                 Assert.That(
@@ -1004,10 +1125,23 @@ namespace SimpleGame.Tests
                     sliderName);
             }
 
+            foreach (string removedSlider in new[]
+                     {
+                         "JoystickHorizontalSlider",
+                         "JoystickVerticalSlider",
+                         "AttackHorizontalSlider",
+                         "AttackVerticalSlider"
+                     })
+            {
+                Assert.That(
+                    controlSettingsPanel.Find(removedSlider),
+                    Is.Null,
+                    removedSlider);
+            }
+
             foreach (string buttonName in new[]
                      {
                          "ControlDefaultsButton",
-                         "ControlCancelButton",
                          "ControlApplyButton"
                      })
             {
@@ -1017,6 +1151,17 @@ namespace SimpleGame.Tests
                     Is.Not.Null,
                     buttonName);
             }
+            Assert.That(
+                controlSettingsPanel.Find("ControlCancelButton"),
+                Is.Null);
+            Transform dragSurface =
+                controlSettingsPanel.Find("ControlDragSurface");
+            Assert.That(
+                dragSurface?.GetComponent<ControlLayoutDragSurface>(),
+                Is.Not.Null);
+            Assert.That(
+                dragSurface.GetComponent<Image>().raycastTarget,
+                Is.True);
             Assert.That(
                 gameOver.transform.Find("GameOverTitle"),
                 Is.Not.Null);
@@ -1069,142 +1214,176 @@ namespace SimpleGame.Tests
                 view.SetCardChoicesInteractable(true);
                 view.ShowPauseDetails(true);
 
-                Transform controlPadToggle =
-                    hud.transform.Find(
-                        "ModalRoot/PauseDetailsPanel/" +
-                        "ControlPadToggle");
-                Assert.That(controlPadToggle, Is.Not.Null);
-                Toggle toggle =
-                    controlPadToggle.GetComponent<Toggle>();
-                Assert.That(toggle.isOn, Is.True);
-                Assert.That(view.CommandControlsEnabled, Is.True);
-
-                toggle.isOn = false;
-                Assert.That(view.CommandControlsEnabled, Is.False);
-                Assert.That(
-                    MobileControlSettingsStore.Load().controlsEnabled,
-                    Is.False);
-                Assert.That(
-                    view.AimJoystick.gameObject.activeSelf,
-                    Is.False);
-                Assert.That(
-                    view.AttackButton.gameObject.activeSelf,
-                    Is.False);
-
+                Transform pauseRoot = hud.transform.Find(
+                    "ModalRoot/PauseDetailsPanel");
+                Transform settingsPage =
+                    pauseRoot.Find("SettingsPage");
                 Transform controlSettingsButton =
-                    hud.transform.Find(
-                        "ModalRoot/PauseDetailsPanel/" +
-                        "ControlSettingsButton");
+                    pauseRoot.Find("ControlSettingsButton");
                 Transform controlSettingsPanel =
-                    hud.transform.Find(
-                        "ModalRoot/PauseDetailsPanel/" +
-                        "ControlSettingsPanel");
-                Assert.That(controlSettingsButton, Is.Not.Null);
-                Assert.That(controlSettingsPanel, Is.Not.Null);
-                Image pauseBackground =
-                    controlPadToggle.parent.GetComponent<Image>();
-                float mainBackgroundAlpha = pauseBackground.color.a;
-
-                controlSettingsButton.GetComponent<Button>()
-                    .onClick.Invoke();
-                Assert.That(view.CommandControlsEnabled, Is.False);
+                    pauseRoot.Find("ControlSettingsPanel");
+                Assert.That(settingsPage.gameObject.activeSelf, Is.True);
                 Assert.That(
-                    MobileControlSettingsStore.Load().controlsEnabled,
+                    controlSettingsPanel.gameObject.activeSelf,
                     Is.False);
-                Assert.That(
-                    view.AimJoystick.gameObject.activeSelf,
-                    Is.True);
-                Assert.That(
-                    view.AttackButton.gameObject.activeSelf,
-                    Is.True);
-                Assert.That(
-                    pauseBackground.color.a,
-                    Is.LessThan(0.2f));
-                Assert.That(
-                    controlSettingsPanel.GetComponent<Image>().color.a,
-                    Is.LessThan(0.5f));
-                controlSettingsPanel.Find("ControlCancelButton")
-                    .GetComponent<Button>()
-                    .onClick.Invoke();
-                Assert.That(
-                    view.AimJoystick.gameObject.activeSelf,
-                    Is.False);
-                Assert.That(
-                    view.AttackButton.gameObject.activeSelf,
-                    Is.False);
-                Assert.That(
-                    pauseBackground.color.a,
-                    Is.EqualTo(mainBackgroundAlpha).Within(0.001f));
-
-                toggle.isOn = true;
+                Assert.That(view.SettingsButton.interactable, Is.True);
                 Assert.That(view.CommandControlsEnabled, Is.True);
-                Assert.That(
-                    MobileControlSettingsStore.Load().controlsEnabled,
-                    Is.True);
-                Assert.That(
-                    view.AimJoystick.gameObject.activeSelf,
-                    Is.True);
-                Assert.That(
-                    view.AttackButton.gameObject.activeSelf,
-                    Is.True);
 
-                controlSettingsButton.GetComponent<Button>()
-                    .onClick.Invoke();
+                Button controlButton =
+                    controlSettingsButton.GetComponent<Button>();
+                controlButton.onClick.Invoke();
+                Assert.That(settingsPage.gameObject.activeSelf, Is.False);
                 Assert.That(
                     controlSettingsPanel.gameObject.activeSelf,
                     Is.True);
+                Assert.That(view.SettingsButton.interactable, Is.False);
                 Assert.That(
-                    controlPadToggle.gameObject.activeSelf,
-                    Is.False);
+                    view.SettingsButton.GetComponent<CanvasGroup>().alpha,
+                    Is.EqualTo(0.35f).Within(0.001f));
+                Assert.That(
+                    view.AimJoystick.gameObject.activeSelf,
+                    Is.True);
+                Assert.That(
+                    view.AttackButton.gameObject.activeSelf,
+                    Is.True);
 
+                Button modeOne = controlSettingsPanel
+                    .Find("ControlModeButtons/Mode1Button")
+                    .GetComponent<Button>();
+                Button modeTwo = controlSettingsPanel
+                    .Find("ControlModeButtons/Mode2Button")
+                    .GetComponent<Button>();
+                Button hidden = controlSettingsPanel
+                    .Find("ControlModeButtons/HiddenButton")
+                    .GetComponent<Button>();
                 Slider joystickSize = controlSettingsPanel.Find(
                         "JoystickSizeSlider")
                     .GetComponent<Slider>();
+                Toggle autoAttack = controlSettingsPanel
+                    .Find("AutoAttackToggle")
+                    .GetComponent<Toggle>();
+                TMP_Text autoAttackValue = controlSettingsPanel
+                    .Find("AutoAttackToggle/Value")
+                    .GetComponent<TMP_Text>();
+                RectTransform autoAttackKnob = controlSettingsPanel
+                    .Find("AutoAttackToggle/Track/Knob")
+                    .GetComponent<RectTransform>();
+                TMP_Text attackButtonLabel =
+                    view.AttackButton.GetComponentInChildren<TMP_Text>();
+                Assert.That(attackButtonLabel.text, Is.EqualTo("공격"));
+
                 joystickSize.value = 1.5f;
+                modeOne.onClick.Invoke();
+                autoAttack.isOn = true;
                 Assert.That(
                     view.AimJoystick.transform.localScale.x,
                     Is.EqualTo(1.5f).Within(0.001f));
-                controlSettingsPanel.Find("ControlCancelButton")
-                    .GetComponent<Button>()
-                    .onClick.Invoke();
+                Assert.That(attackButtonLabel.text, Is.EqualTo("자동 조준"));
+                Assert.That(autoAttackValue.text, Is.EqualTo("On"));
+                Assert.That(
+                    autoAttackKnob.anchoredPosition.x,
+                    Is.GreaterThan(0f));
+                Assert.That(
+                    view.ControlSettings.controlMode,
+                    Is.EqualTo(MobileControlMode.AimCommand));
+                Assert.That(view.ControlSettings.autoAttackEnabled, Is.False);
+                Assert.That(
+                    MobileControlSettingsStore.Load().joystickScale,
+                    Is.EqualTo(1f).Within(0.001f));
+
+                controlButton.onClick.Invoke();
+                Assert.That(settingsPage.gameObject.activeSelf, Is.True);
+                Assert.That(
+                    controlSettingsPanel.gameObject.activeSelf,
+                    Is.False);
+                Assert.That(view.SettingsButton.interactable, Is.True);
                 Assert.That(
                     view.AimJoystick.transform.localScale.x,
                     Is.EqualTo(1f).Within(0.001f));
+                Assert.That(attackButtonLabel.text, Is.EqualTo("공격"));
 
-                controlSettingsButton.GetComponent<Button>()
-                    .onClick.Invoke();
-                Slider attackSize = controlSettingsPanel.Find(
-                        "AttackSizeSlider")
-                    .GetComponent<Slider>();
-                attackSize.value = 0.7f;
+                controlButton.onClick.Invoke();
+                Assert.That(
+                    joystickSize.value,
+                    Is.EqualTo(1.5f).Within(0.001f));
+                Assert.That(autoAttack.isOn, Is.True);
+                Assert.That(
+                    modeOne.GetComponent<Image>().color.b,
+                    Is.GreaterThan(
+                        modeTwo.GetComponent<Image>().color.b));
+
+                hidden.onClick.Invoke();
+                Assert.That(
+                    view.AimJoystick.gameObject.activeSelf,
+                    Is.False);
+                Assert.That(
+                    view.AttackButton.gameObject.activeSelf,
+                    Is.False);
+                controlButton.onClick.Invoke();
+                Assert.That(
+                    view.AimJoystick.gameObject.activeSelf,
+                    Is.True);
+                Assert.That(
+                    view.AttackButton.gameObject.activeSelf,
+                    Is.True);
+
+                controlButton.onClick.Invoke();
+                Assert.That(
+                    hidden.GetComponent<Image>().color.b,
+                    Is.GreaterThan(
+                        modeTwo.GetComponent<Image>().color.b));
                 controlSettingsPanel.Find("ControlApplyButton")
                     .GetComponent<Button>()
                     .onClick.Invoke();
+                Assert.That(view.CommandControlsEnabled, Is.False);
+                Assert.That(view.ControlSettings.controlsEnabled, Is.False);
+                Assert.That(view.ControlSettings.autoAttackEnabled, Is.True);
                 Assert.That(
-                    view.AttackButton.transform.localScale.x,
-                    Is.EqualTo(0.7f).Within(0.001f));
+                    view.ControlSettings.controlMode,
+                    Is.EqualTo(MobileControlMode.DirectMoveAutoAim));
                 Assert.That(
-                    MobileControlSettingsStore.Load().attackScale,
-                    Is.EqualTo(0.7f).Within(0.001f));
+                    MobileControlSettingsStore.Load().controlsEnabled,
+                    Is.False);
+                Assert.That(
+                    view.AimJoystick.gameObject.activeSelf,
+                    Is.False);
+                Assert.That(
+                    view.AttackButton.gameObject.activeSelf,
+                    Is.False);
 
-                controlSettingsButton.GetComponent<Button>()
-                    .onClick.Invoke();
-                joystickSize.value = 1.5f;
+                controlButton.onClick.Invoke();
+                modeTwo.onClick.Invoke();
+                joystickSize.value = 0.7f;
+                controlButton.onClick.Invoke();
+                view.ShowPauseDetails(false);
+                view.ShowPauseDetails(true);
+                controlButton = hud.transform.Find(
+                        "ModalRoot/PauseDetailsPanel/" +
+                        "ControlSettingsButton")
+                    .GetComponent<Button>();
+                controlButton.onClick.Invoke();
+                Assert.That(
+                    joystickSize.value,
+                    Is.EqualTo(1.5f).Within(0.001f));
+                Assert.That(
+                    hidden.GetComponent<Image>().color.b,
+                    Is.GreaterThan(
+                        modeTwo.GetComponent<Image>().color.b));
+
                 controlSettingsPanel.Find("ControlDefaultsButton")
                     .GetComponent<Button>()
                     .onClick.Invoke();
+                Assert.That(joystickSize.value, Is.EqualTo(1f));
+                Assert.That(autoAttack.isOn, Is.False);
+                Assert.That(autoAttackValue.text, Is.EqualTo("Off"));
                 Assert.That(
-                    joystickSize.value,
-                    Is.EqualTo(1f).Within(0.001f));
+                    autoAttackKnob.anchoredPosition.x,
+                    Is.LessThan(0f));
                 Assert.That(
-                    attackSize.value,
-                    Is.EqualTo(1f).Within(0.001f));
-                controlSettingsPanel.Find("ControlCancelButton")
-                    .GetComponent<Button>()
-                    .onClick.Invoke();
-                Assert.That(
-                    view.AttackButton.transform.localScale.x,
-                    Is.EqualTo(0.7f).Within(0.001f));
+                    modeTwo.GetComponent<Image>().color.b,
+                    Is.GreaterThan(
+                        hidden.GetComponent<Image>().color.b));
+                controlButton.onClick.Invoke();
 
                 Transform panel = hud.transform.Find(
                     "ModalRoot/CardSelectionPanel");
@@ -1286,13 +1465,12 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void LevelUpCardChoiceData_UsesSheetDescriptionAndNextLevel()
+        public void LevelUpCardChoiceData_UsesGameStringsAndNextLevel()
         {
             var definition = new LevelUpCardDefinition(
                 "TEST_CARD",
                 "TEST_NAME",
-                "시험 카드",
-                "시트에서 가져온 스킬 설명",
+                "TEST_DESCRIPTION",
                 LevelUpCardEffectType.UpgradeRank,
                 PlayerStatId.HitHeal,
                 StatOperation.Add,
@@ -1304,15 +1482,117 @@ namespace SimpleGame.Tests
                 "희귀",
                 "ICON_TEST",
                 true);
+            GameStringTable strings =
+                ScriptableObject.CreateInstance<GameStringTable>();
+            strings.Configure(new[]
+            {
+                new GameStringEntry("TEST_NAME", "시험 카드"),
+                new GameStringEntry(
+                    "TEST_DESCRIPTION",
+                    "시트에서 가져온 스킬 설명")
+            });
 
-            var choice = new LevelUpCardChoiceData(definition, 1);
+            var choice = new LevelUpCardChoiceData(
+                definition,
+                1,
+                strings);
 
             Assert.That(
                 choice.Description,
                 Is.EqualTo("시트에서 가져온 스킬 설명"));
+            Assert.That(choice.DisplayName, Is.EqualTo("시험 카드"));
             Assert.That(choice.NextLevel, Is.EqualTo(2));
             Assert.That(choice.MaxLevel, Is.EqualTo(3));
             StringAssert.Contains("희귀", choice.HeaderText);
+            UnityEngine.Object.DestroyImmediate(strings);
+        }
+
+        [Test]
+        public void GameStringParser_ParsesRequiredColumnsAndIgnoresExtras()
+        {
+            var sheet = new ExcelSheet(
+                "GameString",
+                new[]
+                {
+                    new ExcelRow(
+                        1,
+                        new[] { "StringId", "KoKR", "Context" }),
+                    new ExcelRow(
+                        2,
+                        new[] { "TEST_NAME", "시험 이름", "테스트" })
+                });
+
+            System.Collections.Generic.List<GameStringEntry> values =
+                GameDataExcelParser.ParseGameStrings(sheet);
+
+            Assert.That(values, Has.Count.EqualTo(1));
+            Assert.That(values[0].StringId, Is.EqualTo("TEST_NAME"));
+            Assert.That(values[0].Text, Is.EqualTo("시험 이름"));
+        }
+
+        [Test]
+        public void GameStringParser_RejectsDuplicateIds()
+        {
+            var sheet = CreateGameStringSheet(
+                new[] { "TEST_NAME", "시험 이름" },
+                new[] { "TEST_NAME", "중복 이름" });
+
+            InvalidDataException exception = Assert.Throws<
+                InvalidDataException>(() =>
+                GameDataExcelParser.ParseGameStrings(sheet));
+
+            StringAssert.Contains("duplicate StringId", exception.Message);
+        }
+
+        [Test]
+        public void GameStringParser_RejectsMissingKoKrColumn()
+        {
+            var sheet = new ExcelSheet(
+                "GameString",
+                new[]
+                {
+                    new ExcelRow(1, new[] { "StringId" }),
+                    new ExcelRow(2, new[] { "TEST_NAME" })
+                });
+
+            InvalidDataException exception = Assert.Throws<
+                InvalidDataException>(() =>
+                GameDataExcelParser.ParseGameStrings(sheet));
+
+            StringAssert.Contains("KoKR", exception.Message);
+        }
+
+        [Test]
+        public void GameStringParser_RejectsInvalidIdAndBlankText()
+        {
+            InvalidDataException invalidId = Assert.Throws<
+                InvalidDataException>(() =>
+                GameDataExcelParser.ParseGameStrings(
+                    CreateGameStringSheet(
+                        new[] { "INVALID-ID", "시험 이름" })));
+            InvalidDataException blankText = Assert.Throws<
+                InvalidDataException>(() =>
+                GameDataExcelParser.ParseGameStrings(
+                    CreateGameStringSheet(
+                        new[] { "TEST_NAME", " " })));
+
+            StringAssert.Contains("StringId", invalidId.Message);
+            StringAssert.Contains("KoKR", blankText.Message);
+        }
+
+        private static ExcelSheet CreateGameStringSheet(
+            params string[][] rows)
+        {
+            var sheetRows = new System.Collections.Generic.List<ExcelRow>
+            {
+                new ExcelRow(1, new[] { "StringId", "KoKR" })
+            };
+            for (int index = 0; index < rows.Length; index++)
+            {
+                sheetRows.Add(new ExcelRow(index + 2, rows[index]));
+            }
+
+            return new ExcelSheet("GameString", sheetRows);
         }
 
         [Test]

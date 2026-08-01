@@ -15,6 +15,7 @@ namespace SimpleGame
         [SerializeField] private GlobalBalance globalBalance;
         [SerializeField] private PlayerBalanceTable playerBalance;
         [SerializeField] private LevelUpCardTable levelUpCards;
+        [SerializeField] private GameStringTable gameStrings;
 
         [Header("Unity Asset Catalogs")]
         [SerializeField] private EnemyAssetCatalog enemyAssets;
@@ -29,6 +30,7 @@ namespace SimpleGame
         public GlobalBalance GlobalBalance => globalBalance;
         public PlayerBalanceTable PlayerBalance => playerBalance;
         public LevelUpCardTable LevelUpCards => levelUpCards;
+        public GameStringTable GameStrings => gameStrings;
         public EnemyAssetCatalog EnemyAssets => enemyAssets;
         public CombatFeedbackProfile CombatFeedback => combatFeedback;
 
@@ -40,6 +42,7 @@ namespace SimpleGame
             globalBalance != null &&
             playerBalance != null &&
             levelUpCards != null &&
+            gameStrings != null &&
             enemyAssets != null &&
             combatFeedback != null;
 
@@ -52,7 +55,8 @@ namespace SimpleGame
             PlayerBalanceTable configuredPlayerBalance,
             LevelUpCardTable configuredLevelUpCards,
             EnemyAssetCatalog configuredEnemyAssets,
-            CombatFeedbackProfile configuredCombatFeedback)
+            CombatFeedbackProfile configuredCombatFeedback,
+            GameStringTable configuredGameStrings = null)
         {
             enemyBalance = configuredEnemyBalance;
             stageSpawnSchedule = configuredStageSpawnSchedule;
@@ -61,6 +65,7 @@ namespace SimpleGame
             globalBalance = configuredGlobalBalance;
             playerBalance = configuredPlayerBalance;
             levelUpCards = configuredLevelUpCards;
+            gameStrings = configuredGameStrings;
             enemyAssets = configuredEnemyAssets;
             combatFeedback = configuredCombatFeedback;
         }

@@ -92,6 +92,160 @@ namespace SimpleGame.Tests
         }
 
         [Test]
+        public void VisibleWorldBounds_UsesOrthographicCameraSize()
+        {
+            Rect bounds = PlayerController.CalculateVisibleWorldBounds(
+                new Vector2(2f, -1f),
+                5f,
+                2f);
+
+            Assert.That(bounds.xMin, Is.EqualTo(-8f));
+            Assert.That(bounds.xMax, Is.EqualTo(12f));
+            Assert.That(bounds.yMin, Is.EqualTo(-6f));
+            Assert.That(bounds.yMax, Is.EqualTo(4f));
+        }
+
+        [TestCase(10f, 0f, 0f)]
+        [TestCase(10f, 0.25f, 2.5f)]
+        [TestCase(10f, 1f, 10f)]
+        [TestCase(10f, 2f, 10f)]
+        public void DirectionalMovement_ScalesSpeedWithPadMagnitude(
+            float speed,
+            float inputMagnitude,
+            float expected)
+        {
+            Assert.That(
+                PlayerMovement.CalculateDirectionalTargetSpeed(
+                    speed,
+                    inputMagnitude),
+                Is.EqualTo(expected).Within(0.001f));
+        }
+
+        [Test]
+        public void CircleSlide_InwardInputStopsAtAttackRange()
+        {
+            Vector2 result =
+                PlayerMovement.CalculateCircleSlidePosition(
+                    Vector2.right,
+                    Vector2.right * 0.5f,
+                    Vector2.zero,
+                    1f);
+
+            Assert.That(result, Is.EqualTo(Vector2.right));
+        }
+
+        [Test]
+        public void CircleSlide_DiagonalInputKeepsTangentialMovement()
+        {
+            Vector2 result =
+                PlayerMovement.CalculateCircleSlidePosition(
+                    Vector2.right,
+                    new Vector2(0.5f, 0.5f),
+                    Vector2.zero,
+                    1f);
+
+            Assert.That(result.x, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(result.y, Is.GreaterThan(0f));
+            Assert.That(result.magnitude, Is.GreaterThanOrEqualTo(1f));
+        }
+
+        [Test]
+        public void CircleSlide_OutwardInputRemainsUnchanged()
+        {
+            var proposed = new Vector2(1.5f, 0.25f);
+
+            Assert.That(
+                PlayerMovement.CalculateCircleSlidePosition(
+                    Vector2.right,
+                    proposed,
+                    Vector2.zero,
+                    1f),
+                Is.EqualTo(proposed));
+        }
+
+        [Test]
+        public void CircleSlide_LargeStepCannotSweepThroughCircle()
+        {
+            Vector2 result =
+                PlayerMovement.CalculateCircleSlidePosition(
+                    new Vector2(-2f, 0f),
+                    new Vector2(2f, 0f),
+                    Vector2.zero,
+                    1f);
+
+            Assert.That(result.x, Is.EqualTo(-1f).Within(0.001f));
+            Assert.That(result.magnitude, Is.GreaterThanOrEqualTo(1f));
+        }
+
+        [TestCase(1.2f, EnemyArchetype.Melee, 0.85f, 0.83f)]
+        [TestCase(1.65f, EnemyArchetype.Melee, 0.95f, 0.93f)]
+        [TestCase(1.2f, EnemyArchetype.Ranged, 2.25f, 1.2f)]
+        [TestCase(1.2f, EnemyArchetype.Shield, 0f, 1.2f)]
+        [TestCase(1.2f, EnemyArchetype.Boss, 0.85f, 1.2f)]
+        public void ModeOneEngagementRadius_AllowsNormalEnemyAttack(
+            float playerRange,
+            EnemyArchetype archetype,
+            float enemyRange,
+            float expected)
+        {
+            Assert.That(
+                PlayerController.CalculateModeOneEngagementRadius(
+                    playerRange,
+                    archetype,
+                    enemyRange),
+                Is.EqualTo(expected).Within(0.001f));
+        }
+
+        [Test]
+        public void MovementPiercingBudget_RechargesOnlyAfterScheduledTime()
+        {
+            Assert.That(
+                PlayerController.ShouldRefreshMovementPiercingBudget(
+                    0,
+                    10.39f,
+                    10.4f),
+                Is.False);
+            Assert.That(
+                PlayerController.ShouldRefreshMovementPiercingBudget(
+                    0,
+                    10.4f,
+                    10.4f),
+                Is.True);
+            Assert.That(
+                PlayerController.ShouldRefreshMovementPiercingBudget(
+                    1,
+                    11f,
+                    10.4f),
+                Is.False);
+            Assert.That(
+                PlayerController.ShouldRefreshMovementPiercingBudget(
+                    0,
+                    11f,
+                    float.PositiveInfinity),
+                Is.False);
+        }
+
+        [TestCase(1f, 0f, 1f, 0f, true)]
+        [TestCase(1f, 0f, -1f, 0f, false)]
+        [TestCase(1f, 0f, 1f, 1f, false)]
+        public void ModeOnePass_StartsOnlyWhenMovementCrossesEnemy(
+            float movementX,
+            float movementY,
+            float targetX,
+            float targetY,
+            bool expected)
+        {
+            Vector2 movement = new(movementX, movementY);
+            Assert.That(
+                PlayerController.CanStartModeOnePass(
+                    Vector2.zero,
+                    new Vector2(targetX, targetY),
+                    movement,
+                    0.6f),
+                Is.EqualTo(expected));
+        }
+
+        [Test]
         public void NeutralAim_DoesNotCreateAttackCommand()
         {
             Assert.That(
@@ -102,6 +256,33 @@ namespace SimpleGame.Tests
                     Vector2.right *
                     PlayerController.MinimumCommandAimMagnitude),
                 Is.True);
+        }
+
+        [TestCase(false, false, true, false, true, true, true)]
+        [TestCase(false, false, true, false, false, true, false)]
+        [TestCase(false, false, true, true, false, true, true)]
+        [TestCase(true, false, true, true, true, true, false)]
+        [TestCase(false, true, true, true, true, true, false)]
+        [TestCase(false, false, false, true, true, true, false)]
+        [TestCase(false, false, true, true, true, false, false)]
+        public void ModeOneLockedTarget_RespectsManualPriorityAndOneShot(
+            bool manualInputHeld,
+            bool commandActive,
+            bool hasTarget,
+            bool autoAttackEnabled,
+            bool oneShotPending,
+            bool intervalElapsed,
+            bool expected)
+        {
+            Assert.That(
+                PlayerController.ShouldStartModeOneLockedTargetCommand(
+                    manualInputHeld,
+                    commandActive,
+                    hasTarget,
+                    autoAttackEnabled,
+                    oneShotPending,
+                    intervalElapsed),
+                Is.EqualTo(expected));
         }
 
         [Test]
@@ -260,6 +441,35 @@ namespace SimpleGame.Tests
         }
 
         [Test]
+        public void Joystick_CancelInputReleasesOwnedPointer()
+        {
+            var joystickObject = new GameObject("AimJoystick");
+            try
+            {
+                AimJoystickControl joystick =
+                    joystickObject.AddComponent<AimJoystickControl>();
+                FieldInfo activePointerField =
+                    typeof(AimJoystickControl).GetField(
+                        "activePointerId",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic);
+                Assert.That(activePointerField, Is.Not.Null);
+                activePointerField.SetValue(joystick, 17);
+
+                joystick.CancelInput();
+
+                Assert.That(joystick.IsHeld, Is.False);
+                Assert.That(
+                    joystick.NormalizedInput,
+                    Is.EqualTo(Vector2.zero));
+            }
+            finally
+            {
+                Object.DestroyImmediate(joystickObject);
+            }
+        }
+
+        [Test]
         public void MobileControlSettings_ClampScaleAndSafeAreaPosition()
         {
             MobileControlSettings settings = MobileControlSettings.Default;
@@ -320,6 +530,8 @@ namespace SimpleGame.Tests
                     MobileControlSettings.Default;
                 expected.controlsEnabled = false;
                 expected.autoAttackEnabled = true;
+                expected.controlMode =
+                    MobileControlMode.DirectMoveAutoAim;
                 expected.joystickScale = 1.25f;
                 expected.joystickPosition = new Vector2(0.2f, 0.35f);
                 expected.attackScale = 0.8f;
@@ -331,6 +543,10 @@ namespace SimpleGame.Tests
 
                 Assert.That(actual.controlsEnabled, Is.False);
                 Assert.That(actual.autoAttackEnabled, Is.True);
+                Assert.That(
+                    actual.controlMode,
+                    Is.EqualTo(
+                        MobileControlMode.DirectMoveAutoAim));
                 Assert.That(actual.joystickScale, Is.EqualTo(1.25f));
                 Assert.That(
                     actual.joystickPosition,
@@ -347,61 +563,135 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void ControlSettingsLayout_UsesTwoColumnsInLandscape()
+        public void MobileControlSettings_LegacyVersionKeepsLayoutAsModeTwo()
         {
-            Vector2 landscape = new(1920f, 1080f);
-            Vector2 portrait = new(1080f, 1920f);
-            Vector2 shortPortrait = new(1080f, 1200f);
+            const string preferencesKey =
+                "SimpleGame.MobileControls.v1";
+            bool hadOriginal = PlayerPrefs.HasKey(preferencesKey);
+            string original = hadOriginal
+                ? PlayerPrefs.GetString(preferencesKey)
+                : null;
+            try
+            {
+                PlayerPrefs.SetString(
+                    preferencesKey,
+                    "{\"version\":1," +
+                    "\"controlsEnabled\":false," +
+                    "\"autoAttackEnabled\":true," +
+                    "\"joystickScale\":1.25," +
+                    "\"joystickPosition\":{\"x\":0.2,\"y\":0.35}," +
+                    "\"attackScale\":0.8," +
+                    "\"attackPosition\":{\"x\":0.75,\"y\":0.4}}");
 
-            Assert.That(
-                MobileControlSettingsStore
-                    .UsesTwoColumnSettingsLayout(landscape),
-                Is.True);
-            Assert.That(
-                MobileControlSettingsStore
-                    .UsesTwoColumnSettingsLayout(portrait),
-                Is.False);
-            Assert.That(
-                MobileControlSettingsStore
-                    .UsesTwoColumnSettingsLayout(shortPortrait),
-                Is.True);
+                MobileControlSettings migrated =
+                    MobileControlSettingsStore.Load();
 
-            Vector2 joystickBottom =
-                MobileControlSettingsStore
-                    .CalculateSettingsSliderPosition(
-                        landscape,
-                        false,
-                        2);
-            Vector2 attackBottom =
-                MobileControlSettingsStore
-                    .CalculateSettingsSliderPosition(
-                        landscape,
-                        true,
-                        2);
-            Assert.That(joystickBottom.x, Is.LessThan(0f));
-            Assert.That(attackBottom.x, Is.GreaterThan(0f));
-            Assert.That(joystickBottom.y, Is.GreaterThan(-1080f));
-            Assert.That(attackBottom.y, Is.EqualTo(joystickBottom.y));
+                Assert.That(
+                    migrated.version,
+                    Is.EqualTo(MobileControlSettingsStore.CurrentVersion));
+                Assert.That(
+                    migrated.controlMode,
+                    Is.EqualTo(MobileControlMode.AimCommand));
+                Assert.That(migrated.controlsEnabled, Is.False);
+                Assert.That(migrated.autoAttackEnabled, Is.True);
+                Assert.That(migrated.joystickScale, Is.EqualTo(1.25f));
+                Assert.That(
+                    migrated.joystickPosition,
+                    Is.EqualTo(new Vector2(0.2f, 0.35f)));
+                Assert.That(migrated.attackScale, Is.EqualTo(0.8f));
+                Assert.That(
+                    migrated.attackPosition,
+                    Is.EqualTo(new Vector2(0.75f, 0.4f)));
+            }
+            finally
+            {
+                if (hadOriginal)
+                {
+                    PlayerPrefs.SetString(preferencesKey, original);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(preferencesKey);
+                }
 
-            Vector2 portraitAttackBottom =
-                MobileControlSettingsStore
-                    .CalculateSettingsSliderPosition(
-                        portrait,
-                        true,
-                        2);
-            Assert.That(portraitAttackBottom.x, Is.Zero);
-            Assert.That(portraitAttackBottom.y, Is.GreaterThan(-1920f));
+                PlayerPrefs.Save();
+            }
         }
 
         [Test]
-        public void AutoAttack_UsesHalfSecondIntervalAndDefaultsOff()
+        public void MobileControlSettings_InvalidModeFallsBackToModeTwo()
+        {
+            MobileControlSettings settings =
+                MobileControlSettings.Default;
+            settings.controlMode = (MobileControlMode)999;
+
+            settings = MobileControlSettingsStore.Clamp(settings);
+
+            Assert.That(
+                settings.controlMode,
+                Is.EqualTo(MobileControlMode.AimCommand));
+        }
+
+        [Test]
+        public void ControlPositionInverse_AllowsFullScreenCrossing()
+        {
+            Rect safeArea = new(-540f, -960f, 1080f, 1920f);
+            Vector2 baseSize = new(240f, 240f);
+            const float scale = 1.25f;
+            foreach (Vector2 expected in new[]
+                     {
+                         Vector2.zero,
+                         new Vector2(0.95f, 0.15f),
+                         Vector2.one
+                     })
+            {
+                Vector2 center = MobileControlSettingsStore
+                    .CalculateControlCenter(
+                        safeArea,
+                        baseSize,
+                        scale,
+                        expected);
+                Vector2 actual = MobileControlSettingsStore
+                    .CalculateNormalizedPosition(
+                        safeArea,
+                        baseSize,
+                        scale,
+                        center);
+                Assert.That(actual.x, Is.EqualTo(expected.x).Within(0.001f));
+                Assert.That(actual.y, Is.EqualTo(expected.y).Within(0.001f));
+            }
+
+            Vector2 crossedToRight =
+                MobileControlSettingsStore
+                    .CalculateControlCenter(
+                        safeArea,
+                        baseSize,
+                        scale,
+                        new Vector2(0.95f, 0.15f));
+            Assert.That(crossedToRight.x, Is.GreaterThan(0f));
+
+            Vector2 clamped =
+                MobileControlSettingsStore
+                    .CalculateNormalizedPosition(
+                        safeArea,
+                        baseSize,
+                        scale,
+                        new Vector2(9999f, -9999f));
+            Assert.That(clamped, Is.EqualTo(new Vector2(1f, 0f)));
+        }
+
+        [Test]
+        public void AutoAttack_UsesPointThreeSecondIntervalAndDefaultsOff()
         {
             Assert.That(
                 PlayerController.AutoAttackInterval,
-                Is.EqualTo(0.5f));
+                Is.EqualTo(0.3f));
             Assert.That(
                 MobileControlSettings.Default.autoAttackEnabled,
                 Is.False);
+            Assert.That(
+                MobileControlSettings.Default.controlMode,
+                Is.EqualTo(MobileControlMode.AimCommand));
         }
     }
 
