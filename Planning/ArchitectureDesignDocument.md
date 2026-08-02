@@ -854,13 +854,16 @@ Excel 원본
   ├─ AccountLevelExp
   ├─ GlobalBalance
   ├─ PlayerBalance
-  └─ LevelUpCard
+  ├─ LevelUpCard
+  ├─ GameString
+  ├─ ImageData
+  └─ LobbyDifficulty
           ↓ 가져오기·검증
 Assets/Game/Data/Generated/*.asset
           ↓
 GameDataManifest
           ↓
-GameSession / StageSpawnController / EnemyFactory
+LobbyView / GameSession / StageSpawnController / EnemyFactory
 
 Unity 수동 설정
   ├─ EnemyAssetCatalog (EnemyId ↔ Prefab)
@@ -868,7 +871,7 @@ Unity 수동 설정
           ↓
 GameDataManifest
 
-PrototypeScene
+Battle Scene
   ├─ SpawnPointRegistry (Player 기준 SpawnPointId ↔ Transform)
   ├─ WorldChunkGrid (3×3 Tilemap)
   └─ PlayerWorldArea (Spawn/재배치 경계)
@@ -885,10 +888,13 @@ PrototypeScene
 - `GlobalBalance`: 점수→계정 EXP 환산식과 치명타 공통값
 - `PlayerBalanceTable`: Player 기본 HP·공격력·성장률·기본 이동 속도·상황별 속도 배율·도착 허용 거리·사거리
 - `LevelUpCardTable`: 카드 효과, 중첩, 가중치, 최소 등장 레벨과 활성 여부
+- `GameStringTable`: 사용자 표시 문자열 ID와 한국어 문구
+- `ImageDataTable`: 이미지 ID, 원본 파일명과 Import 시 해석한 Sprite 참조
+- `LobbyDifficultyTable`: Lobby 표시 순서·사용 가능 여부·시간·보정 안내값·이미지와 문자열 Key·실행 난이도 연결
 
-이 에셋들은 수동 편집하지 않고 `Planning/GameData.xlsx` 가져오기 결과로만
+이 에셋들은 수동 편집하지 않고 `Planning/GameData_10min_Balance.xlsx` 가져오기 결과로만
 취급한다. Excel 저장 후 Unity 메뉴 `SimpleGame > Data > Import Excel`을
-실행하면 Editor 전용 importer가 7개 필수 시트를 모두 메모리에서 검증한 뒤
+실행하면 Editor 전용 importer가 필수 시트를 모두 메모리에서 검증한 뒤
 정상일 때만 기존 에셋에 일괄 적용한다. 오류가 하나라도 있으면 기존 정상
 에셋은 변경되지 않는다.
 
@@ -967,7 +973,7 @@ Assets/Game/
    └─ EditMode/
 ```
 
-모든 `.prefab` 에셋은 종류와 관계없이 `Assets/Prefab` 바로 아래에서 관리한다.
+모든 `.prefab` 에셋은 `Assets/Prefab`을 루트로 관리한다. 한 화면을 이루는 관련 UI는 `Assets/Prefab/UI/<화면명>`처럼 기능별 하위 폴더에 모으고, 현재 Lobby의 정적 화면은 `Assets/Prefab/UI/Lobby/LobbyScreen.prefab`에 둔다.
 폴더 하나에 스크립트가 과도하게 늘어나기 전에는 Archetype별 빈 하위 폴더나 아직 구현하지 않은 Save·Infrastructure 폴더를 미리 만들지 않는다. 전체 파일명과 역할은 `Planning/ScriptStructure.md`에서 관리한다.
 
 ### 17.1 Assembly Definition
@@ -1384,3 +1390,124 @@ PrototypeGameSession
 - `EnemyActor` 통합은 Prefab 루트의 기존 `MeleeEnemy` 등 Component를 새 Component로 교체한다. ScriptableObject가 구 Component를 직접 가리키던 참조는 이 과정에서 비어 있을 수 있다.
 - `EnemyAssetEntry`는 직접 `EnemyBase` 참조와 Prefab 루트 `GameObject`를 함께 저장한다. 직접 참조가 없을 때 루트의 현재 `EnemyBase`를 `GetComponent`로 복구한다.
 - Builder도 Prefab을 `GameObject`로 먼저 로드한 뒤 현재 `EnemyBase`를 읽는다. 루트까지 없거나 현재 EnemyBase가 없으면 기존처럼 명시적으로 조회 실패한다.
+
+## 28. Lobby 씬·표시 데이터 아키텍처
+
+### 28.1 앱 진입과 씬 경계
+
+```text
+Build Settings
+  0. Lobby
+     └─ LobbyScreen.prefab
+          ├─ LobbyView
+          └─ LobbyDifficultyOptionView × 3
+                 ↓ 쉬움/보통 선택 저장 + 입장하기
+  1. Battle
+     └─ PrototypeGameSession
+          ├─ 저장 Lobby ID → GameDifficulty 변환
+          └─ 기존 SelectDifficulty 실행
+```
+
+- `Lobby`가 제품의 첫 씬이고 `Battle`이 실제 전투 씬이다. 전환 문자열은 `Battle` 하나로 고정한다.
+- `Battle`을 편집기에서 직접 실행할 수 있도록, 유효한 Lobby 저장값이 없을 때만 기존 인게임 난이도 모달을 보여준다. 정상 Lobby 경로는 선택 시 저장값을 만든 뒤 Battle을 열므로 같은 난이도를 다시 묻지 않는다.
+- 어려움은 Lobby 전용 `LobbyDifficultyId`에는 존재하지만 런타임 `GameDifficulty`에는 연결하지 않는다. UI 준비 상태가 Spawn 데이터 존재를 암시하지 않도록 `IsAvailable=false`, 실행 난이도 없음으로 직렬화한다.
+
+### 28.2 런타임 조립 없는 Lobby UI
+
+- 고정 계층은 `Assets/Prefab/UI/Lobby/LobbyScreen.prefab`에 저장한다. `Lobby.unity`에는 Main Camera, EventSystem과 이 프리팹 인스턴스만 둔다.
+- `LobbySceneBuilder`는 Editor 전용 최초 생성·대상 한정 마이그레이션 도구다. 기존 Lobby Prefab과 Scene이 있으면 `Build`는 다시 저장하지 않는다. 런타임 `LobbyView`는 저장된 참조에 Listener와 표시값만 적용한다.
+- 상단 `도감`은 적 탭으로 도감을 열고 `설정`은 별도 설정 Prefab을 연다. `특성`은 상단 Placeholder 버튼만 유지하며 도감과 연결하지 않는다.
+- 최초 미선택 상태는 enum 기본값으로 표현하지 않고 `hasSelection`과 PlayerPrefs 키 존재 여부로 구분한다. 키가 없거나 현재 선택을 해제하면 모든 난이도 배경을 회색으로 두고 `DifficultyPreview` 전체와 입장 버튼을 비활성화한다. 같은 난이도 버튼 재입력은 현재 선택만 해제하고 다음 진입 복원용 마지막 저장 ID는 유지한다.
+
+### 28.3 문자열·수치·이미지 데이터 흐름
+
+```text
+GameData_10min_Balance.xlsx
+  ├─ GameString ───────────────→ GameStringTable
+  ├─ LobbyDifficulty ──────────→ LobbyDifficultyTable
+  └─ ImageData (Id, FileName)
+             + Assets/Image/<FileName>
+                    ↓ Editor Import에서 Sprite 해석
+              ImageDataTable
+                       ↓
+                GameDataManifest
+                       ↓
+                   LobbyView
+```
+
+- `ImageData`에는 Unity 경로나 Object 참조 대신 `Id`, `FileName`만 둔다. Importer는 경로 구분자·상위 경로 이탈을 거부하고 고정 폴더 `Assets/Image`의 Sprite를 생성 SO에 직접 연결한다. Player 빌드는 PNG 파일을 경로로 읽지 않는다.
+- `LobbyDifficulty`는 전투 Spawn 시트가 아니라 표시 메타데이터다. 시간, 보정 설명 수치, 이미지 ID와 이름·버튼 설명·목표·효과 GameString Key를 한 행으로 연결한다.
+- 선택 저장은 `LobbyDifficultySelectionStore` 한 곳이 PlayerPrefs Key와 유효성 검사를 소유한다. 저장값 손상, 정의 누락, 어려움 값은 선택 없음으로 축소한다.
+
+### 28.4 알려진 데이터 불일치
+
+- 쉬움의 Lobby 표시 시간은 5분이지만 현재 `StageSpawnEasy`는 10분·60웨이브 데이터다. Lobby 메타데이터 변경은 전투 일정 변경을 자동으로 만들지 않는다.
+- 실제 쉬움 전투가 5분이 되려면 Spawn 시간표, 보스 출현과 관련 검증값을 별도 밸런스 작업에서 함께 변경해야 한다. 그 전까지 Battle은 기존 10분 스폰 데이터를 사용한다.
+
+## 29. Lobby 도감과 공용 조작 프리팹 아키텍처
+
+### 29.1 정적 Prefab 계층
+
+```text
+LobbyScreen.prefab
+├─ LobbyBgm (AudioSource: Play On Awake, Loop, 2D)
+├─ LobbyCodexPanel.prefab
+│  ├─ EnemyContent
+│  │  ├─ LobbyCodexEntry.prefab × 9
+│  │  └─ LobbyCodexDetail.prefab
+│  └─ SkillContent
+│     ├─ LobbyCodexEntry.prefab × 9
+│     └─ LobbyCodexDetail.prefab
+└─ LobbySettingsPanel.prefab
+   ├─ SettingsPage
+   ├─ ControlSettingsButton
+   └─ ControlSettingsPage
+      └─ Assets/Prefab/UI/Shared/ControlSettingsPanel.prefab
+
+PauseDetailsPanel.prefab
+└─ Assets/Prefab/UI/Shared/ControlSettingsPanel.prefab
+```
+
+- 도감의 고정 창, 적·스킬 탭, 카드 18개와 상세 Overlay는 Prefab에 저장한다. 런타임에는 `LobbyCodexView`가 기존 참조의 활성 상태, 문구, Sprite와 Listener만 갱신한다. 조작·특성 탭과 콘텐츠는 도감 계층에 두지 않는다.
+- Battle 일시정지 화면과 `LobbySettingsPanel.prefab`은 동일한 `ControlSettingsPanel.prefab`을 중첩 Prefab으로 사용한다. 조작 UI의 배치나 항목을 바꿀 때 공용 Prefab 하나를 수정하면 두 화면에 같은 구조가 반영된다.
+- 공용화 최초 마이그레이션은 기존 `PauseDetailsPanel.prefab/ControlSettingsPanel`을 `SaveAsPrefabAssetAndConnect`로 추출한다. 기존 계층을 코드 기본값으로 재생성하지 않으며, 공용 Prefab이나 Pause Prefab이 이미 존재하면 `Ensure` 경로는 해당 자산을 덮어쓰지 않는다.
+- 도감 바깥 터치와 X는 전체 창을 닫고, 상세 Overlay 터치는 상세만 닫는다. 창 내부의 일반 터치가 바깥 닫기 영역으로 전파되지 않도록 Window가 Raycast를 차단한다.
+
+### 29.2 데이터 흐름과 페이지 정책
+
+```text
+EnemyBalance + EnemyAssetCatalog + GameStringTable
+                         └─→ Enemy 3×3 Page ─→ Detail Overlay
+
+LevelUpCardTable + GameStringTable
+                         └─→ Skill 3×3 Page ─→ Detail Overlay
+```
+
+- 적 카드는 `EnemyBalance`의 정의 순서와 `EnemyAssetCatalog` Sprite를 결합한다. 설명은 적 ID별 GameString Key로 조회하며 현재 8종 뒤의 1개 슬롯은 비활성 빈 칸이다.
+- 스킬 카드는 기본 스킬 6종과 융합 3종을 고정 순서로 보여준다. 이기어검은 두 성장 카드 대신 하나의 도감 항목으로 통합한다. 현재 스킬 Icon 자산이 없으므로 카드와 상세 이미지 참조를 비워 둔다.
+- 페이지 단위는 9개이며 좌우 버튼은 페이지 경계를 넘지 못한다. 미래 항목 추가 시 정적 Slot을 재사용해 다음 페이지 데이터만 바인딩한다.
+- 탭명, 페이지 표기, 통합 이기어검 문구와 적 설명은 `GameStringTable`에서 읽어 Excel 재임포트만으로 교체할 수 있다.
+
+### 29.3 Lobby 조작 설정 상태
+
+- `LobbySettingsView`는 상단 설정 버튼으로 별도 설정 창을 열고, 내부 조작 버튼으로 `SettingsPage`와 `ControlSettingsPage`를 전환한다. 이 구조는 Battle Pause의 기본 설정 화면↔조작 설정 화면 전환과 같다.
+- `LobbyControlSettingsView`는 `MobileControlSettingsStore`의 적용값과 별도의 편집 초안을 유지한다. 조작 화면에서 기본 설정 화면으로 돌아가도 초안은 남고, 적용 버튼을 눌렀을 때만 저장한 뒤 기본 화면으로 돌아간다.
+- 설정 창 전체를 적용 없이 닫으면 초안을 버린다. 다음에 설정 창을 열면 마지막으로 적용한 모드, 자동 공격, 크기와 좌우 패드 위치를 다시 불러온다.
+- 숨기기 모드에서는 미리보기 패드를 숨기며 모드 1·2로 돌아오면 마지막 적용 위치를 복원한다. 실제 인게임 조작 로직은 기존 `MobileControlSettingsStore` 소비 경로를 그대로 사용한다.
+
+### 29.4 난이도 이미지 참조 구조
+
+- `ImageData`는 이미지 ID와 `Assets/Image` 아래의 파일명을 연결하며, Import 결과인 `ImageDataTable`은 런타임 파일 검색 대신 Sprite 직접 참조를 가진다.
+- `LobbyDifficulty.ImageId`는 기존 전투 대표 이미지(`LobbyDifficulty_Easy/Normal/Hard.png`) 전용이다.
+- `LobbyDifficulty.SelectedDifficultyImageId`는 현재 선택 난이도 표시 이미지(`Easy_Text/Normal_Text/Hard_Text.png`) 전용이다.
+- `LobbyDifficulty.SelectedDifficultyImageScale`은 하나의 `SelectedDifficultyImage`가 Sprite를 교체하는 구조에서도 난이도별 시각 크기를 다르게 보정한다. `LobbyView`는 선택마다 `RectTransform.localScale`에 균일 배율을 적용하고 선택 해제 시 `Vector3.one`으로 복원한다.
+- `LobbyView`는 난이도 선택 시 두 ID를 각각 `RepresentativeImage`, `SelectedDifficultyImage`에 적용하고 선택 해제 시 두 Sprite 참조와 Image 표시를 모두 해제한다.
+- 사용자가 수정한 Lobby UI를 보호하기 위해 일반 `Build()`는 기존 Prefab을 재생성하지 않는다. 누락된 `SelectedDifficultyImage` 마이그레이션도 해당 자식과 직렬화 참조만 보완하며 기존 RectTransform과 다른 UI 계층은 보존한다.
+
+### 29.5 Lobby 음악과 작업 파일 안정성
+
+- `LobbyBgm`은 `LobbyScreen.prefab`에 직렬화된 정적 `AudioSource`다. `Play On Awake`, `Loop`, `spatialBlend=0`을 사용하고 `Lobby.unity/Main Camera`의 정적 `AudioListener`로 출력한다. 런타임 생성이나 전역 영속 오브젝트를 사용하지 않으므로 Lobby 진입과 함께 재생되고 Lobby 씬을 벗어나면 자연스럽게 정리된다.
+- Lobby의 긴 MP3는 `AudioClipLoadType.Streaming`, `Load In Background=true`, `Preload Audio Data=false`로 Import한다. 압축 음원 전체를 시작 시점에 PCM으로 해제해 상주시키는 대신 재생 스트림을 사용한다.
+- `LobbySceneBuilder.MigrateLobbyMusic`은 기존 UI 마이그레이션과 분리되어 `LobbyBgm`, 해당 AudioImporter 설정과 Lobby Main Camera의 누락된 `AudioListener`만 보완한다. 사용자가 편집한 난이도 이미지와 설정 패널 계층은 다시 생성하거나 이동하지 않는다.
+- Excel 원본을 갱신할 때는 artifact-tool로 기존 `.xlsx`를 Import한 뒤 값·수식 snapshot과 오류 검사를 통과한 정상 export만 원본에 반영한다. Excel 소유자 파일 `~$*.xlsx`, `~$*.xlsm`과 일반 `.tmp`는 Git 추적에서 제외한다.
+- Commit 전에는 활성 Git 프로세스와 `.git/index.lock`, `.git/HEAD.lock`, `.git/config.lock`, `.git/packed-refs.lock`을 확인한다. 잠금 파일은 활성 Git 작업이 없고 stale임이 확인된 경우에만 제거한다.

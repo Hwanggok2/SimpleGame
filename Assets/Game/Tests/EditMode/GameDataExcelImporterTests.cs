@@ -73,6 +73,45 @@ namespace SimpleGame.Tests
             Assert.That(model.PlayerDefinitions, Has.Count.EqualTo(1));
             Assert.That(model.LevelUpCards, Has.Count.EqualTo(16));
             Assert.That(model.GameStrings, Is.Not.Empty);
+            Assert.That(model.Images, Has.Count.EqualTo(6));
+            Assert.That(model.LobbyDifficulties, Has.Count.EqualTo(3));
+            LobbyDifficultyDefinition easyLobby =
+                model.LobbyDifficulties.Single(value =>
+                    value.Id == LobbyDifficultyId.Easy);
+            LobbyDifficultyDefinition normalLobby =
+                model.LobbyDifficulties.Single(value =>
+                    value.Id == LobbyDifficultyId.Normal);
+            LobbyDifficultyDefinition hardLobby =
+                model.LobbyDifficulties.Single(value =>
+                    value.Id == LobbyDifficultyId.Hard);
+            Assert.That(easyLobby.DurationMinutes, Is.EqualTo(5));
+            Assert.That(normalLobby.DurationMinutes, Is.EqualTo(10));
+            Assert.That(hardLobby.DurationMinutes, Is.EqualTo(20));
+            Assert.That(hardLobby.IsAvailable, Is.False);
+            Assert.That(
+                hardLobby.TryGetRuntimeDifficulty(out _),
+                Is.False);
+            Assert.That(
+                model.Images.Single(value =>
+                    value.Id == "LOBBY_DIFFICULTY_EASY").FileName,
+                Is.EqualTo("LobbyDifficulty_Easy.png"));
+            Assert.That(
+                model.Images.Single(value =>
+                    value.Id == "LOBBY_SELECTED_DIFFICULTY_EASY")
+                    .FileName,
+                Is.EqualTo("Easy_Text.png"));
+            Assert.That(
+                easyLobby.SelectedDifficultyImageId,
+                Is.EqualTo("LOBBY_SELECTED_DIFFICULTY_EASY"));
+            Assert.That(
+                easyLobby.SelectedDifficultyImageScale,
+                Is.EqualTo(0.9f).Within(0.0001f));
+            Assert.That(
+                normalLobby.SelectedDifficultyImageScale,
+                Is.EqualTo(1.1f).Within(0.0001f));
+            Assert.That(
+                hardLobby.SelectedDifficultyImageScale,
+                Is.EqualTo(1f).Within(0.0001f));
             string GetGameString(string stringId) => model.GameStrings
                 .Single(value => value.StringId == stringId)
                 .Text;
@@ -1626,12 +1665,12 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void PrototypeScene_ContainsOnlyPersistentHudPrefab()
+        public void BattleScene_ContainsOnlyPersistentHudPrefab()
         {
             string scenePath = Path.GetFullPath(Path.Combine(
                 Application.dataPath,
                 "Scenes",
-                "PrototypeScene.unity"));
+                "Battle.unity"));
             string sceneYaml = File.ReadAllText(scenePath);
             string hudGuid = AssetDatabase.AssetPathToGUID(
                 PrototypeSceneBuilder.PrototypeHudPrefabPath);

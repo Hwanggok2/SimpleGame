@@ -229,3 +229,105 @@
 ### 11차 최종 검증 결과
 
 - Unity EditMode 전체 테스트는 Pool 상한 축소와 Catalog 3경로 회귀 테스트까지 포함해 399/399 통과, 실패 0개다.
+
+## 12차 Lobby 진입 화면·난이도 표시 데이터
+
+### 씬 흐름과 정적 UI
+
+- 앱 첫 씬을 `Lobby`, 전투 씬을 `Battle`로 정의하고 Build Settings도 이 순서를 기준으로 관리한다.
+- Lobby의 고정 화면은 런타임에서 조립하지 않고 `Assets/Prefab/UI/Lobby/LobbyScreen.prefab`에 저장한다. `Lobby.unity`에는 Main Camera, EventSystem과 이 프리팹 인스턴스를 둔다.
+- 상단 `특성`, `도감`, `설정`은 후속 화면 구성이 확정될 때까지 비활성 Placeholder로 만들었다.
+- `LobbyView`는 직렬화된 Button·Image·TMP 참조의 내용과 상태만 바꾸며, 입장 가능한 난이도가 선택되면 `Battle` 씬을 연다.
+
+### 최초 미선택과 선택 복원
+
+- PlayerPrefs 키가 없는 최초 Lobby는 난이도를 자동 선택하지 않는다. 세 버튼을 모두 회색으로 표시하고 대표 이미지를 숨기며 `입장하기`를 비활성화한다.
+- 쉬움 또는 보통을 선택하면 해당 버튼을 녹색으로 바꾸고 마지막 선택을 저장한다. 다음 접속에는 유효한 마지막 선택을 복원한다.
+- 저장값이 손상되었거나 현재 정의와 맞지 않으면 미선택 상태로 안전하게 돌아간다.
+- 어려움은 버튼·문구·대표 이미지 연결만 준비한 UI-only 상태다. `GameDifficulty`와 Spawn 데이터에는 추가하지 않았고 선택·저장·입장을 비활성화했다.
+
+### ImageData·LobbyDifficulty·GameString
+
+- Excel에 `ImageData` 시트를 추가해 `Id`, `FileName`을 기록하고, Editor Importer가 `Assets/Image/<FileName>`을 Sprite로 해석해 `ImageDataTable.asset`에 직접 참조하도록 구성했다.
+- `LobbyDifficulty`는 표시 순서, 사용 가능 여부, 실행 난이도 연결, 표시 시간, 적 수·레벨 보정 안내값, 이미지 ID와 문자열 Key를 관리하는 UI 메타데이터다.
+- 상단 메뉴, 난이도명·버튼 보조 설명·목표·효과·입장 문구는 `GameString`으로 관리해 시트 수정과 재Import만으로 갱신할 수 있게 했다.
+- 대표 이미지는 `Assets/Image`에서 관리하며 Read/Write와 Mipmap을 끄는 Texture Import 정책 대상으로 포함했다.
+
+### Battle 연동과 fallback
+
+- 정상 흐름은 `Lobby → Battle`이며, Battle 세션은 저장된 Lobby 난이도를 기존 `GameDifficulty.Easy/Normal`과 `SelectDifficulty` 흐름으로 연결한다.
+- 개발 중 `Battle` 씬을 직접 열었는데 유효한 저장 난이도가 없으면 기존 인게임 난이도 모달을 fallback으로 유지한다.
+
+### 알려진 불일치와 후속 작업
+
+- 새 Lobby의 쉬움 UI는 기획대로 5분을 표시하지만 기존 `StageSpawnEasy`는 여전히 60웨이브·10분 데이터다. 현재 실제 쉬움 전투는 10분 일정으로 실행된다.
+- 스폰 시간표와 보스 출현을 5분에 맞추는 작업은 별도 밸런스 변경으로 연기했다. 이번 작업의 `LobbyDifficulty.DurationMinutes=5`는 UI 표시 메타데이터이며 Stage 데이터 변경이 아니다.
+
+### 문서 동기화
+
+- `GameDesignDocument.md` 28장에 Lobby UX, 선택 저장, 이미지·문구 데이터와 5분/10분 불일치를 반영했다.
+- `FunctionalSpecification.md` 33장에 정적 UI, 선택 복원, Battle 전달, ImageData와 LobbyDifficulty Import 기능을 정의했다.
+- `ArchitectureDesignDocument.md` 28장에 `Lobby → Battle` 씬 경계, 정적 Prefab과 데이터 흐름을 기록하고 Prefab 폴더 정책을 기능별 하위 폴더 허용으로 갱신했다.
+- `ScriptStructure.md`에 Lobby Runtime·Editor·테스트 파일과 각 책임, 자산 배치를 추가했다.
+
+## 13차 Lobby 도감·공용 조작 UI
+
+### 도감 창과 탭
+
+- Lobby 상단 `도감`은 적 탭, `특성`은 특성 탭으로 같은 `LobbyCodexPanel.prefab`을 연다. `설정`은 계속 비활성 Placeholder로 유지했다.
+- 적·조작·스킬·특성 콘텐츠는 모두 Prefab 안에 미리 만든 뒤 선택 탭 하나만 활성화한다. X와 창 바깥 터치는 도감 전체를 닫고 상세 Overlay 터치는 상세만 닫는다.
+- 적과 스킬은 각각 정적 카드 9개를 한 페이지로 사용한다. 좌우 버튼은 페이지 경계에서 비활성화되며 빈 Slot은 입력과 표시를 함께 끈다.
+
+### 적·스킬 상세와 GameString
+
+- 적 도감은 현재 8개 `EnemyBalance` 정의에 `EnemyAssetCatalog` Sprite, 이름과 적별 GameString 설명을 결합했다. 카드 선택 시 확대 이미지·이름·설명을 표시한다.
+- 스킬 도감은 참격, 관통, 절단, 이기어검, 정전기, 오물 투척과 융합 3종을 표시한다. 이기어검은 두 성장 카드를 하나의 도감 항목으로 통합했다.
+- 스킬 이미지 자산은 아직 없으므로 카드와 상세 이미지를 의도적으로 비워 두었다. 추후 Sprite를 데이터에 연결할 수 있는 자리만 유지했다.
+- Excel `GameString`에 도감 탭·페이지·특성 준비 문구, 통합 이기어검 문구와 적 8종 설명 등 16개 ID를 추가했다. 데이터 임포트 후 `GameStringTable.asset`에 반영했다.
+
+### 공용 조작 Prefab과 특성 UI
+
+- 기존 Battle 일시정지 조작 설정 계층을 `Assets/Prefab/UI/Shared/ControlSettingsPanel.prefab`으로 분리했다. `PauseDetailsPanel.prefab`과 Lobby 조작 탭이 같은 중첩 Prefab을 사용한다.
+- 최초 공용화 과정에서 Builder 기본값으로 기존 사용자 수정 조작 UI를 덮어쓴 문제를 확인했다. `PauseDetailsPanel.prefab`을 21:21 커밋의 사용자 수정본으로 복구하고, 해당 계층 자체를 Unity `SaveAsPrefabAssetAndConnect`로 추출하는 방식으로 교체했다.
+- 자동 Builder에서는 기존 `PauseDetailsPanel.prefab`과 `ControlSettingsPanel.prefab`의 스타일·계층 검사 후 재생성하는 경로를 제거했다. 자산이 이미 존재하면 보존하고, 공용 Prefab이 없을 때만 기존 Pause의 계층을 마이그레이션한다.
+- Lobby에서는 적용 전 편집값을 초안으로 유지한다. 다른 도감 탭을 오가면 초안이 남지만 도감 전체를 적용 없이 닫으면 버리고, 다음 진입에는 마지막 적용값을 복원한다.
+- 모드, 자동 공격, 좌우 크기와 패드 드래그, 기본값, 적용을 기존 저장소에 연결했다. 숨기기 모드에서는 미리보기 패드도 숨긴다.
+- 특성 탭은 2×3 빈 Slot과 준비 중 GameString을 가진 UI-only 상태로 만들었다. 특성 데이터와 성장 효과는 추가하지 않았다.
+
+### 검증
+
+- 메인 작업 폴더의 Unity Editor를 중단하지 않고 격리 복제본에서 Prefab과 씬을 재생성했다.
+- Unity EditMode 전체 테스트는 `420/420` 통과, 실패 0건이다.
+- 1080×1920 렌더로 적 목록·상세·스킬·조작·특성 탭을 확인했다. 적 Sprite는 카드 안에서 읽히도록 별도 아이콘 배경과 확대 비율을 적용하고, 페이지 화살표의 폰트 미지원 문자를 `<`, `>`로 교체했다.
+- 갱신한 Excel 산출물의 수식 오류 토큰은 0건이며 GameString 추가 행을 렌더로 확인했다.
+- 복구 전 원본과 공용화 후 Prefab을 Unity에서 재귀 비교해 계층, 활성 상태, RectTransform, 이미지 색·Sprite, 텍스트, 버튼·토글·슬라이더 값이 모두 동일함(`CONTROL_PREFAB_EXACT_MATCH`)을 확인했다. 공용 참조와 Builder 비덮어쓰기 회귀 테스트도 각각 통과했다.
+
+## 14차 Lobby 난이도 해제·도감 축소·설정 분리
+
+### 난이도 선택 해제
+
+- 현재 선택된 쉬움 또는 보통 버튼을 다시 누르면 현재 Lobby 선택을 해제한다. 모든 난이도 버튼을 회색으로 되돌리고 `DifficultyPreview` 전체와 `입장하기`를 비활성화한다.
+- 선택 해제는 이번 화면의 선택만 없앤다. 마지막으로 저장한 난이도 ID는 유지하므로 다음 Lobby 진입에는 기존 규칙대로 마지막 난이도를 기본 선택한다.
+- `LobbyScreen.prefab`의 `DifficultyPreview`도 기본 비활성으로 저장해 초기화 전 한 프레임 노출을 방지했다.
+
+### 도감과 설정 화면 분리
+
+- `LobbyCodexPanel.prefab`에서는 `조작`, `특성` 탭과 두 콘텐츠 계층을 제거하고 `적`, `스킬`만 유지했다.
+- 상단 `특성` 버튼은 Lobby 바깥에 그대로 두되 도감과 연결하지 않는 비활성 Placeholder로 유지한다.
+- 상단 `설정`은 새 `LobbySettingsPanel.prefab`을 연다. 기본 설정 화면의 `조작` 버튼은 Battle Pause와 동일하게 기본 화면과 공용 `ControlSettingsPanel.prefab` 화면을 전환한다.
+- 조작 화면에서 `조작` 버튼으로 돌아가도 draft는 유지한다. 설정 창 전체를 적용 없이 닫으면 폐기하고, `적용`하면 저장한 뒤 기본 설정 화면으로 돌아간다.
+
+### Lobby UI 수동 편집 보존
+
+- `LobbySceneBuilder.Build()`는 `LobbyCodexPanel`, `LobbySettingsPanel`, `LobbyScreen`, `Lobby.unity`가 이미 존재하면 다시 생성하거나 저장하지 않는다. 앞으로 Unity에서 수정한 Lobby UI와 Scene Override를 Builder가 덮어쓰지 않는다.
+- 이번 변경은 격리 복사본에서 기존 `LobbyCodexPanel`의 구형 네 노드만 제거하고 `LobbyScreen`에 새 설정 Prefab 인스턴스만 추가하는 대상 한정 마이그레이션으로 적용했다.
+- 적용 전후 SHA-256 비교에서 `Lobby.unity`와 공용 `ControlSettingsPanel.prefab`은 동일했다. Lobby 테스트 13개 중 변경 관련 12개는 통과했고, 격리 복사본의 Generated Sprite 참조 1건만 환경 차이로 실패했다. 빌더 재실행 전후 Lobby UI·Scene 파일 동일성 테스트는 통과했다.
+
+## 15차 Lobby 난이도 이미지 매핑 분리
+
+- 이미지 변경이 반영되지 않은 원인은 저장된 `GameData_10min_Balance.xlsx`의 기존 `ImageData`가 대표 이미지 파일명을 유지했고, 생성된 `ImageDataTable.asset`도 재Import 전 직접 Sprite 참조를 계속 사용했기 때문이다.
+- 기존 `LOBBY_DIFFICULTY_EASY/NORMAL/HARD -> LobbyDifficulty_Easy/Normal/Hard.png` 매핑은 올바른 대표 이미지 용도이므로 유지했다.
+- `LOBBY_SELECTED_DIFFICULTY_EASY/NORMAL/HARD -> Easy_Text/Normal_Text/Hard_Text.png` 행을 `ImageData`에 추가했다.
+- `LobbyDifficulty`에 `SelectedDifficultyImageId` 열을 추가해 대표 이미지와 선택 난이도 표시 이미지를 독립적으로 교체할 수 있게 했다.
+- `DifficultyPreview`에는 `RepresentativeImage`와 별도의 `SelectedDifficultyImage`를 연결하고, 난이도 선택·해제 시 두 이미지를 함께 갱신·해제하도록 했다.
+- 기존 Lobby UI를 다시 생성하지 않고 누락된 이미지 자식과 직렬화 참조만 추가하는 대상 한정 마이그레이션으로 구성했다.

@@ -16,6 +16,8 @@ namespace SimpleGame
         [SerializeField] private PlayerBalanceTable playerBalance;
         [SerializeField] private LevelUpCardTable levelUpCards;
         [SerializeField] private GameStringTable gameStrings;
+        [SerializeField] private ImageDataTable imageData;
+        [SerializeField] private LobbyDifficultyTable lobbyDifficulties;
 
         [Header("Unity Asset Catalogs")]
         [SerializeField] private EnemyAssetCatalog enemyAssets;
@@ -31,6 +33,8 @@ namespace SimpleGame
         public PlayerBalanceTable PlayerBalance => playerBalance;
         public LevelUpCardTable LevelUpCards => levelUpCards;
         public GameStringTable GameStrings => gameStrings;
+        public ImageDataTable ImageData => imageData;
+        public LobbyDifficultyTable LobbyDifficulties => lobbyDifficulties;
         public EnemyAssetCatalog EnemyAssets => enemyAssets;
         public CombatFeedbackProfile CombatFeedback => combatFeedback;
 
@@ -43,6 +47,8 @@ namespace SimpleGame
             playerBalance != null &&
             levelUpCards != null &&
             gameStrings != null &&
+            imageData != null &&
+            lobbyDifficulties != null &&
             enemyAssets != null &&
             combatFeedback != null;
 
@@ -56,7 +62,9 @@ namespace SimpleGame
             LevelUpCardTable configuredLevelUpCards,
             EnemyAssetCatalog configuredEnemyAssets,
             CombatFeedbackProfile configuredCombatFeedback,
-            GameStringTable configuredGameStrings = null)
+            GameStringTable configuredGameStrings = null,
+            ImageDataTable configuredImageData = null,
+            LobbyDifficultyTable configuredLobbyDifficulties = null)
         {
             enemyBalance = configuredEnemyBalance;
             stageSpawnSchedule = configuredStageSpawnSchedule;
@@ -66,6 +74,8 @@ namespace SimpleGame
             playerBalance = configuredPlayerBalance;
             levelUpCards = configuredLevelUpCards;
             gameStrings = configuredGameStrings;
+            imageData = configuredImageData;
+            lobbyDifficulties = configuredLobbyDifficulties;
             enemyAssets = configuredEnemyAssets;
             combatFeedback = configuredCombatFeedback;
         }

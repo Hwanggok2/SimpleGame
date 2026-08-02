@@ -54,6 +54,8 @@ ExportedObj/
 *.sln
 *.suo
 *.tmp
+~$*.xlsx
+~$*.xlsm
 *.user
 *.userprefs
 *.pidb

@@ -199,6 +199,18 @@ namespace SimpleGame
             player.Health.Depleted += OnPlayerDepleted;
             player.Progression.LevelUpCardRequested += OnPlayerLevelUp;
             state = GameRunState.DifficultySelection;
+            if (LobbyDifficultySelectionStore.TryLoad(
+                    out LobbyDifficultyId lobbyDifficulty) &&
+                gameData.LobbyDifficulties.TryGet(
+                    lobbyDifficulty,
+                    out LobbyDifficultyDefinition definition) &&
+                definition.TryGetRuntimeDifficulty(
+                    out GameDifficulty runtimeDifficulty))
+            {
+                SelectDifficulty(runtimeDifficulty);
+                return;
+            }
+
             DifficultySelectionVisibilityChanged?.Invoke(true);
             ShowHint(GetString(
                 GameStringIds.HintSelectDifficulty,

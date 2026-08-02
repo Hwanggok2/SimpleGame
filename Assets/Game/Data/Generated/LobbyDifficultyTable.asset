@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76a6e2e8bf63acc418d45188206c4793, type: 3}
+  m_Name: LobbyDifficultyTable
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.LobbyDifficultyTable
+  definitions:
+  - id: 0
+    sortOrder: 1
+    isAvailable: 1
+    hasRuntimeDifficulty: 1
+    runtimeDifficulty: 0
+    durationMinutes: 5
+    stageId: Stage01
+    enemyCountReductionPercent: 25
+    enemyLevelReductionPercent: 20
+    imageId: LOBBY_DIFFICULTY_EASY
+    selectedDifficultyImageId: LOBBY_SELECTED_DIFFICULTY_EASY
+    selectedDifficultyImageScale: 0.9
+    nameKey: DIFFICULTY_EASY_NAME
+    buttonDescriptionKey: LOBBY_DIFFICULTY_EASY_BUTTON_DESCRIPTION
+    objectiveKey: LOBBY_DIFFICULTY_EASY_OBJECTIVE
+    effectDescriptionKey: LOBBY_DIFFICULTY_EASY_EFFECT
+  - id: 1
+    sortOrder: 2
+    isAvailable: 1
+    hasRuntimeDifficulty: 1
+    runtimeDifficulty: 1
+    durationMinutes: 10
+    stageId: Stage01
+    enemyCountReductionPercent: 0
+    enemyLevelReductionPercent: 0
+    imageId: LOBBY_DIFFICULTY_NORMAL
+    selectedDifficultyImageId: LOBBY_SELECTED_DIFFICULTY_NORMAL
+    selectedDifficultyImageScale: 1.1
+    nameKey: DIFFICULTY_NORMAL_NAME
+    buttonDescriptionKey: LOBBY_DIFFICULTY_NORMAL_BUTTON_DESCRIPTION
+    objectiveKey: LOBBY_DIFFICULTY_NORMAL_OBJECTIVE
+    effectDescriptionKey: LOBBY_DIFFICULTY_NORMAL_EFFECT
+  - id: 2
+    sortOrder: 3
+    isAvailable: 0
+    hasRuntimeDifficulty: 0
+    runtimeDifficulty: 1
+    durationMinutes: 20
+    stageId: 
+    enemyCountReductionPercent: 0
+    enemyLevelReductionPercent: 0
+    imageId: LOBBY_DIFFICULTY_HARD
+    selectedDifficultyImageId: LOBBY_SELECTED_DIFFICULTY_HARD
+    selectedDifficultyImageScale: 1
+    nameKey: DIFFICULTY_HARD_NAME
+    buttonDescriptionKey: LOBBY_DIFFICULTY_HARD_BUTTON_DESCRIPTION
+    objectiveKey: LOBBY_DIFFICULTY_HARD_OBJECTIVE
+    effectDescriptionKey: LOBBY_DIFFICULTY_HARD_EFFECT

@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d1a9e9393306bd40afa0cc7bf5b0b56, type: 3}
+  m_Name: ImageDataTable
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.ImageDataTable
+  definitions:
+  - id: LOBBY_DIFFICULTY_EASY
+    fileName: LobbyDifficulty_Easy.png
+    sprite: {fileID: 21300000, guid: 91c5327174669d748a373f756e576a8b, type: 3}
+  - id: LOBBY_DIFFICULTY_NORMAL
+    fileName: LobbyDifficulty_Normal.png
+    sprite: {fileID: 21300000, guid: 04909316b787f6440b25f025cd5e1d9b, type: 3}
+  - id: LOBBY_DIFFICULTY_HARD
+    fileName: LobbyDifficulty_Hard.png
+    sprite: {fileID: 21300000, guid: 6dd97ee6740351c4ca095ebac700dbcd, type: 3}
+  - id: LOBBY_SELECTED_DIFFICULTY_EASY
+    fileName: Easy_Text.png
+    sprite: {fileID: 21300000, guid: 4b4ff5c038da9fd46a055025bb63b78c, type: 3}
+  - id: LOBBY_SELECTED_DIFFICULTY_NORMAL
+    fileName: Normal_Text.png
+    sprite: {fileID: 21300000, guid: 9c7eb9979904acc4396621bd620c23e1, type: 3}
+  - id: LOBBY_SELECTED_DIFFICULTY_HARD
+    fileName: Hard_Text.png
+    sprite: {fileID: 21300000, guid: e4e46a90b5444fe4bb6a691a7216daf1, type: 3}

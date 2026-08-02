@@ -37,6 +37,10 @@ namespace SimpleGameEditor
             GeneratedPath + "/LevelUpCardTable.asset";
         private const string GameStringPath =
             GeneratedPath + "/GameStringTable.asset";
+        private const string ImageDataPath =
+            GeneratedPath + "/ImageDataTable.asset";
+        private const string LobbyDifficultyPath =
+            GeneratedPath + "/LobbyDifficultyTable.asset";
 
         [MenuItem("SimpleGame/Data/Create or Update Data Assets")]
         public static void BuildAndWireActiveScene()
@@ -240,6 +244,14 @@ namespace SimpleGameEditor
                 CreateOrLoad<GameStringTable>(
                     GameStringPath,
                     out _);
+            ImageDataTable imageData =
+                CreateOrLoad<ImageDataTable>(
+                    ImageDataPath,
+                    out _);
+            LobbyDifficultyTable lobbyDifficulties =
+                CreateOrLoad<LobbyDifficultyTable>(
+                    LobbyDifficultyPath,
+                    out _);
 
             EnemyAssetCatalog enemyCatalog =
                 CreateOrLoad<EnemyAssetCatalog>(
@@ -297,7 +309,9 @@ namespace SimpleGameEditor
                 levelUpCards,
                 enemyCatalog,
                 feedback,
-                gameStrings);
+                gameStrings,
+                imageData,
+                lobbyDifficulties);
 
             MarkDirty(
                 enemyBalance,
@@ -308,6 +322,8 @@ namespace SimpleGameEditor
                 playerBalance,
                 levelUpCards,
                 gameStrings,
+                imageData,
+                lobbyDifficulties,
                 enemyCatalog,
                 feedback,
                 manifest);

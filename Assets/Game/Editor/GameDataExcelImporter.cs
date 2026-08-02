@@ -19,6 +19,9 @@ namespace SimpleGameEditor
         public List<PlayerDefinition> PlayerDefinitions { get; } = new();
         public List<LevelUpCardDefinition> LevelUpCards { get; } = new();
         public List<GameStringEntry> GameStrings { get; } = new();
+        public List<ImageDataDefinition> Images { get; } = new();
+        public List<LobbyDifficultyDefinition> LobbyDifficulties { get; } =
+            new();
         public int AccountExperienceScoreUnit { get; set; }
         public int AccountExperiencePerUnit { get; set; }
         public float CriticalChancePerCard { get; set; }
@@ -35,13 +38,17 @@ namespace SimpleGameEditor
             int spawnCount,
             int playerLevelCount,
             int accountLevelCount,
-            int stringCount)
+            int stringCount,
+            int imageCount,
+            int lobbyDifficultyCount)
         {
             EnemyCount = enemyCount;
             SpawnCount = spawnCount;
             PlayerLevelCount = playerLevelCount;
             AccountLevelCount = accountLevelCount;
             StringCount = stringCount;
+            ImageCount = imageCount;
+            LobbyDifficultyCount = lobbyDifficultyCount;
         }
 
         public int EnemyCount { get; }
@@ -49,6 +56,8 @@ namespace SimpleGameEditor
         public int PlayerLevelCount { get; }
         public int AccountLevelCount { get; }
         public int StringCount { get; }
+        public int ImageCount { get; }
+        public int LobbyDifficultyCount { get; }
     }
 
     public static class GameDataExcelParser
@@ -112,6 +121,12 @@ namespace SimpleGameEditor
                 model);
             model.GameStrings.AddRange(ParseGameStrings(
                 workbook.ReadSheet("GameString")));
+            ParseImageData(
+                workbook.ReadSheet("ImageData"),
+                model);
+            ParseLobbyDifficulties(
+                workbook.ReadSheet("LobbyDifficulty"),
+                model);
             ParseLevelUpCards(
                 workbook.ReadSheet("LevelUpCard"),
                 model);
@@ -476,6 +491,196 @@ namespace SimpleGameEditor
             return result;
         }
 
+        private static void ParseImageData(
+            ExcelSheet sheet,
+            GameDataExcelModel model)
+        {
+            var table = new ExcelTable(sheet, "Id", "FileName");
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ExcelRow row in table.DataRows)
+            {
+                string id = table.RequiredText(row, "Id");
+                ValidateIdentifier(sheet.Name, row, "Id", id);
+                if (!ids.Add(id))
+                {
+                    throw table.Error(
+                        row,
+                        "Id",
+                        $"duplicate Id '{id}'");
+                }
+
+                string fileName = table.RequiredText(row, "FileName");
+                string extension = Path.GetExtension(fileName);
+                if (fileName.IndexOfAny(new[] { '/', '\\' }) >= 0 ||
+                    Path.IsPathRooted(fileName) ||
+                    !string.Equals(
+                        Path.GetFileName(fileName),
+                        fileName,
+                        StringComparison.Ordinal) ||
+                    (!string.Equals(
+                         extension,
+                         ".png",
+                         StringComparison.OrdinalIgnoreCase) &&
+                     !string.Equals(
+                         extension,
+                         ".jpg",
+                         StringComparison.OrdinalIgnoreCase) &&
+                     !string.Equals(
+                         extension,
+                         ".jpeg",
+                         StringComparison.OrdinalIgnoreCase)))
+                {
+                    throw table.Error(
+                        row,
+                        "FileName",
+                        "must be a PNG or JPG file name without a path");
+                }
+
+                model.Images.Add(new ImageDataDefinition(
+                    id,
+                    fileName,
+                    null));
+            }
+
+            RequireDataRows(table);
+        }
+
+        private static void ParseLobbyDifficulties(
+            ExcelSheet sheet,
+            GameDataExcelModel model)
+        {
+            var table = new ExcelTable(
+                sheet,
+                "Id",
+                "SortOrder",
+                "RuntimeDifficulty",
+                "StageId",
+                "DurationMinutes",
+                "EnemyCountReductionPercent",
+                "EnemyLevelReductionPercent",
+                "ImageId",
+                "SelectedDifficultyImageId",
+                "SelectedDifficultyImageScale",
+                "NameKey",
+                "ButtonDescriptionKey",
+                "ObjectiveKey",
+                "EffectDescriptionKey",
+                "IsAvailable");
+            var ids = new HashSet<LobbyDifficultyId>();
+            var sortOrders = new HashSet<int>();
+            foreach (ExcelRow row in table.DataRows)
+            {
+                LobbyDifficultyId id = table.EnumValue<
+                    LobbyDifficultyId>(row, "Id");
+                if (!ids.Add(id))
+                {
+                    throw table.Error(
+                        row,
+                        "Id",
+                        $"duplicate Id '{id}'");
+                }
+
+                int sortOrder = table.PositiveInt(row, "SortOrder");
+                if (!sortOrders.Add(sortOrder))
+                {
+                    throw table.Error(
+                        row,
+                        "SortOrder",
+                        $"duplicate SortOrder '{sortOrder}'");
+                }
+
+                bool isAvailable = table.Boolean(row, "IsAvailable");
+                string runtimeValue =
+                    table.OptionalText(row, "RuntimeDifficulty");
+                bool hasRuntimeDifficulty = !string.IsNullOrWhiteSpace(
+                    runtimeValue);
+                GameDifficulty runtimeDifficulty = GameDifficulty.Normal;
+                if (hasRuntimeDifficulty &&
+                    (!Enum.TryParse(
+                         runtimeValue,
+                         true,
+                         out runtimeDifficulty) ||
+                     !Enum.IsDefined(
+                         typeof(GameDifficulty),
+                         runtimeDifficulty)))
+                {
+                    throw table.Error(
+                        row,
+                        "RuntimeDifficulty",
+                        $"unknown runtime difficulty '{runtimeValue}'");
+                }
+
+                if (isAvailable && !hasRuntimeDifficulty)
+                {
+                    throw table.Error(
+                        row,
+                        "RuntimeDifficulty",
+                        "is required when IsAvailable is TRUE");
+                }
+
+                string stageId = table.OptionalText(row, "StageId");
+                if (isAvailable && string.IsNullOrWhiteSpace(stageId))
+                {
+                    throw table.Error(
+                        row,
+                        "StageId",
+                        "is required when IsAvailable is TRUE");
+                }
+
+                int enemyCountReduction = table.NonNegativeInt(
+                    row,
+                    "EnemyCountReductionPercent");
+                int enemyLevelReduction = table.NonNegativeInt(
+                    row,
+                    "EnemyLevelReductionPercent");
+                if (enemyCountReduction > 100 ||
+                    enemyLevelReduction > 100)
+                {
+                    throw table.Error(
+                        row,
+                        "EnemyCountReductionPercent",
+                        "reduction percentages must be between 0 and 100");
+                }
+
+                float selectedDifficultyImageScale =
+                    table.PositiveFloat(
+                        row,
+                        "SelectedDifficultyImageScale");
+                if (selectedDifficultyImageScale > 3f)
+                {
+                    throw table.Error(
+                        row,
+                        "SelectedDifficultyImageScale",
+                        "must be greater than 0 and at most 3");
+                }
+
+                model.LobbyDifficulties.Add(
+                    new LobbyDifficultyDefinition(
+                        id,
+                        sortOrder,
+                        isAvailable,
+                        hasRuntimeDifficulty,
+                        runtimeDifficulty,
+                        table.PositiveInt(row, "DurationMinutes"),
+                        stageId,
+                        enemyCountReduction,
+                        enemyLevelReduction,
+                        table.RequiredText(row, "ImageId"),
+                        table.RequiredText(
+                            row,
+                            "SelectedDifficultyImageId"),
+                        selectedDifficultyImageScale,
+                        table.RequiredText(row, "NameKey"),
+                        table.RequiredText(row, "ButtonDescriptionKey"),
+                        table.RequiredText(row, "ObjectiveKey"),
+                        table.RequiredText(
+                            row,
+                            "EffectDescriptionKey")));
+            }
+
+            RequireDataRows(table);
+        }
+
         private static void ParseLevelUpCards(
             ExcelSheet sheet,
             GameDataExcelModel model)
@@ -666,6 +871,62 @@ namespace SimpleGameEditor
                 }
             }
 
+            var imageIds = new HashSet<string>(
+                model.Images.Select(value => value.Id),
+                StringComparer.Ordinal);
+            var lobbyIds = new HashSet<LobbyDifficultyId>();
+            foreach (LobbyDifficultyDefinition difficulty in
+                     model.LobbyDifficulties)
+            {
+                lobbyIds.Add(difficulty.Id);
+                if (!imageIds.Contains(difficulty.ImageId))
+                {
+                    throw new InvalidDataException(
+                        $"LobbyDifficulty '{difficulty.Id}' references " +
+                        $"unknown ImageId '{difficulty.ImageId}'.");
+                }
+
+                if (!imageIds.Contains(
+                        difficulty.SelectedDifficultyImageId))
+                {
+                    throw new InvalidDataException(
+                        $"LobbyDifficulty '{difficulty.Id}' references " +
+                        "unknown SelectedDifficultyImageId " +
+                        $"'{difficulty.SelectedDifficultyImageId}'.");
+                }
+
+                RequireGameStringReference(
+                    gameStringIds,
+                    difficulty.Id.ToString(),
+                    "NameKey",
+                    difficulty.NameKey);
+                RequireGameStringReference(
+                    gameStringIds,
+                    difficulty.Id.ToString(),
+                    "ButtonDescriptionKey",
+                    difficulty.ButtonDescriptionKey);
+                RequireGameStringReference(
+                    gameStringIds,
+                    difficulty.Id.ToString(),
+                    "ObjectiveKey",
+                    difficulty.ObjectiveKey);
+                RequireGameStringReference(
+                    gameStringIds,
+                    difficulty.Id.ToString(),
+                    "EffectDescriptionKey",
+                    difficulty.EffectDescriptionKey);
+            }
+
+            foreach (LobbyDifficultyId id in
+                     Enum.GetValues(typeof(LobbyDifficultyId)))
+            {
+                if (!lobbyIds.Contains(id))
+                {
+                    throw new InvalidDataException(
+                        $"LobbyDifficulty is missing required Id '{id}'.");
+                }
+            }
+
             foreach (LevelUpCardDefinition card in model.LevelUpCards)
             {
                 RequireGameStringReference(
@@ -782,6 +1043,8 @@ namespace SimpleGameEditor
             GameDataExcelModel data = GameDataExcelParser.Parse(path);
             GameDataManifest manifest = GameDataAssetBuilder.BuildAssets();
             ValidateUnityReferences(data, manifest);
+            List<ImageDataDefinition> resolvedImages =
+                ResolveImageAssets(data.Images);
 
             UnityEngine.Object[] generatedAssets =
             {
@@ -792,7 +1055,9 @@ namespace SimpleGameEditor
                 manifest.GlobalBalance,
                 manifest.PlayerBalance,
                 manifest.LevelUpCards,
-                manifest.GameStrings
+                manifest.GameStrings,
+                manifest.ImageData,
+                manifest.LobbyDifficulties
             };
             Undo.RecordObjects(generatedAssets, "Import Game Data from Excel");
 
@@ -811,6 +1076,9 @@ namespace SimpleGameEditor
             manifest.PlayerBalance.Configure(data.PlayerDefinitions);
             manifest.LevelUpCards.Configure(data.LevelUpCards);
             manifest.GameStrings.Configure(data.GameStrings);
+            manifest.ImageData.Configure(resolvedImages);
+            manifest.LobbyDifficulties.Configure(
+                data.LobbyDifficulties);
 
             foreach (UnityEngine.Object asset in generatedAssets)
             {
@@ -823,7 +1091,9 @@ namespace SimpleGameEditor
                 data.SpawnEntries.Count,
                 data.PlayerLevels.Count,
                 data.AccountLevels.Count,
-                data.GameStrings.Count);
+                data.GameStrings.Count,
+                data.Images.Count,
+                data.LobbyDifficulties.Count);
         }
 
         private static void ImportFromMenu(string path)
@@ -836,7 +1106,9 @@ namespace SimpleGameEditor
                     $"스폰 {summary.SpawnCount}개, " +
                     $"플레이어 레벨 {summary.PlayerLevelCount}개, " +
                     $"계정 레벨 {summary.AccountLevelCount}개, " +
-                    $"문자열 {summary.StringCount}개.";
+                    $"문자열 {summary.StringCount}개, " +
+                    $"이미지 {summary.ImageCount}개, " +
+                    $"로비 난이도 {summary.LobbyDifficultyCount}개.";
                 Debug.Log($"{message}\nSource: {path}");
                 if (!Application.isBatchMode)
                 {
@@ -905,6 +1177,33 @@ namespace SimpleGameEditor
                         "the active scene SpawnPointRegistry.");
                 }
             }
+        }
+
+        private static List<ImageDataDefinition> ResolveImageAssets(
+            IEnumerable<ImageDataDefinition> definitions)
+        {
+            var result = new List<ImageDataDefinition>();
+            foreach (ImageDataDefinition definition in definitions)
+            {
+                string assetPath =
+                    $"Assets/Image/{definition.FileName}";
+                Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(
+                    assetPath);
+                if (sprite == null)
+                {
+                    throw new InvalidDataException(
+                        $"ImageData '{definition.Id}' could not load a " +
+                        $"Sprite at '{assetPath}'. Check FileName and " +
+                        "texture import type.");
+                }
+
+                result.Add(new ImageDataDefinition(
+                    definition.Id,
+                    definition.FileName,
+                    sprite));
+            }
+
+            return result;
         }
     }
 

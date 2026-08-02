@@ -27,13 +27,16 @@ namespace SimpleGameEditor
         public const string PauseDetailsPanelPrefabPath =
             CharacterAssetBuilder.PrefabRootPath +
             "/PauseDetailsPanel.prefab";
+        public const string ControlSettingsPanelPrefabPath =
+            CharacterAssetBuilder.PrefabRootPath +
+            "/UI/Shared/ControlSettingsPanel.prefab";
         public const string GameOverPanelPrefabPath =
             CharacterAssetBuilder.PrefabRootPath +
             "/GameOverPanel.prefab";
         public const string DifficultySelectionPanelPrefabPath =
             CharacterAssetBuilder.PrefabRootPath +
             "/DifficultySelectionPanel.prefab";
-        private const string ScenePath = "Assets/Scenes/PrototypeScene.unity";
+        public const string BattleScenePath = "Assets/Scenes/Battle.unity";
         private const string WorldTilePath = "Assets/Game/World/Tiles";
         private const float LevelUpCardWidth = 300f;
         private const float LevelUpCardHeight =
@@ -142,9 +145,9 @@ namespace SimpleGameEditor
             session.ConfigureWorldRewards(poisonCloudSpawner);
 
             EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            EditorSceneManager.SaveScene(scene, BattleScenePath);
             Selection.activeGameObject = systems;
-            Debug.Log($"Prototype scene created: {ScenePath}");
+            Debug.Log($"Battle scene created: {BattleScenePath}");
         }
 
         internal static GameObject GetOrCreateSystemGroup(
@@ -195,10 +198,10 @@ namespace SimpleGameEditor
         public static void MigrateSceneUiToPrefabs()
         {
             Scene scene = EditorSceneManager.GetActiveScene();
-            if (scene.path != ScenePath)
+            if (scene.path != BattleScenePath)
             {
                 throw new InvalidOperationException(
-                    $"Open {ScenePath} before migrating its UI.");
+                    $"Open {BattleScenePath} before migrating its UI.");
             }
 
             PrototypeGameSession session =
@@ -510,44 +513,7 @@ namespace SimpleGameEditor
                 LoadOrCreatePrefab(
                     PauseDetailsPanelPrefabPath,
                     CreatePauseDetailsPanelPrefab);
-            Transform controlSettingsPanel = pausePrefab.transform.Find(
-                "ControlSettingsPanel");
-            Image controlSettingsBackground =
-                controlSettingsPanel != null
-                    ? controlSettingsPanel.GetComponent<Image>()
-                    : null;
-            TMP_Text accountOverview = pausePrefab.transform
-                .Find("SettingsPage/AccountOverview")
-                ?.GetComponent<TMP_Text>();
-            if (pausePrefab.transform.Find(
-                    "SettingsPage") == null ||
-                accountOverview == null ||
-                accountOverview.alignment !=
-                    TextAlignmentOptions.TopRight ||
-                pausePrefab.transform.Find(
-                    "ControlSettingsButton") == null ||
-                controlSettingsPanel == null ||
-                controlSettingsPanel.Find(
-                    "AutoAttackToggle/Track/Knob") == null ||
-                controlSettingsPanel.Find(
-                    "ControlModeButtons/Mode1Button") == null ||
-                controlSettingsPanel.Find(
-                    "ControlModeButtons/Mode2Button") == null ||
-                controlSettingsPanel.Find(
-                    "ControlModeButtons/HiddenButton") == null ||
-                controlSettingsPanel.Find(
-                    "ControlDragSurface") == null ||
-                controlSettingsPanel.Find(
-                    "JoystickHorizontalSlider") != null ||
-                controlSettingsPanel.Find(
-                    "AttackHorizontalSlider") != null ||
-                controlSettingsBackground == null ||
-                !Mathf.Approximately(
-                    controlSettingsBackground.color.a,
-                    0.48f))
-            {
-                pausePrefab = CreatePauseDetailsPanelPrefab();
-            }
+            EnsureControlSettingsPanelPrefab();
 
             GameObject gameOverPrefab =
                 LoadOrCreatePrefab(
@@ -582,6 +548,68 @@ namespace SimpleGameEditor
             }
 
             AssetDatabase.SaveAssets();
+        }
+
+        public static GameObject EnsureControlSettingsPanelPrefab()
+        {
+            EditorAssetUtility.EnsureFolder(
+                CharacterAssetBuilder.PrefabRootPath + "/UI/Shared");
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                ControlSettingsPanelPrefabPath);
+            if (prefab != null)
+            {
+                return prefab;
+            }
+
+            GameObject pausePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                PauseDetailsPanelPrefabPath);
+            return pausePrefab != null &&
+                   pausePrefab.transform.Find("ControlSettingsPanel") != null
+                ? MigrateControlSettingsPanelToSharedPrefab()
+                : CreateControlSettingsPanelPrefab();
+        }
+
+        [MenuItem(
+            "SimpleGame/Migrate Control Settings Panel To Shared Prefab")]
+        public static GameObject MigrateControlSettingsPanelToSharedPrefab()
+        {
+            EditorAssetUtility.EnsureFolder(
+                CharacterAssetBuilder.PrefabRootPath + "/UI/Shared");
+            GameObject contents = PrefabUtility.LoadPrefabContents(
+                PauseDetailsPanelPrefabPath);
+            try
+            {
+                Transform source = contents.transform.Find(
+                    "ControlSettingsPanel");
+                if (source == null)
+                {
+                    throw new InvalidOperationException(
+                        "PauseDetailsPanel has no ControlSettingsPanel.");
+                }
+
+                GameObject connected =
+                    PrefabUtility.SaveAsPrefabAssetAndConnect(
+                        source.gameObject,
+                        ControlSettingsPanelPrefabPath,
+                        InteractionMode.AutomatedAction);
+                if (connected == null)
+                {
+                    throw new InvalidOperationException(
+                        "Failed to extract ControlSettingsPanel prefab.");
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(
+                    contents,
+                    PauseDetailsPanelPrefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
+
+            AssetDatabase.SaveAssets();
+            return AssetDatabase.LoadAssetAtPath<GameObject>(
+                ControlSettingsPanelPrefabPath);
         }
 
         private static GameObject LoadOrCreatePrefab(
@@ -739,7 +767,9 @@ namespace SimpleGameEditor
                 Vector2.zero,
                 Vector2.zero);
             CreateSettingsPage(panel.transform);
-            CreateControlSettingsPanel(panel.transform);
+            InstantiateControlSettingsPanel(
+                panel.transform,
+                false);
             CreateControlSettingsButton(panel.transform);
             return SaveTemporaryPrefab(
                 panel,
@@ -1010,7 +1040,35 @@ namespace SimpleGameEditor
             rect.sizeDelta = new Vector2(112f, 64f);
         }
 
-        private static void CreateControlSettingsPanel(Transform parent)
+        private static GameObject CreateControlSettingsPanelPrefab()
+        {
+            GameObject panel = CreateControlSettingsPanel(null);
+            return SaveTemporaryPrefab(
+                panel,
+                ControlSettingsPanelPrefabPath);
+        }
+
+        private static GameObject InstantiateControlSettingsPanel(
+            Transform parent,
+            bool active)
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                ControlSettingsPanelPrefabPath);
+            if (prefab == null)
+            {
+                prefab = EnsureControlSettingsPanelPrefab();
+            }
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(
+                prefab);
+            instance.name = "ControlSettingsPanel";
+            instance.transform.SetParent(parent, false);
+            instance.SetActive(active);
+            return instance;
+        }
+
+        private static GameObject CreateControlSettingsPanel(
+            Transform parent)
         {
             GameObject panel = CreatePanel(
                 parent,
@@ -1076,6 +1134,7 @@ namespace SimpleGameEditor
             dragSurface.GetComponent<Image>().raycastTarget = true;
             dragSurface.AddComponent<ControlLayoutDragSurface>();
             panel.SetActive(false);
+            return panel;
         }
 
         private static void CreateAutoAttackSwitch(Transform parent)

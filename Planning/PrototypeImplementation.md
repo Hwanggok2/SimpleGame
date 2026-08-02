@@ -1,6 +1,6 @@
 # Prototype Implementation
 
-- Last updated: 2026-07-27
+- Last updated: 2026-08-02
 
 ## Final release target
 
@@ -12,8 +12,10 @@
 
 ## Scene
 
-- Path: `Assets/Scenes/PrototypeScene.unity`
-- `SampleScene.unity` is not modified.
+- Entry path: `Assets/Scenes/Lobby.unity`
+- Battle path: `Assets/Scenes/Battle.unity`
+- Build Settings order is `Lobby` then `Battle`; the old
+  `PrototypeScene.unity` path is no longer generated or referenced.
 - Portrait reference resolution: `1080 x 1920`
 - Runtime hierarchy:
   - `PrototypeSystems`: enemy factory, game session, stage spawner, enemy recycler

@@ -16,6 +16,51 @@ namespace SimpleGame
             "DIFFICULTY_NORMAL_NAME";
         public const string DifficultyNormalDescription =
             "DIFFICULTY_NORMAL_DESCRIPTION";
+        public const string DifficultyHardName =
+            "DIFFICULTY_HARD_NAME";
+        public const string UiLobbyTraitsButton =
+            "UI_LOBBY_TRAITS_BUTTON";
+        public const string UiLobbyCollectionButton =
+            "UI_LOBBY_COLLECTION_BUTTON";
+        public const string UiLobbyEnterButton =
+            "UI_LOBBY_ENTER_BUTTON";
+        public const string UiLobbySelectPrompt =
+            "UI_LOBBY_SELECT_PROMPT";
+        public const string UiLobbyUnavailable =
+            "UI_LOBBY_UNAVAILABLE";
+        public const string UiLobbyDifficultyLabelFormat =
+            "UI_LOBBY_DIFFICULTY_LABEL_FORMAT";
+        public const string UiCodexEnemyTab = "UI_CODEX_ENEMY_TAB";
+        public const string UiCodexControlsTab =
+            "UI_CODEX_CONTROLS_TAB";
+        public const string UiCodexSkillTab = "UI_CODEX_SKILL_TAB";
+        public const string UiCodexTraitsTab = "UI_CODEX_TRAITS_TAB";
+        public const string UiCodexPageFormat =
+            "UI_CODEX_PAGE_FORMAT";
+        public const string UiCodexTraitsPlaceholder =
+            "UI_CODEX_TRAITS_PLACEHOLDER";
+        public const string CodexFlyingSwordName =
+            "CODEX_SKILL_FLYING_SWORD_NAME";
+        public const string CodexFlyingSwordDescription =
+            "CODEX_SKILL_FLYING_SWORD_DESCRIPTION";
+        public const string LobbyEasyButtonDescription =
+            "LOBBY_DIFFICULTY_EASY_BUTTON_DESCRIPTION";
+        public const string LobbyNormalButtonDescription =
+            "LOBBY_DIFFICULTY_NORMAL_BUTTON_DESCRIPTION";
+        public const string LobbyHardButtonDescription =
+            "LOBBY_DIFFICULTY_HARD_BUTTON_DESCRIPTION";
+        public const string LobbyEasyObjective =
+            "LOBBY_DIFFICULTY_EASY_OBJECTIVE";
+        public const string LobbyNormalObjective =
+            "LOBBY_DIFFICULTY_NORMAL_OBJECTIVE";
+        public const string LobbyHardObjective =
+            "LOBBY_DIFFICULTY_HARD_OBJECTIVE";
+        public const string LobbyEasyEffect =
+            "LOBBY_DIFFICULTY_EASY_EFFECT";
+        public const string LobbyNormalEffect =
+            "LOBBY_DIFFICULTY_NORMAL_EFFECT";
+        public const string LobbyHardEffect =
+            "LOBBY_DIFFICULTY_HARD_EFFECT";
 
         public const string CardHeaderFormat = "CARD_HEADER_FORMAT";
         public const string CardRerollFormat = "CARD_REROLL_FORMAT";
@@ -144,6 +189,22 @@ namespace SimpleGame
             "ENEMY_FLYING_EYE_BOSS_NAME";
         public const string EnemySkeletonBossName =
             "ENEMY_SKELETON_BOSS_NAME";
+        public const string EnemyGoblinMeleeDescription =
+            "ENEMY_GOBLIN_MELEE_DESCRIPTION";
+        public const string EnemyGoblinRangedDescription =
+            "ENEMY_GOBLIN_RANGED_DESCRIPTION";
+        public const string EnemyShieldSkeletonDescription =
+            "ENEMY_SHIELD_SKELETON_DESCRIPTION";
+        public const string EnemyGoblinBossDescription =
+            "ENEMY_GOBLIN_BOSS_DESCRIPTION";
+        public const string EnemyMushroomBossDescription =
+            "ENEMY_MUSHROOM_BOSS_DESCRIPTION";
+        public const string EnemyFlyingEyeDescription =
+            "ENEMY_FLYING_EYE_DESCRIPTION";
+        public const string EnemyFlyingEyeBossDescription =
+            "ENEMY_FLYING_EYE_BOSS_DESCRIPTION";
+        public const string EnemySkeletonBossDescription =
+            "ENEMY_SKELETON_BOSS_DESCRIPTION";
         public const string EnemyLevelLabelFormat =
             "ENEMY_LEVEL_LABEL_FORMAT";
         public const string CombatSideFront = "COMBAT_SIDE_FRONT";
@@ -157,6 +218,30 @@ namespace SimpleGame
             DifficultyEasyDescription,
             DifficultyNormalName,
             DifficultyNormalDescription,
+            DifficultyHardName,
+            UiLobbyTraitsButton,
+            UiLobbyCollectionButton,
+            UiLobbyEnterButton,
+            UiLobbySelectPrompt,
+            UiLobbyUnavailable,
+            UiLobbyDifficultyLabelFormat,
+            UiCodexEnemyTab,
+            UiCodexControlsTab,
+            UiCodexSkillTab,
+            UiCodexTraitsTab,
+            UiCodexPageFormat,
+            UiCodexTraitsPlaceholder,
+            CodexFlyingSwordName,
+            CodexFlyingSwordDescription,
+            LobbyEasyButtonDescription,
+            LobbyNormalButtonDescription,
+            LobbyHardButtonDescription,
+            LobbyEasyObjective,
+            LobbyNormalObjective,
+            LobbyHardObjective,
+            LobbyEasyEffect,
+            LobbyNormalEffect,
+            LobbyHardEffect,
             CardHeaderFormat,
             CardRerollFormat,
             UiSettingsButton,
@@ -237,6 +322,14 @@ namespace SimpleGame
             EnemyFlyingEyeName,
             EnemyFlyingEyeBossName,
             EnemySkeletonBossName,
+            EnemyGoblinMeleeDescription,
+            EnemyGoblinRangedDescription,
+            EnemyShieldSkeletonDescription,
+            EnemyGoblinBossDescription,
+            EnemyMushroomBossDescription,
+            EnemyFlyingEyeDescription,
+            EnemyFlyingEyeBossDescription,
+            EnemySkeletonBossDescription,
             EnemyLevelLabelFormat,
             CombatSideFront,
             CombatSideRear
@@ -288,6 +381,30 @@ namespace SimpleGame
                     EnemyFlyingEyeBossName,
                 PrototypeEnemyDefinitions.SkeletonBossId =>
                     EnemySkeletonBossName,
+                _ => EnemyGenericName
+            };
+        }
+
+        public static string EnemyDescription(string enemyId)
+        {
+            return enemyId switch
+            {
+                "GoblinMelee" =>
+                    EnemyGoblinMeleeDescription,
+                "GoblinRanged" =>
+                    EnemyGoblinRangedDescription,
+                PrototypeEnemyDefinitions.ShieldSkeletonId =>
+                    EnemyShieldSkeletonDescription,
+                PrototypeEnemyDefinitions.GoblinBossId =>
+                    EnemyGoblinBossDescription,
+                PrototypeEnemyDefinitions.MushroomBossId =>
+                    EnemyMushroomBossDescription,
+                PrototypeEnemyDefinitions.FlyingEyeId =>
+                    EnemyFlyingEyeDescription,
+                PrototypeEnemyDefinitions.FlyingEyeBossId =>
+                    EnemyFlyingEyeBossDescription,
+                PrototypeEnemyDefinitions.SkeletonBossId =>
+                    EnemySkeletonBossDescription,
                 _ => EnemyGenericName
             };
         }

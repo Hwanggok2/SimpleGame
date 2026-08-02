@@ -40,11 +40,13 @@ Assets/Game/
 │  │  ├─ EnemyAssetCatalog.cs
 │  │  ├─ EnemyBalanceTable.cs
 │  │  ├─ GameDataManifest.cs
+│  │  ├─ ImageDataTable.cs
 │  │  ├─ GameStringIds.cs
 │  │  ├─ GameStringTable.cs
 │  │  ├─ GlobalBalance.cs
 │  │  ├─ LevelExperienceTable.cs
 │  │  ├─ LevelUpCardTable.cs
+│  │  ├─ LobbyDifficultyTable.cs
 │  │  ├─ PlayerBalanceTable.cs
 │  │  ├─ SpawnPointRegistry.cs
 │  │  ├─ StageSpawnController.cs
@@ -62,6 +64,15 @@ Assets/Game/
 │  │  └─ EnemyStateMachine.cs
 │  ├─ Entities/
 │  │  └─ HealthComponent.cs
+│  ├─ Lobby/
+│  │  ├─ LobbyCodexDetailView.cs
+│  │  ├─ LobbyCodexEntryView.cs
+│  │  ├─ LobbyCodexView.cs
+│  │  ├─ LobbyControlSettingsView.cs
+│  │  ├─ LobbyDifficultyOptionView.cs
+│  │  ├─ LobbyDifficultySelectionStore.cs
+│  │  ├─ LobbySettingsView.cs
+│  │  └─ LobbyView.cs
 │  ├─ Player/
 │  │  ├─ CriticalSystem.cs
 │  │  ├─ PlayerCombatAbilities.cs
@@ -101,6 +112,7 @@ Assets/Game/
 │  ├─ EditorAssetUtility.cs
 │  ├─ GameDataAssetBuilder.cs
 │  ├─ GameDataExcelImporter.cs
+│  ├─ LobbySceneBuilder.cs
 │  ├─ OpenXmlWorkbookReader.cs
 │  ├─ PrototypeSceneBuilder.cs
 │  └─ SourceTextureMemoryPostprocessor.cs
@@ -117,6 +129,7 @@ Assets/Game/
    ├─ GameDataTests.cs
    ├─ GameStringTableTests.cs
    ├─ GameStringUiTests.cs
+   ├─ LobbyTests.cs
    ├─ MobileAimControlsTests.cs
    ├─ PauseDetailsDataTests.cs
    ├─ Phase3GameplayTests.cs
@@ -170,12 +183,14 @@ Assets/Game/
 | `CombatFeedbackProfile.cs` | 일반·처치·정면 반동·치명타 화면 흔들림의 강도와 지속 시간을 담는 수동 ScriptableObject다. |
 | `EnemyAssetCatalog.cs` | Enemy ID별 Prefab 참조를 제공하고, Enemy Component 타입 교체 뒤 기존 참조가 비었을 때 직렬화된 Prefab 루트 `GameObject`에서 현재 `EnemyBase`를 다시 찾는 생성 에셋 카탈로그다. |
 | `EnemyBalanceTable.cs` | Excel에서 가져온 Enemy Definition을 ID로 조회하는 ScriptableObject 테이블이다. |
-| `GameDataManifest.cs` | Enemy·Player·레벨·카드·문자열·Spawn 등 생성 데이터 에셋의 단일 진입점이다. |
+| `GameDataManifest.cs` | Enemy·Player·레벨·카드·문자열·이미지·Lobby 난이도·Spawn 등 생성 데이터 에셋의 단일 진입점이다. |
+| `ImageDataTable.cs` | Excel의 이미지 ID·파일명과 Editor Import에서 해석한 `Sprite` 참조를 보관하고 ID로 조회한다. 런타임 파일 I/O는 수행하지 않는다. |
 | `GameStringIds.cs` | 코드가 참조하는 `GameString` 식별자를 상수로 모아 오타와 하드코딩을 줄인다. |
 | `GameStringTable.cs` | `StringId → KoKR` Dictionary를 지연 구성하고 문자열·format fallback을 제공한다. |
 | `GlobalBalance.cs` | 계정 경험치 변환, 치명타, 리롤 등 전역 밸런스 값을 보관한다. |
 | `LevelExperienceTable.cs` | Player/계정 레벨별 필요 경험치를 조회하는 공용 ScriptableObject 테이블이다. |
 | `LevelUpCardTable.cs` | 카드 정의, 등급·선행·융합 재료·가중치 조건과 중복 없는 카드 추첨을 담당한다. |
+| `LobbyDifficultyTable.cs` | 쉬움·보통·어려움의 Lobby 표시 순서, 사용 가능 여부, 실행 난이도, 시간·보정 안내값, 이미지 ID와 GameString Key를 보관한다. 어려움은 UI-only로 실행 난이도를 제공하지 않는다. |
 | `PlayerBalanceTable.cs` | Player 기본 HP·공격력 성장·이동 속도·사거리·치명타 등 설정을 ID로 조회한다. |
 | `SpawnPointRegistry.cs` | 씬의 Spawn Point를 ID로 등록하고 Spawn 데이터와 연결한다. |
 | `StageSpawnController.cs` | 현재 난이도의 시간표를 따라 예정된 Enemy Spawn 항목을 순서대로 실행한다. |
@@ -252,17 +267,31 @@ Assets/Game/
 | `MushroomPoisonCloud.cs` | 버섯 보스 독 구름의 지속·0.5초 틱 Player 피해와 노출당 틱 수를 처리한다. |
 | `PoisonCloudSpawner.cs` | 보스 공격이 예약한 위치에 독 구름을 지연 생성하고 Player 참조를 연결한다. |
 
+### 2.10 Lobby
+
+| 스크립트 | 역할 |
+|---|---|
+| `LobbyDifficultyOptionView.cs` | 단일 난이도 버튼의 ID, 배경, 제목·보조 설명 참조를 보관하고 선택 색과 사용 가능 상태를 반영한다. |
+| `LobbyDifficultySelectionStore.cs` | 마지막 쉬움·보통 선택을 PlayerPrefs에 저장·복원하고 키 없음, 손상값과 어려움 값을 선택 없음으로 처리한다. |
+| `LobbyCodexEntryView.cs` | 적·스킬 3×3 카드 한 칸의 이미지, 이름, 선택 버튼과 빈 슬롯 상태를 바인딩한다. |
+| `LobbyCodexDetailView.cs` | 선택 항목의 확대 이미지, 이름, GameString 설명을 표시하고 Overlay 터치로 상세를 닫는다. |
+| `LobbyCodexView.cs` | 적·스킬 두 탭, 9개 단위 페이지, 상세 Overlay와 도감 전체 닫기를 제어한다. Enemy·Card 데이터는 기존 정적 Slot에만 바인딩한다. |
+| `LobbyControlSettingsView.cs` | 공용 조작 설정 Prefab을 Lobby 미리보기 패드와 연결하고 적용값·편집 초안을 분리해 저장, 복원, 숨기기와 패드 드래그를 처리한다. |
+| `LobbySettingsView.cs` | 상단 설정 모달의 열기·닫기, 기본 설정 화면과 공용 조작 설정 화면 전환, 적용 전 초안 유지와 전체 닫기 시 폐기를 조정한다. |
+| `LobbyView.cs` | 정적 `LobbyScreen.prefab` 참조에 GameString·대표 Sprite·난이도 상태를 적용한다. 최초 미선택, 같은 난이도 재입력 해제, 마지막 선택 복원, 도감·설정 열기와 `Battle` 씬 전환을 담당한다. |
+
 ## 3. Editor 스크립트 역할
 
 | 스크립트 | 역할 |
 |---|---|
 | `CharacterAssetBuilder.cs` | 소스 Sprite에서 AnimationClip·AnimatorController·Player/Enemy·스킬·팝업 Prefab을 만들고 필수 Inspector 참조를 저장한다. Player `y=1.15`, 일반 Enemy `y=1.25`, Boss `y=1.8`의 빈 `DamagePopupAnchor`를 생성하며, 대상 9개 Prefab에 Anchor가 없을 때만 추가·연결하는 멱등 마이그레이션으로 기존 위치를 보존한다. 기존 오물 Prefab이 유효하면 수동 VFX 변경도 보존한다. |
 | `EditorAssetUtility.cs` | Editor 생성 도구에서 폴더 생성 등 반복 에셋 작업을 공용화한다. |
-| `GameDataAssetBuilder.cs` | Excel 모델을 런타임 ScriptableObject로 만들고 Manifest와 활성 씬에 연결·검증한다. `DamagePopup.prefab`도 명시적으로 로드·검증해 `CombatFeedbackController`에 연결한다. |
-| `GameDataExcelImporter.cs` | Excel 각 시트를 강타입 모델로 파싱·교차 검증하고 생성 에셋 빌드를 시작한다. |
+| `GameDataAssetBuilder.cs` | Excel 모델을 런타임 ScriptableObject로 만들고 Manifest와 활성 씬에 연결·검증한다. Lobby 문자열·이미지·표시 난이도 테이블과 `DamagePopup.prefab` 참조도 함께 연결한다. |
+| `GameDataExcelImporter.cs` | Excel 각 시트를 강타입 모델로 파싱·교차 검증한다. `ImageData` 파일명을 `Assets/Image`의 Sprite로 해석하고 `LobbyDifficulty`의 이미지·문자열·실행 난이도 참조를 검증한 뒤 생성 에셋 빌드를 시작한다. |
+| `LobbySceneBuilder.cs` | Lobby 화면과 도감 Entry·Detail·Panel Prefab, 공용 조작 Prefab 인스턴스를 Editor에서 생성하고 `Lobby.unity`와 Build Settings를 `Lobby → Battle` 순서로 맞춘다. |
 | `OpenXmlWorkbookReader.cs` | 외부 Excel 런타임 의존성 없이 `.xlsx` Open XML의 시트·행·셀을 읽는다. |
-| `PrototypeSceneBuilder.cs` | Prototype Scene과 HUD/카드 UI Prefab을 생성·마이그레이션하고 시스템 참조를 연결한다. |
-| `SourceTextureMemoryPostprocessor.cs` | SourceAssets Texture Import 설정이 프로젝트 메모리 정책을 따르도록 자동 보정한다. |
+| `PrototypeSceneBuilder.cs` | `Battle` Scene과 HUD/카드 UI Prefab을 생성·마이그레이션하고 시스템 참조를 연결한다. |
+| `SourceTextureMemoryPostprocessor.cs` | SourceAssets와 `Assets/Image` Texture Import 설정이 프로젝트 메모리 정책을 따르도록 자동 보정한다. Lobby 대표 이미지는 Sprite, Read/Write 해제, Mipmap 해제를 사용한다. |
 
 ## 4. EditMode 테스트 스크립트 역할
 
@@ -280,6 +309,7 @@ Assets/Game/
 | `GameDataTests.cs` | 성장식, 카드 추첨·리롤·스킬 수치, Spawn과 난이도 등 데이터 기반 규칙을 검증한다. |
 | `GameStringTableTests.cs` | 문자열 ID 조회, Dictionary 캐시, 누락·format 오류 fallback을 검증한다. |
 | `GameStringUiTests.cs` | HUD·카드·난이도·Pause UI가 GameString을 실제 표시하는지 검증한다. |
+| `LobbyTests.cs` | Lobby 선택 저장, 정적 Prefab 참조, Lobby 씬·Build Settings·Battle 전환, ImageData 연결과 함께 도감 4탭·18개 Slot·상세·GameString 및 Battle/Lobby 공용 조작 Prefab 사용을 검증한다. |
 | `MobileAimControlsTests.cs` | 조준 패드, 모드 1·2·숨기기, 자동 공격, pending 설정, 드래그·Safe Area와 관통 이동을 검증한다. |
 | `PauseDetailsDataTests.cs` | Pause Player/계정/스탯/보유 카드 문구와 등급 정렬을 검증한다. |
 | `Phase3GameplayTests.cs` | 스킬, 융합, 회복 오브젝트, 독 구름과 전투 연출의 수치·수명주기 회귀를 검증한다. |
@@ -343,3 +373,31 @@ Assets/Game/
 - `SimpleGame > Build Character Assets`는 유효한 기존 오물 Prefab을 보존한다. 기본 형태로 다시 만들려면 기존 Prefab을 별도로 백업한 뒤 재생성 정책에 맞춰 작업한다.
 
 오물·정전기 융합은 장판 생성 시 Enemy 전체를 한 번 기록하는 방식이 아니다. 각 0.5초 틱마다 현재 반경 안 대상을 찾고, 그 장판에서 동일한 `Enemy + SpawnGeneration`이 처음 실제 피해를 받는 틱에 정전기를 한 번 발동한다. 따라서 3번째 틱에 처음 장판에 들어온 몬스터는 3번째 틱에서 정전기가 발동하고, 같은 장판에 재진입해도 같은 세대에는 다시 발동하지 않는다. 다른 장판과 Pool 재사용 후 새 SpawnGeneration은 각각 새로운 최초 피격으로 판정한다.
+
+## 7. Lobby 자산 배치와 실행 흐름
+
+```text
+Assets/Scenes/Lobby.unity
+└─ Assets/Prefab/UI/Lobby/LobbyScreen.prefab
+   └─ LobbyView
+      ├─ LobbyDifficultyOptionView × 3
+      └─ Assets/Prefab/UI/Lobby/LobbyCodexPanel.prefab
+         ├─ LobbyCodexEntry.prefab × 18
+         ├─ LobbyCodexDetail.prefab × 2
+         └─ Assets/Prefab/UI/Shared/ControlSettingsPanel.prefab
+
+Assets/Prefab/PauseDetailsPanel.prefab
+└─ Assets/Prefab/UI/Shared/ControlSettingsPanel.prefab
+
+Planning/GameData_10min_Balance.xlsx
+├─ GameString ─────────→ GameStringTable.asset
+├─ LobbyDifficulty ────→ LobbyDifficultyTable.asset
+└─ ImageData + Assets/Image/*.png
+                 └─────→ ImageDataTable.asset (Sprite 직접 참조)
+```
+
+- 고정 Lobby UI는 런타임에 생성하지 않는다. `LobbySceneBuilder`는 자산이 없을 때만 프리팹과 씬을 만들고 기존 Lobby UI·Scene은 다시 저장하지 않는다. `LobbyView`는 직렬화된 참조의 표시 상태만 바꾼다.
+- `LobbyCodexView`도 정적 카드와 상세 계층에 데이터만 바인딩한다. 적은 `EnemyBalance`·`EnemyAssetCatalog`·GameString, 스킬은 `LevelUpCardTable`·GameString을 사용하며 현재 스킬 Sprite는 비워 둔다.
+- 조작 설정 계층은 `ControlSettingsPanel.prefab` 하나를 `LobbySettingsPanel.prefab`과 Battle에 중첩해 구조 중복을 제거한다. Lobby의 편집 초안은 적용 전까지 인게임 저장값을 변경하지 않는다.
+- 최초 실행에는 `LobbyDifficultySelectionStore` 키가 없어 선택 없음으로 시작한다. 쉬움·보통을 고르면 저장하고, 같은 버튼을 다시 누르면 현재 선택과 미리보기를 해제한다. 다음 Lobby 진입에는 마지막 저장값을 복원한다. 어려움은 표시 정의만 있고 선택·저장·Battle 전달이 없다.
+- 쉬움 UI 메타데이터의 `DurationMinutes=5`와 현재 `StageSpawnEasy`의 실제 10분 일정은 분리되어 있다. 스폰 데이터가 후속 변경되기 전에는 화면 표기와 실제 전투 시간이 일치하지 않는 알려진 제약이다.
