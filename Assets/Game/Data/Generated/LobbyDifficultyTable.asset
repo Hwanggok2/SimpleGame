@@ -18,7 +18,7 @@ MonoBehaviour:
     isAvailable: 1
     hasRuntimeDifficulty: 1
     runtimeDifficulty: 0
-    durationMinutes: 5
+    durationMinutes: 10
     stageId: Stage01
     enemyCountReductionPercent: 25
     enemyLevelReductionPercent: 20
