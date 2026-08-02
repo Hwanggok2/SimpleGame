@@ -9,22 +9,57 @@ namespace SimpleGame
         private const float EnemySeparationPadding = 0.08f;
         private const int SeparationPassCount = 2;
         private const int SpawnPositionAttemptCount = 32;
+        private const float SeparationCellSize = 2f;
 
         private readonly List<EnemyBase> enemies = new();
+        private readonly Dictionary<Vector2Int, List<EnemyBase>>
+            separationBuckets = new();
+        private readonly Dictionary<EnemyBase, SpatialEntry>
+            spatialEntries = new();
+        private readonly Stack<List<EnemyBase>> bucketListPool = new();
+        private readonly List<EnemyBase> separationCandidates = new();
+        private readonly HashSet<EnemyBase> uniqueCandidates = new();
+        private RegistrationOrderComparer registrationOrderComparer;
+        private long nextRegistrationOrder;
 
         public IReadOnlyList<EnemyBase> Enemies => enemies;
+        public int LastSeparationCandidateCheckCount { get; private set; }
+        public int LastSeparationBucketVisitCount { get; private set; }
+        public int TrackedSpatialEntryCount => spatialEntries.Count;
+        public int ActiveSpatialBucketCount => separationBuckets.Count;
 
         public void Register(EnemyBase enemy)
         {
-            if (enemy != null && !enemies.Contains(enemy))
+            if (enemy != null && !spatialEntries.ContainsKey(enemy))
             {
                 enemies.Add(enemy);
+                var entry = new SpatialEntry(
+                    ++nextRegistrationOrder,
+                    CalculateOccupiedCells(
+                        enemy.transform.position,
+                        GetColliderRadius(enemy)));
+                spatialEntries.Add(enemy, entry);
+                AddToBuckets(enemy, entry.OccupiedCells);
             }
         }
 
         public void Unregister(EnemyBase enemy)
         {
+            if (enemy != null &&
+                spatialEntries.TryGetValue(
+                    enemy,
+                    out SpatialEntry entry))
+            {
+                RemoveFromBuckets(enemy, entry.OccupiedCells);
+                spatialEntries.Remove(enemy);
+            }
+
             enemies.Remove(enemy);
+        }
+
+        public void NotifyPositionChanged(EnemyBase enemy)
+        {
+            RefreshSpatialEntry(enemy);
         }
 
         public EnemyBase FindEnemyNear(Vector2 position, float radius)
@@ -459,44 +494,32 @@ namespace SimpleGame
 
         public void SeparateEnemy(EnemyBase mover)
         {
+            LastSeparationCandidateCheckCount = 0;
+            LastSeparationBucketVisitCount = 0;
             if (mover == null ||
                 !mover.IsAlive ||
                 mover.AllowsEnemyOverlap)
             {
+                RefreshSpatialEntry(mover);
                 return;
             }
 
+            RefreshSpatialEntry(mover);
             Vector2 resolved = mover.transform.position;
             float moverRadius = GetColliderRadius(mover);
             for (int pass = 0; pass < SeparationPassCount; pass++)
             {
-                foreach (EnemyBase other in enemies)
-                {
-                    if (other == null ||
-                        other == mover ||
-                        !other.IsAlive ||
-                        other.AllowsEnemyOverlap)
-                    {
-                        continue;
-                    }
-
-                    float minimumDistance =
-                        moverRadius +
-                        GetColliderRadius(other) +
-                        EnemySeparationPadding;
-                    resolved = CombatGeometry.PushOutside(
-                        resolved,
-                        mover.GetInstanceID(),
-                        other.transform.position,
-                        other.GetInstanceID(),
-                        minimumDistance);
-                }
+                resolved = ResolveSeparationPass(
+                    mover,
+                    resolved,
+                    moverRadius);
             }
 
             mover.transform.position = new Vector3(
                 resolved.x,
                 resolved.y,
                 mover.transform.position.z);
+            RefreshSpatialEntry(mover);
         }
 
         public static float GetColliderRadius(Component owner)
@@ -524,7 +547,11 @@ namespace SimpleGame
             float radius,
             EnemyBase ignoredEnemy)
         {
-            foreach (EnemyBase enemy in enemies)
+            FillSpatialCandidates(
+                position,
+                Mathf.Max(0f, radius) + EnemySeparationPadding,
+                false);
+            foreach (EnemyBase enemy in separationCandidates)
             {
                 if (enemy == null ||
                     enemy == ignoredEnemy ||
@@ -548,6 +575,203 @@ namespace SimpleGame
             }
 
             return true;
+        }
+
+        private Vector2 ResolveSeparationPass(
+            EnemyBase mover,
+            Vector2 resolved,
+            float moverRadius)
+        {
+            long lastProcessedOrder = long.MinValue;
+            while (true)
+            {
+                CellRange queriedCells = FillSpatialCandidates(
+                    resolved,
+                    moverRadius + EnemySeparationPadding,
+                    true);
+                bool crossedQueryBoundary = false;
+                foreach (EnemyBase other in separationCandidates)
+                {
+                    if (other == null ||
+                        !spatialEntries.TryGetValue(
+                            other,
+                            out SpatialEntry entry) ||
+                        entry.RegistrationOrder <= lastProcessedOrder)
+                    {
+                        continue;
+                    }
+
+                    lastProcessedOrder = entry.RegistrationOrder;
+                    if (other == mover ||
+                        !other.IsAlive ||
+                        other.AllowsEnemyOverlap)
+                    {
+                        continue;
+                    }
+
+                    LastSeparationCandidateCheckCount++;
+                    float minimumDistance =
+                        moverRadius +
+                        GetColliderRadius(other) +
+                        EnemySeparationPadding;
+                    resolved = CombatGeometry.PushOutside(
+                        resolved,
+                        mover.GetInstanceID(),
+                        other.transform.position,
+                        other.GetInstanceID(),
+                        minimumDistance);
+
+                    CellRange currentCells = CalculateOccupiedCells(
+                        resolved,
+                        moverRadius + EnemySeparationPadding);
+                    if (!currentCells.Equals(queriedCells))
+                    {
+                        crossedQueryBoundary = true;
+                        break;
+                    }
+                }
+
+                if (!crossedQueryBoundary)
+                {
+                    return resolved;
+                }
+            }
+        }
+
+        private CellRange FillSpatialCandidates(
+            Vector2 position,
+            float radius,
+            bool recordSeparationDiagnostics)
+        {
+            separationCandidates.Clear();
+            uniqueCandidates.Clear();
+            CellRange cells = CalculateOccupiedCells(position, radius);
+            for (int x = cells.Minimum.x; x <= cells.Maximum.x; x++)
+            {
+                for (int y = cells.Minimum.y; y <= cells.Maximum.y; y++)
+                {
+                    if (recordSeparationDiagnostics)
+                    {
+                        LastSeparationBucketVisitCount++;
+                    }
+
+                    if (!separationBuckets.TryGetValue(
+                            new Vector2Int(x, y),
+                            out List<EnemyBase> bucket))
+                    {
+                        continue;
+                    }
+
+                    foreach (EnemyBase enemy in bucket)
+                    {
+                        if (enemy != null && uniqueCandidates.Add(enemy))
+                        {
+                            separationCandidates.Add(enemy);
+                        }
+                    }
+                }
+            }
+
+            registrationOrderComparer ??=
+                new RegistrationOrderComparer(spatialEntries);
+            separationCandidates.Sort(registrationOrderComparer);
+            return cells;
+        }
+
+        private void RefreshSpatialEntry(EnemyBase enemy)
+        {
+            if (enemy == null ||
+                !spatialEntries.TryGetValue(
+                    enemy,
+                    out SpatialEntry entry))
+            {
+                return;
+            }
+
+            CellRange currentCells = CalculateOccupiedCells(
+                enemy.transform.position,
+                GetColliderRadius(enemy));
+            if (currentCells.Equals(entry.OccupiedCells))
+            {
+                return;
+            }
+
+            RemoveFromBuckets(enemy, entry.OccupiedCells);
+            entry = new SpatialEntry(
+                entry.RegistrationOrder,
+                currentCells);
+            spatialEntries[enemy] = entry;
+            AddToBuckets(enemy, currentCells);
+        }
+
+        private void AddToBuckets(EnemyBase enemy, CellRange cells)
+        {
+            for (int x = cells.Minimum.x; x <= cells.Maximum.x; x++)
+            {
+                for (int y = cells.Minimum.y; y <= cells.Maximum.y; y++)
+                {
+                    var key = new Vector2Int(x, y);
+                    if (!separationBuckets.TryGetValue(
+                            key,
+                            out List<EnemyBase> bucket))
+                    {
+                        bucket = bucketListPool.Count > 0
+                            ? bucketListPool.Pop()
+                            : new List<EnemyBase>(4);
+                        separationBuckets.Add(key, bucket);
+                    }
+
+                    bucket.Add(enemy);
+                }
+            }
+        }
+
+        private void RemoveFromBuckets(EnemyBase enemy, CellRange cells)
+        {
+            for (int x = cells.Minimum.x; x <= cells.Maximum.x; x++)
+            {
+                for (int y = cells.Minimum.y; y <= cells.Maximum.y; y++)
+                {
+                    var key = new Vector2Int(x, y);
+                    if (!separationBuckets.TryGetValue(
+                            key,
+                            out List<EnemyBase> bucket))
+                    {
+                        continue;
+                    }
+
+                    bucket.Remove(enemy);
+                    if (bucket.Count > 0)
+                    {
+                        continue;
+                    }
+
+                    separationBuckets.Remove(key);
+                    bucketListPool.Push(bucket);
+                }
+            }
+        }
+
+        private static CellRange CalculateOccupiedCells(
+            Vector2 position,
+            float radius)
+        {
+            float safeRadius = Mathf.Max(0f, radius);
+            return new CellRange(
+                new Vector2Int(
+                    Mathf.FloorToInt(
+                        (position.x - safeRadius) /
+                        SeparationCellSize),
+                    Mathf.FloorToInt(
+                        (position.y - safeRadius) /
+                        SeparationCellSize)),
+                new Vector2Int(
+                    Mathf.FloorToInt(
+                        (position.x + safeRadius) /
+                        SeparationCellSize),
+                    Mathf.FloorToInt(
+                        (position.y + safeRadius) /
+                        SeparationCellSize)));
         }
 
         private static bool TryGetAimAssistScore(
@@ -603,6 +827,66 @@ namespace SimpleGame
 
             public EnemyBase Enemy { get; }
             public float Progress { get; }
+        }
+
+        private readonly struct SpatialEntry
+        {
+            public SpatialEntry(
+                long registrationOrder,
+                CellRange occupiedCells)
+            {
+                RegistrationOrder = registrationOrder;
+                OccupiedCells = occupiedCells;
+            }
+
+            public long RegistrationOrder { get; }
+            public CellRange OccupiedCells { get; }
+        }
+
+        private readonly struct CellRange
+        {
+            public CellRange(Vector2Int minimum, Vector2Int maximum)
+            {
+                Minimum = minimum;
+                Maximum = maximum;
+            }
+
+            public Vector2Int Minimum { get; }
+            public Vector2Int Maximum { get; }
+
+            public bool Equals(CellRange other)
+            {
+                return Minimum == other.Minimum &&
+                    Maximum == other.Maximum;
+            }
+        }
+
+        private sealed class RegistrationOrderComparer :
+            IComparer<EnemyBase>
+        {
+            private readonly IReadOnlyDictionary<EnemyBase, SpatialEntry>
+                entries;
+
+            public RegistrationOrderComparer(
+                IReadOnlyDictionary<EnemyBase, SpatialEntry> entries)
+            {
+                this.entries = entries;
+            }
+
+            public int Compare(EnemyBase left, EnemyBase right)
+            {
+                long leftOrder = GetOrder(left);
+                long rightOrder = GetOrder(right);
+                return leftOrder.CompareTo(rightOrder);
+            }
+
+            private long GetOrder(EnemyBase enemy)
+            {
+                return enemy != null &&
+                    entries.TryGetValue(enemy, out SpatialEntry entry)
+                        ? entry.RegistrationOrder
+                        : long.MaxValue;
+            }
         }
     }
 }

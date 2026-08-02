@@ -35,6 +35,8 @@ namespace SimpleGameEditor
             PrefabRootPath + "/MovingSlash.prefab";
         public const string FilthProjectilePrefabPath =
             PrefabRootPath + "/FilthProjectile.prefab";
+        public const string DamagePopupPrefabPath =
+            PrefabRootPath + "/DamagePopup.prefab";
         public const string HealthPickupPrefabPath =
             PrefabRootPath + "/HealthPickup.prefab";
         public const string PoisonCloudPrefabPath =
@@ -49,6 +51,11 @@ namespace SimpleGameEditor
             RootPath + "/Shared/AimArrow.asset";
         public const string DefaultFontPath =
             "Assets/Font/Pretendard-Regular SDF.asset";
+        public const string DamagePopupAnchorName =
+            "DamagePopupAnchor";
+        public const float PlayerDamagePopupAnchorHeight = 1.15f;
+        public const float EnemyDamagePopupAnchorHeight = 1.25f;
+        public const float BossDamagePopupAnchorHeight = 1.8f;
 
         private const string AnimationPath = RootPath + "/Animations";
         private const string AnimatorPath = RootPath + "/Animators";
@@ -250,6 +257,7 @@ namespace SimpleGameEditor
                 BuildMovingSlashPrefab();
             FilthProjectile filthProjectilePrefab =
                 BuildFilthProjectilePrefab();
+            BuildDamagePopupPrefab();
             BuildHealthPickupPrefab();
             BuildPoisonCloudPrefab();
             BuildPlayerPrefab(
@@ -301,6 +309,110 @@ namespace SimpleGameEditor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"Character assets created under {RootPath}");
+        }
+
+        [MenuItem("SimpleGame/Migrate Damage Popup Anchors")]
+        public static void MigrateDamagePopupAnchors()
+        {
+            int updatedCount = 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                PlayerPrefabPath,
+                PlayerDamagePopupAnchorHeight) ? 1 : 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                MeleePrefabPath,
+                EnemyDamagePopupAnchorHeight) ? 1 : 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                RangedPrefabPath,
+                EnemyDamagePopupAnchorHeight) ? 1 : 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                ShieldPrefabPath,
+                EnemyDamagePopupAnchorHeight) ? 1 : 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                FlyingEyePrefabPath,
+                EnemyDamagePopupAnchorHeight) ? 1 : 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                BossPrefabPath,
+                BossDamagePopupAnchorHeight) ? 1 : 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                MushroomBossPrefabPath,
+                BossDamagePopupAnchorHeight) ? 1 : 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                FlyingEyeBossPrefabPath,
+                BossDamagePopupAnchorHeight) ? 1 : 0;
+            updatedCount += MigrateDamagePopupAnchor(
+                SkeletonBossPrefabPath,
+                BossDamagePopupAnchorHeight) ? 1 : 0;
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log(
+                $"Damage popup anchors migrated: {updatedCount} prefab(s).");
+        }
+
+        private static bool MigrateDamagePopupAnchor(
+            string prefabPath,
+            float defaultHeight)
+        {
+            GameObject contents = PrefabUtility.LoadPrefabContents(
+                prefabPath);
+            if (contents == null)
+            {
+                throw new InvalidOperationException(
+                    $"Prefab not found: {prefabPath}");
+            }
+
+            try
+            {
+                PlayerRoot player = contents.GetComponent<PlayerRoot>();
+                EnemyBase enemy = contents.GetComponent<EnemyBase>();
+                if (player == null && enemy == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Damage popup actor not found: {prefabPath}");
+                }
+
+                Transform anchor = player != null
+                    ? player.DamagePopupAnchor
+                    : enemy.DamagePopupAnchor;
+                bool changed = false;
+                if (anchor == null)
+                {
+                    anchor = contents.transform.Find(
+                        DamagePopupAnchorName);
+                }
+
+                if (anchor == null)
+                {
+                    anchor = CreateDamagePopupAnchor(
+                        contents.transform,
+                        defaultHeight);
+                    changed = true;
+                }
+
+                if (player != null && player.DamagePopupAnchor == null)
+                {
+                    player.ConfigureDamagePopupAnchor(anchor);
+                    changed = true;
+                }
+                else if (enemy != null && enemy.DamagePopupAnchor == null)
+                {
+                    enemy.ConfigureDamagePopupAnchor(anchor);
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    PrefabUtility.SaveAsPrefabAsset(
+                        contents,
+                        prefabPath);
+                }
+
+                return changed;
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
         }
 
         private static AnimatorController BuildProfile(
@@ -1003,16 +1115,32 @@ namespace SimpleGameEditor
             PlayerHealthBar healthBar = CreatePlayerWorldHealthBar(
                 root.transform,
                 -0.72f);
+            Transform damagePopupAnchor = CreateDamagePopupAnchor(
+                root.transform,
+                PlayerDamagePopupAnchorHeight);
             playerRoot.ConfigureVisuals(
                 attackRange,
                 levelLabel,
                 healthBar);
+            playerRoot.ConfigureDamagePopupAnchor(
+                damagePopupAnchor);
             PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
             UnityEngine.Object.DestroyImmediate(root);
         }
 
         private static FilthProjectile BuildFilthProjectilePrefab()
         {
+            GameObject existingPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    FilthProjectilePrefabPath);
+            FilthProjectile existing = existingPrefab != null
+                ? existingPrefab.GetComponent<FilthProjectile>()
+                : null;
+            if (existing != null && existing.HasConfiguredVisuals)
+            {
+                return existing;
+            }
+
             var root = new GameObject("FilthProjectile");
             SpriteRenderer orb = CreateSpriteVisual(
                 root.transform,
@@ -1053,6 +1181,39 @@ namespace SimpleGameEditor
             return prefab.GetComponent<FilthProjectile>();
         }
 
+        private static void BuildDamagePopupPrefab()
+        {
+            GameObject existingPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    DamagePopupPrefabPath);
+            DamagePopupView existing = existingPrefab != null
+                ? existingPrefab.GetComponent<DamagePopupView>()
+                : null;
+            if (existing != null && existing.HasConfiguredLabel)
+            {
+                return;
+            }
+
+            var root = new GameObject("DamagePopup");
+            DamagePopupView popup =
+                root.AddComponent<DamagePopupView>();
+            TextMeshPro label = CreateWorldLabel(
+                root.transform,
+                "1",
+                Vector3.zero,
+                3.1f,
+                220);
+            label.name = "DamageText";
+            label.fontStyle = FontStyles.Bold;
+            label.raycastTarget = false;
+            label.GetComponent<MeshRenderer>().sortingOrder = 220;
+            popup.Configure(label);
+            PrefabUtility.SaveAsPrefabAsset(
+                root,
+                DamagePopupPrefabPath);
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+
         private static void BuildEnemyPrefab(
             EnemyArchetype archetype,
             RuntimeAnimatorController controller,
@@ -1066,24 +1227,18 @@ namespace SimpleGameEditor
             root.AddComponent<EnemyStateMachine>();
             CharacterSpriteAnimator animation =
                 root.AddComponent<CharacterSpriteAnimator>();
-            EnemyBase enemy;
-
             switch (archetype)
             {
                 case EnemyArchetype.Melee:
                     root.AddComponent<EnemyAttackModule>();
-                    enemy = root.AddComponent<MeleeEnemy>();
                     break;
                 case EnemyArchetype.Ranged:
                     root.AddComponent<EnemyAttackModule>();
-                    enemy = root.AddComponent<RangedEnemy>();
                     break;
                 case EnemyArchetype.Shield:
-                    enemy = root.AddComponent<ShieldEnemy>();
                     break;
                 case EnemyArchetype.Boss:
                     root.AddComponent<BossAttackModule>();
-                    enemy = root.AddComponent<BossEnemy>();
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -1091,6 +1246,9 @@ namespace SimpleGameEditor
                         archetype,
                         null);
             }
+
+            EnemyActor enemy = root.AddComponent<EnemyActor>();
+            enemy.ConfigureArchetype(archetype);
 
             ConfigurePhysics(
                 root,
@@ -1134,11 +1292,17 @@ namespace SimpleGameEditor
             EnemyHealthBar healthBar = CreateWorldHealthBar(
                 root.transform,
                 archetype == EnemyArchetype.Boss ? 1.48f : 0.93f);
+            Transform damagePopupAnchor = CreateDamagePopupAnchor(
+                root.transform,
+                archetype == EnemyArchetype.Boss
+                    ? BossDamagePopupAnchorHeight
+                    : EnemyDamagePopupAnchorHeight);
             enemy.ConfigureVisuals(
                 approachRange,
                 facingMarker,
                 levelLabel,
                 healthBar);
+            enemy.ConfigureDamagePopupAnchor(damagePopupAnchor);
 
             EnemyAttackModule attack = root.GetComponent<EnemyAttackModule>();
             if (attack != null)
@@ -1441,6 +1605,21 @@ namespace SimpleGameEditor
             label.rectTransform.sizeDelta = new Vector2(3f, 1f);
             child.GetComponent<MeshRenderer>().sortingOrder = sortingOrder;
             return label;
+        }
+
+        private static Transform CreateDamagePopupAnchor(
+            Transform parent,
+            float localHeight)
+        {
+            var anchorObject = new GameObject(
+                DamagePopupAnchorName);
+            Transform anchor = anchorObject.transform;
+            anchor.SetParent(parent, false);
+            anchor.localPosition = new Vector3(
+                0f,
+                localHeight,
+                0f);
+            return anchor;
         }
 
         private static PlayerHealthBar CreatePlayerWorldHealthBar(

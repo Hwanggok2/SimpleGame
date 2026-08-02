@@ -525,6 +525,46 @@ namespace SimpleGame.Tests
         }
 
         [Test]
+        public void FusionFilth_EnemyEnteringOnThirdTickTriggersThenOnly()
+        {
+            bool hasRecordedGeneration = false;
+            uint recordedGeneration = 0u;
+            const uint currentGeneration = 7u;
+            int triggerCount = 0;
+
+            for (int tick = 1; tick <= 6; tick++)
+            {
+                bool enemyIsInsideField = tick >= 3;
+                if (!enemyIsInsideField)
+                {
+                    continue;
+                }
+
+                bool shouldTrigger =
+                    FilthProjectile.ShouldTriggerStaticBurst(
+                        5,
+                        hasRecordedGeneration,
+                        recordedGeneration,
+                        currentGeneration);
+                if (tick == 3)
+                {
+                    Assert.That(shouldTrigger, Is.True);
+                }
+
+                if (!shouldTrigger)
+                {
+                    continue;
+                }
+
+                triggerCount++;
+                hasRecordedGeneration = true;
+                recordedGeneration = currentGeneration;
+            }
+
+            Assert.That(triggerCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void FusionRarityAliases_HaveEpicAndLegendaryColors()
         {
             Color common = LevelUpCardView.ResolveRarityColor("일반");

@@ -3028,6 +3028,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CombatFeedbackController
   cameraShake: {fileID: 2083255555}
   profile: {fileID: 0}
+  damagePopupPrefab: {fileID: 5046056466191790634, guid: 5d0e34f8a69128b4f97002fecb0bab7d, type: 3}
 --- !u!4 &491478842
 Transform:
   m_ObjectHideFlags: 0

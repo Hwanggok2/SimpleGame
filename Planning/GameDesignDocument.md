@@ -1,6 +1,6 @@
 # 2D Infinite Survival Action RPG 기획서
 
-- 최종 갱신: 2026-07-27
+- 최종 갱신: 2026-08-02
 
 ## 1. 문서 개요
 
@@ -712,9 +712,10 @@ Enemy 생성 시점과 수, 종류, 위치와 레벨은 외부 데이터로 관�
 ### 25.2 비관통 상태의 교전 반경 원주 이동
 
 - 모드 1의 실제 방향 이동은 경로상의 첫 생존 Enemy를 기존 잠금보다 먼저 이동 제약 대상으로 사용한다. 해당 Enemy를 아직 공격하지 않았거나 이동 관통이 허용되지 않은 상태에서는 교전 반경 바깥에서 멈추므로, 잠금 갱신 전에 Enemy를 그대로 통과하지 않는다.
-- 일반 `Melee`·`Ranged` Enemy의 교전 반경은 `R_enemy_safe=max(0, enemyAttackRange-min(0.02, 0.1×enemyAttackRange))`, `R_engage=min(playerAttackRange, R_enemy_safe)`로 계산한다. Enemy 공격 시작 사거리보다 최대 0.02 안쪽에 여유를 둬 경계 오차를 피하고 Player와 Enemy가 모두 공격을 시작할 수 있게 한다.
-- 일반 공격 사거리를 사용하지 않는 `Shield`·`Boss`, 공격 사거리가 0 이하이거나 Definition이 없는 대상은 예외로 두고 Player 공격 사거리를 교전 반경으로 사용한다.
-- 정확히 대상 방향으로만 입력하면 교전 반경에서 멈춘다. 대각선 입력은 대상 중심을 향하는 안쪽 성분만 제거하고 접선 성분은 유지해 교전 반경의 원주를 따라 이동하며, 바깥 방향 입력은 수정하지 않는다.
+- Player의 안전 공격 반경은 `R_player_safe=max(0, playerAttackRange-min(0.02, 0.1×playerAttackRange))`로 계산한다. 일반 `Melee`·`Ranged` Enemy는 `R_enemy_safe=max(0, enemyAttackRange-min(0.02, 0.1×enemyAttackRange))`, `R_engage=min(R_player_safe, R_enemy_safe)`를 사용한다. 양측 공격 사거리보다 최대 0.02 안쪽에 여유를 둬 경계 오차 없이 Player와 Enemy가 모두 공격을 시작할 수 있게 한다.
+- 일반 공격 사거리를 사용하지 않는 `Shield`·`Boss`, 공격 사거리가 0 이하이거나 Definition이 없는 대상은 `R_player_safe`를 교전 반경으로 사용한다. 모드 1의 잠금 대상 자동 접근도 같은 반경까지 접근한 뒤 공격한다.
+- 실제 프레임 제약 반경은 `R_frame=min(R_engage, currentDistance)`로 계산한다. Enemy가 Player 쪽으로 다가와 현재 거리가 기존 교전 반경보다 짧아졌다면 그 가까워진 거리를 유지하며, Player를 기존 최대 반경으로 밀어내지 않는다.
+- 정확히 대상 방향으로만 입력하면 현재 제약 반경에서 멈춘다. 대각선·접선 입력은 대상 중심을 향하는 안쪽 성분을 제거한 뒤 같은 원주에 재투영해 선회 중 사거리 밖으로 새지 않게 한다. 명시적인 바깥 방향 입력은 수정하지 않는다.
 - 대상이 사망하거나 풀 세대가 바뀌면 해당 이동 제약을 즉시 해제한다. 최소 입력 임계값 이상의 실제 방향 입력만 자동 접근보다 우선하며, 중립 입력이나 Pointer 소유 상태만 남은 경우에는 자동 접근을 차단하지 않는다.
 
 ### 25.3 공격 관통과 이동 관통 분리
@@ -731,3 +732,80 @@ Enemy 생성 시점과 수, 종류, 위치와 레벨은 외부 데이터로 관�
 - 참격에는 별도 재사용 대기시간이나 연속 발동 제한을 두지 않는다. 운이 좋으면 연속 기본 공격에서 연속으로 발동할 수 있다.
 - 관통 후속 타격과 참격·정전기·오물·이기어검 등 추가 피해는 새 참격을 발동하지 않는다.
 - 레벨별 확률은 기존 확률의 1.5배인 `15/19.5/24/28.5/33%`다. 피해 `1.8/2.15/2.5/2.85/3.2배`, 최대 적중 `2/3/4/5/6`, 크기와 사거리는 기존 값을 유지한다.
+
+## 26. 10차 전투 피드백·오물 융합·스크립트 구조 확정안
+
+### 26.1 오물 투척·정전기 융합의 최초 피격
+
+- 융합 오물 장판은 장판이 생성될 때 존재하던 Enemy만 최초 대상으로 고정하지 않는다.
+- 각 0.5초 피해 틱마다 현재 장판 안 Enemy를 다시 찾고, 해당 장판에서 같은 `Enemy + SpawnGeneration`이 처음 실제 피해를 받는 틱에 정전기를 한 번 발동한다.
+- 장판의 3번째 틱에 처음 들어온 Enemy라면 3번째 틱에서 정전기가 발동한다. 같은 장판을 나갔다 다시 들어와도 같은 세대에는 다시 발동하지 않는다.
+- 서로 다른 장판은 각각 최초 피격을 기록하고, Enemy Pool 재사용으로 SpawnGeneration이 바뀌면 새 생성 개체로 한 번 더 발동할 수 있다.
+
+### 26.2 데미지 팝업
+
+- Enemy가 Player의 일반 공격 또는 스킬로 실제 HP를 잃으면 Enemy 위에 피해량을 띄운다. 일반 피해는 흰색, 치명타는 구분되는 강조색과 크기를 사용한다.
+- Player가 Enemy 공격, 보스 공격 또는 독 구름으로 실제 HP를 잃으면 Player 위에 빨간 피해량을 띄운다.
+- 표시값은 요청 피해가 아니라 `피격 전 HP - 피격 후 HP`다. 무효·0 피해에는 표시하지 않고, 남은 HP보다 큰 공격도 실제 감소량까지만 표시한다.
+- Player와 8개 Enemy Prefab에는 텍스트가 아닌 편집 가능한 빈 `DamagePopupAnchor`만 둔다. 기본 높이는 Player `y=1.15`, 일반 Enemy `y=1.25`, Boss `y=1.8`이며 캐릭터별 연출에 맞춰 Prefab에서 위치를 조정할 수 있다.
+- 실제 World Space TMP는 피격 Entity의 자식으로 만들지 않고 `CombatFeedbackController`가 소유한 전역 Pool에서 빌려 Anchor의 월드 위치에 표시한다. 16개를 미리 준비하고 최대 64개까지 확장하며, Entity가 사망하거나 Enemy Pool로 반환돼도 팝업은 표시 수명을 끝까지 유지한다.
+- Entity Prefab마다 TMP를 상주시켜 한 Text를 덮어쓰는 방식은 동시 다단 히트가 마지막 숫자로 덮이고 사망·비활성화 때 표시가 잘리는 문제가 있으므로 사용하지 않는다.
+- 일반·치명타·Player 피격 글자는 Bold를 사용하고 크기는 각각 `3.1`, `3.8`, `3.35`다. Renderer 정렬 순서는 `220` 이상으로 유지한다.
+- 팝업은 `0.82초` 동안 `0.9`만큼 상승하며 Fade한다. 연속·동시 타격은 순환 Stagger Offset을 적용해 숫자가 같은 위치에 완전히 겹치지 않도록 한다.
+- `DamagePopup.prefab` 참조가 없으면 피해 처리는 유지하되 경고를 한 번만 기록한다. `GameDataAssetBuilder`는 데이터 연결 시 팝업 Prefab을 명시적으로 로드해 `CombatFeedbackController`에 연결한다.
+- 기존 Prefab 반영은 Player와 8개 Enemy만 대상으로 하는 멱등 마이그레이션을 사용한다. Anchor가 없을 때만 만들고, 이미 연결된 Anchor와 사용자가 조정한 위치는 보존한다.
+
+### 26.3 스킬 처치 화면 흔들림
+
+- Enemy의 실제 사망 완료 경로에서 처치 흔들림을 한 번 요청한다. 따라서 절단, 정전기, 참격, 오물 투척 처치도 일반 공격·이기어검 처치와 동일하게 누락 없이 적용한다.
+- 개별 스킬이 각자 흔들림을 호출하지 않는다. 모든 사망이 통과하는 공통 경로를 사용해 한 처치가 중복 재생되지 않도록 한다.
+- 같은 프레임에 여러 Enemy가 죽어도 흔들림 강도를 합산하지 않으며 현재 카메라 피드백 규칙에 따라 갱신한다.
+
+### 26.4 오물 시각 효과 편집
+
+- 오물의 구체와 장판은 `Assets/Prefab/FilthProjectile.prefab`의 `Orb`, `DamageField/Outer`, `DamageField/Inner`에서 Sprite·Material·Color·Scale을 직접 바꿀 수 있다.
+- 필요하면 해당 시각 자식에 ParticleSystem 또는 Animator를 추가할 수 있다. 단, `FilthProjectile`의 `orbRenderer`와 `fieldVisual` 참조는 유지한다.
+- Character Asset Builder는 이미 존재하고 필수 참조가 유효한 오물 Prefab을 덮어쓰지 않아 수동 연출 변경을 보존한다.
+
+### 26.5 공용화와 최적화 경계
+
+- 종류 값만 반환하던 `MeleeEnemy`, `RangedEnemy`, `ShieldEnemy`, `BossEnemy`는 직렬화된 Archetype을 가진 `EnemyActor` 하나로 합친다. 실제 행동 차이는 데이터와 공격 기능 컴포넌트로 유지한다.
+- 카메라 흔들림, 캐릭터 애니메이션, 전투 피드백과 데미지 팝업은 `Runtime/Presentation`에 배치한다.
+- 현재 적용 상태와 모든 스크립트 책임은 `Planning/ScriptStructure.md`를 기준으로 관리한다.
+- 지상 Enemy 분리 Spatial Hash, 오물·참격 Pool과 대형 Player/Session/HUD 클래스 partial 분리는 측정과 회귀 기준을 확보해 적용했다. Enemy UI·Animator 비용은 실제 빌드 프로파일링 후속 항목으로 유지한다.
+
+## 27. Enemy 밀집 전투와 투사체 재사용 최적화
+
+### 27.1 지상 Enemy 분리
+
+- 지상 Enemy끼리의 겹침 해소 규칙은 유지하되, 매 Enemy가 전체 목록을 반복 검사하던 O(N²) 탐색을 셀 크기 2m의 Uniform Spatial Hash로 교체한다.
+- Enemy 등록·해제·이동 때 점유 셀을 갱신하고, 분리 시 현재 충돌 반경과 겹치는 버킷의 후보만 확인한다. Flying Eye 등 기존 겹침 허용 규칙은 그대로 적용한다.
+- Unity Editor Mono 마이크로벤치마크에서 800마리·간격 3·전체 3 sweeps median은 1,141.060ms에서 5.194ms로 99.54% 감소했다. 각 sweep은 모든 Enemy의 `SeparateEnemy`를 호출하고 호출 내부는 2-pass다. 기존 pair check 3,835,200회는 `800×799×2 pass×3 sweeps`이며 변경 후 0회, bucket 방문은 10,800회였다.
+- 밀집 조건인 800마리·간격 0.55에서는 median 1,190.317ms에서 135.967ms로 88.58% 감소했다. pair check는 3,835,200회에서 144,111회로 96.24% 감소했고 bucket 방문은 12,909회였다.
+- 인덱스는 속도와 상주 메모리를 교환한다. 800마리 등록 Mono 벤치마크는 24,576B에서 208,896B로 184,320B 증가했으며, 약 230B/Enemy, +750%다. 후보 버퍼를 재사용해 warm 분리 경로의 GC 할당은 0B다.
+- 이 수치는 Editor 마이크로벤치마크 결과이며 실제 빌드 전체 프레임의 보편적 개선율이 아니다. 효과는 Enemy 밀도와 분포에 따라 달라진다.
+
+### 27.2 오물·참격 투사체 Pool
+
+- 오물과 이동 참격은 공용 `ComponentPrefabPool<T>`에서 Prefab별 최대 16개의 비활성 인스턴스를 재사용한다. 재사용할 때 비행 시간, 장판 시간, Alpha, 적중 대상·SpawnGeneration 이력을 모두 초기화한다.
+- 1,000회 직렬 Spawn·완료 Editor Mono 벤치마크에서 오물은 23.807ms에서 2.221ms로 90.67%, 참격은 14.531ms에서 2.115ms로 85.44% 감소했다.
+- 실행 중 생성/파괴는 1,000/1,000회에서 1/0회로 줄고 종료 시 최종 정리 1회만 수행했다. 추적한 생성 할당 footprint는 오물 7,963B, 참격 2,601B로 기존 대비 약 99.9% 감소했다.
+- 비활성 인스턴스를 보관하므로 resident memory 비용은 남는다. 따라서 위 99.9%는 반복 생성 할당 traffic의 감소이며 게임 전체 메모리 사용량 감소율이 아니다.
+
+### 27.3 대형 스크립트 책임 분리
+
+| partial 본체 | 분리 전 | 분리 후 본체 | 분리 책임 |
+|---|---:|---:|---|
+| `PlayerController.cs` | 1,766줄 | 862줄 | `ModeOne`, `AimVisuals` |
+| `PlayerCombatAbilities.cs` | 1,163줄 | 594줄 | `Cards`, `Skills` |
+| `FlyingSwordController.cs` | 1,028줄 | 207줄 | `Flight`, `Visuals` |
+| `PrototypeHUDView.cs` | 1,526줄 | 415줄 | `ControlSettings`, `Localization`, `Panels` |
+| `PrototypeGameSession.cs` | 952줄 | 251줄 | `CardSelection`, `Pause`, `RunFlow` |
+
+- 모든 분리는 동일 partial 타입 안에서 이뤄진다. 새 MonoBehaviour, Update 또는 런타임 객체를 추가하지 않아 이 구조 변경 자체의 런타임 CPU·메모리 절감은 0%다.
+- 목적은 직렬화와 공개 API를 유지하면서 파일별 변경 범위, 코드 탐색 비용과 병합 충돌 가능성을 줄이는 것이다.
+
+### 27.4 Enemy Asset 참조 호환
+
+- Enemy Prefab의 구체 Component를 기존 개별 파생 타입에서 `EnemyActor`로 교체하면 오래된 `EnemyAssetCatalog`의 Component 참조가 비어 있을 수 있다.
+- Catalog 항목은 Prefab 루트 `GameObject`도 함께 직렬화하고 직접 참조가 없을 때 루트의 현재 `EnemyBase` Component를 조회한다. 이 fallback은 기존 생성 데이터가 Component 교체 뒤에도 Prefab을 찾도록 하는 호환 경로다.

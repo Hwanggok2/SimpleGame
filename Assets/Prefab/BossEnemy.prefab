@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &195257300474987728
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5044216500383998507}
+  m_Layer: 0
+  m_Name: DamagePopupAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5044216500383998507
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 195257300474987728}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 381273216432814710}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1359229175965964055
 GameObject:
   m_ObjectHideFlags: 0
@@ -687,6 +718,7 @@ Transform:
   - {fileID: 3754526203766852388}
   - {fileID: 4894365212379575923}
   - {fileID: 3867734632050287595}
+  - {fileID: 5044216500383998507}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1188956043015354623
@@ -782,9 +814,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 7558017833337544966}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bb63d06b12a2499eab385555ab8cb8ca, type: 3}
+  m_Script: {fileID: 11500000, guid: a2a23e8b064a4e48b3ef0ea9051dc627, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.BossEnemy
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyActor
+  archetype: 3
   level: 1
   health: {fileID: 0}
   facing: {fileID: 0}
@@ -797,6 +830,7 @@ MonoBehaviour:
   facingMarker: {fileID: 132031547702608509}
   levelLabel: {fileID: 7950125947957531112}
   healthBar: {fileID: 1906746210147986279}
+  damagePopupAnchor: {fileID: 5044216500383998507}
 --- !u!50 &6132891272313244292
 Rigidbody2D:
   serializedVersion: 5

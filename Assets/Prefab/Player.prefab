@@ -53,6 +53,7 @@ Transform:
   - {fileID: 5677813059485254907}
   - {fileID: 3699910283181869196}
   - {fileID: 1790965782342117423}
+  - {fileID: 8482612152761560137}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4835660504590047549
@@ -227,6 +228,7 @@ MonoBehaviour:
   attackRangeRenderer: {fileID: 631422029703326409}
   levelLabel: {fileID: 8858418498405286345}
   healthBar: {fileID: 521057008432731227}
+  damagePopupAnchor: {fileID: 8482612152761560137}
   playerId: LightBandit
 --- !u!114 &7118820796243054197
 MonoBehaviour:
@@ -1321,6 +1323,37 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!1 &5553416352593639027
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8482612152761560137}
+  m_Layer: 0
+  m_Name: DamagePopupAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8482612152761560137
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5553416352593639027}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.15, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4805181885227780}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5638400052594151570
 GameObject:
   m_ObjectHideFlags: 0

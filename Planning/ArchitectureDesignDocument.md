@@ -1,6 +1,6 @@
 # SimpleGame 프로젝트 아키텍처 설계서
 
-- 최종 갱신: 2026-07-27
+- 최종 갱신: 2026-08-02
 
 ## 1. 문서 목적
 
@@ -313,48 +313,41 @@ public abstract class EnemyBase : MonoBehaviour
 
 이 코드는 구조를 설명하기 위한 예시이며 실제 구현 시 필요한 최소 API만 작성한다.
 
-### 6.2 Enemy 파생 클래스
+### 6.2 Enemy 공용 구현과 Archetype
 
-| 클래스 | 차별화되는 핵심 규칙 |
+현재 모든 Enemy Prefab은 `EnemyBase`의 공용 구현인 `EnemyActor`를 사용한다. `EnemyActor`는 직렬화된 `EnemyArchetype`만 제공하며, 종류별 실제 규칙은 `EnemyDefinition`, `EnemyStateMachine`과 공격 기능 컴포넌트가 결정한다.
+
+| Archetype | 데이터·조합으로 달라지는 핵심 규칙 |
 |---|---|
-| `MeleeEnemy` | 근거리 레벨 차이 공격 규칙과 근접 행동 |
-| `RangedEnemy` | 발사 전 자유 조준, 발사 후 1초 방향 고정과 2초 쿨타임 |
-| `ShieldEnemy` | Player 추격, 하늘색 범위 끝 정지, 0.8초 Shield 방향 고정, 조건부 정면 반동 |
-| `BossEnemy` | Player 목표 유지, 고유 3초 공격 주기, 일반 Enemy 재배치 제외 |
+| `Melee` | 근거리 레벨 차이 공격 규칙과 근접 행동 |
+| `Ranged` | 발사 전 자유 조준, 발사 후 방향 고정과 쿨타임 |
+| `Shield` | Player 추격, 하늘색 범위 끝 정지, Shield 방향 고정, 조건부 정면 반동 |
+| `Boss` | Player 목표 유지, 보스 패턴 순환, 일반 Enemy 재배치 제외 |
 
-파생 클래스에는 해당 Enemy에서만 달라지는 규칙만 둔다.
+알고리즘을 추가하지 않고 Archetype 값만 반환하던 네 파생 클래스는 제거한다. 새 종류가 기존 흐름을 공유하면 Definition과 Prefab 조합을 추가하고, 실제로 다른 알고리즘이 필요할 때만 기능 컴포넌트를 추가한다.
 
 ### 6.3 Enemy 기능 컴포넌트
 
 | 컴포넌트 | 책임 |
 |---|---|
-| `EnemyHealth` | 현재 체력 또는 남은 피해량, 피격, 사망 |
-| `EnemyMovement` | 목표 위치 이동, 정지 거리 판정, 이동 재개 |
-| `EnemyTargeting` | 생존한 Player 목표 유지 |
-| `EnemyFacing` | 바라보는 방향, 0.5초 좌우 전환 지연, 정면 및 후면 판정 |
-| `EnemyAttackBase` | 공격 가능 여부, 준비, 판정, 쿨타임 |
-| `EnemyStateMachine` | 행동 상태와 전환 |
-| `EnemyVisual` | SpriteRenderer, 피격 Flash, 사망 연출 |
-| `CharacterSpriteAnimator` | 저장된 AnimatorController에 Motion·FaceLeft·Attack·Hurt 파라미터 전달 |
+| `EnemyHealth` | float 기반 현재·최대 체력, 피해, 사망과 Pool 재설정 이벤트 |
+| `EnemyMovement` | 목표 위치 이동, 정지와 넉백 |
+| `EnemyFacing` | 바라보는 방향, 좌우 전환 지연과 공격 후 방향 잠금 |
+| `EnemyAttackModule` | 일반 Enemy의 준비, 예고, 판정과 쿨타임 |
+| `BossAttackModule` | Boss별 두 패턴의 예고, 위치·방향 잠금과 판정 |
+| `EnemyStateMachine` | Archetype별 추적·거리 유지·방패 대기·공격 상태 전환 |
+| `EnemyHealthBar` | 체력 비율과 레벨 라벨 표시 |
+| `CharacterSpriteAnimator` | 저장된 AnimatorController에 Motion·FaceLeft·Attack·Hurt·Death 상태 전달 |
 
-### 6.4 공격 Strategy
+### 6.4 공격 모듈
 
 ```text
-EnemyAttackBase
-├─ MeleeAttack
-├─ RangedAttack
-└─ BossAttack
+EnemyBase
+├─ EnemyAttackModule  ── 일반 Melee/Ranged/Shield 공격 시간표
+└─ BossAttackModule   ── BossAttackPatterns 기반 두 패턴 순환
 ```
 
-`RangedAttack`은 다음을 담당한다.
-
-- 공격 범위 확인
-- 공격 준비
-- 투사체 생성 또는 공격 판정
-- 공격 취소
-- 쿨타임
-
-`RangedEnemy`는 원거리 공격 세부 구현을 알 필요 없이 `EnemyAttackBase`의 공통 API를 사용한다.
+현재 일반 Enemy는 하나의 `EnemyAttackModule`이 Definition의 사거리·준비·판정·쿨타임과 Archetype 조건을 사용한다. Boss는 도형과 순환 방식이 달라 `BossAttackModule`로 분리한다. 공격 종류가 늘어나 현재 Module의 조건문이 독립 알고리즘 여러 개로 커질 때 Strategy 분리를 다시 검토한다.
 
 ### 6.5 CombatResolver
 
@@ -947,27 +940,21 @@ Unity Object 참조와 Unity에서 직접 조정하는 연출값은 Excel에 넣
 
 매 프레임 `Find`, `GetComponent`, `GetComponentInChildren`로 의존성을 탐색하지 않는다. 필요한 검색은 초기화 시 한 번만 수행하고 결과를 보관한다.
 
-## 17. 권장 폴더 구조
+## 17. 현재 폴더 구조
 
 ```text
 Assets/Game/
 ├─ Runtime/
 │  ├─ Core/
 │  ├─ Combat/
+│  ├─ Data/
 │  ├─ Player/
 │  ├─ Enemies/
-│  │  ├─ Common/
-│  │  ├─ Melee/
-│  │  ├─ Ranged/
-│  │  ├─ Shield/
-│  │  └─ Boss/
+│  ├─ Entities/
 │  ├─ World/
-│  ├─ Spawning/
-│  ├─ Progression/
 │  ├─ Presentation/
-│  ├─ UI/
-│  ├─ Save/
-│  └─ Infrastructure/
+│  └─ UI/
+├─ Editor/
 ├─ Data/
 │  ├─ Generated/
 │  ├─ Catalogs/
@@ -977,11 +964,11 @@ Assets/Game/
 │  ├─ Animators/
 │  └─ Shared/
 └─ Tests/
-   ├─ EditMode/
-   └─ PlayMode/
+   └─ EditMode/
 ```
 
 모든 `.prefab` 에셋은 종류와 관계없이 `Assets/Prefab` 바로 아래에서 관리한다.
+폴더 하나에 스크립트가 과도하게 늘어나기 전에는 Archetype별 빈 하위 폴더나 아직 구현하지 않은 Save·Infrastructure 폴더를 미리 만들지 않는다. 전체 파일명과 역할은 `Planning/ScriptStructure.md`에서 관리한다.
 
 ### 17.1 Assembly Definition
 
@@ -1233,10 +1220,167 @@ AttackCommandButton.PointerDown
 - 오물 장판은 호출자가 소유한 List를 채우는 무정렬 반경 쿼리를 사용한다. 레벨 5의 `5개 장판 × 장판당 6틱`에서도 쿼리용 List 할당과 전체 거리 정렬을 만들지 않는다.
 - `CharacterSpriteAnimator`는 마지막 Motion·FaceLeft 값을 기억해 값이 바뀔 때만 Animator 파라미터를 기록한다. `tintPulseSpeed=0`이면 해당 Adapter의 `LateUpdate`를 비활성화하며 공격·피격·사망처럼 외부에서 직접 호출되는 메서드는 계속 동작한다.
 
-### 25.2 프로파일링 후 적용할 구조 개선
+### 25.2 측정 후 적용한 구조 개선과 남은 항목
 
-- 지상 Enemy 분리는 현재 각 이동 Enemy가 전체 Enemy를 두 번 순회하는 O(N²) 구조다. `EnemyWorldService` 외부 API를 유지하고 내부에 Uniform Spatial Hash를 추가해 현재 셀과 인접 셀만 검사하는 것이 최우선 후속 작업이다.
+- 지상 Enemy 분리는 `EnemyWorldService` 외부 API를 유지한 채 2m Uniform Spatial Hash로 교체했다. 등록·이동 시 점유 셀을 갱신하고 분리 반경과 겹치는 버킷만 검사한다.
 - 일반 Enemy의 World Space Canvas·Slider·TMP 체력바는 피격 직후 제한 시간만 표시하거나 SpriteRenderer 기반 바로 바꾸고, Animator Culling을 검토한다.
-- `SlashTrailEffect.ShowStaticArc`, 오물 투사체, 이동 참격 순으로 Pool을 적용하되 재사용 시 타이머·Alpha·타격 이력을 반드시 초기화한다.
-- `PlayerCombatAbilities`, `FlyingSwordController`, `PrototypeGameSession`은 런타임 Update 수를 늘리지 않는 일반 C# 하위 모듈로 책임을 나눈다. `EnemyWorldService`는 외부 Facade를 유지하면서 Registry·SpatialIndex·Query로 내부를 분리한다.
-- 활성 Enemy 100/300/500마리에서 60초씩 CPU Timeline, `GC.Alloc`, `Physics2D.Simulate`, `Animator.Update`, `Canvas.BuildBatch`의 median·p95를 비교한다. Spatial Hash나 Physics2D 제거는 이 기준 측정 후에만 적용한다.
+- 정전기 Arc에 이어 오물·이동 참격도 Prefab별 최대 16개의 공용 Component Pool을 적용했다. 재사용 시 타이머·Alpha·타격 이력을 초기화한다.
+- `PlayerController`, `PlayerCombatAbilities`, `FlyingSwordController`, `PrototypeHUDView`, `PrototypeGameSession`은 런타임 Update 수를 늘리지 않는 partial 파일로 책임을 분리했다.
+- Editor Mono 마이크로벤치마크는 구현 전후 알고리즘과 반복 생성 비용 비교에 사용했다. 실제 빌드의 활성 Enemy 100/300/500마리 CPU Timeline, `Physics2D.Simulate`, `Animator.Update`, `Canvas.BuildBatch` median·p95는 별도 후속 측정으로 남긴다.
+
+## 26. 전투 피드백과 스크립트 구조 정리
+
+### 26.1 현재 Runtime 책임 폴더
+
+- `Core`: 실행 조율, 월드 Registry/Factory/Pool과 여러 기능을 연결하는 Facade
+- `Combat`: 저장 상태를 소유하지 않는 전투 판정과 Player 스킬 투사체·전투 효과
+- `Data`: Excel Import 결과와 수동 Profile ScriptableObject
+- `Enemies`, `Player`, `Entities`: Entity Facade와 수명주기가 있는 기능 컴포넌트
+- `Presentation`: 카메라 흔들림, Animator Adapter, 전투 피드백과 데미지 팝업
+- `UI`: HUD View/Presenter와 모바일 조작 UI
+- `World`: 회복 오브젝트와 환경 공격
+
+전체 파일 트리와 스크립트별 단일 책임은 `Planning/ScriptStructure.md`를 현재 기준으로 삼는다.
+
+### 26.2 Enemy 공용 타입
+
+```text
+EnemyActor(serialized EnemyArchetype)
+  └─ EnemyBase
+       ├─ EnemyHealth
+       ├─ EnemyMovement
+       ├─ EnemyFacing
+       ├─ EnemyStateMachine
+       ├─ EnemyAttackModule (필요한 Prefab)
+       └─ BossAttackModule (Boss Prefab)
+```
+
+- `MeleeEnemy`, `RangedEnemy`, `ShieldEnemy`, `BossEnemy`는 Archetype 상수 하나만 반환하고 동작을 추가하지 않아 `EnemyActor`로 통합한다.
+- Enemy별 행동은 `EnemyDefinition`, 직렬화된 Archetype과 조합된 공격 컴포넌트가 결정한다. 새 종류도 알고리즘이 같다면 파생 클래스가 아니라 데이터와 Prefab 조합을 추가한다.
+- `HealthComponent`와 `EnemyHealth`는 정수 HP·무적·회복 대 float HP·Pool 재설정처럼 수명주기가 다르므로 현재 분리를 유지한다. 공용화는 이름이 아니라 동일한 정책과 변경 이유를 기준으로 한다.
+
+### 26.3 피해 팝업 흐름
+
+```text
+EnemyBase.ReceivePlayerAttack / PlayerRoot.ReceiveDamage
+  └─ 실제 HP 감소량(before - after) 계산
+       └─ Actor Prefab의 DamagePopupAnchor 월드 위치
+            └─ PrototypeGameSession
+                 └─ CombatFeedbackController
+                      └─ 전역 DamagePopupView Pool (Prewarm 16 / 최대 64)
+                           └─ 상승 + Alpha Fade + 비활성 반환
+```
+
+- 피해를 적용하는 가장 낮은 공통 진입점 두 곳에서 팝업을 요청하므로 일반 공격, 모든 Player 스킬, Enemy·Boss 공격과 독 피해를 함께 포괄한다.
+- Player와 8개 Enemy Prefab은 TMP가 아니라 편집 가능한 빈 `DamagePopupAnchor`만 소유한다. 기본 로컬 높이는 Player `1.15`, 일반 Enemy `1.25`, Boss `1.8`이다.
+- 실제 World Space TMP는 피격 Entity의 자식이 아닌 전투 피드백 Root에서 재생해 Enemy가 사망 즉시 Pool로 돌아가도 `0.82초`의 표시 수명을 유지한다. `0.9`만큼 상승하며 순환 Stagger Offset으로 동시 타격의 완전한 중첩을 피한다.
+- `DamagePopupView`는 새 Manager를 만들지 않고 기존 `CombatFeedbackController`가 소유한다. 16개를 미리 준비하고 최대 64개로 제한해 비활성 인스턴스를 재사용한다.
+- Entity마다 TMP를 상주시켜 한 Text를 갱신하는 구조는 동시 타격이 서로 덮이고 Entity 사망·비활성화와 팝업 수명이 결합되므로 채택하지 않는다.
+- 표시 스타일은 일반·치명타·Player 피격 순으로 Bold 크기 `3.1/3.8/3.35`, Renderer 정렬 순서 `220` 이상이다. 실제 감소량이 0 이하면 생성하지 않는다.
+- `GameDataAssetBuilder`는 `DamagePopup.prefab`을 명시적으로 로드해 `CombatFeedbackController.Configure`에 전달한다. 런타임 참조가 없을 때는 동일 경고를 반복하지 않고 한 번만 기록한다.
+- `CharacterAssetBuilder.MigrateDamagePopupAnchors`는 Player와 8개 Enemy Prefab만 `LoadPrefabContents`로 열어 Anchor가 없을 때만 생성·연결한다. 이미 연결된 Anchor와 기획자가 바꾼 위치를 보존하므로 반복 실행해도 결과가 변하지 않는다.
+
+### 26.4 처치 피드백 단일 경로
+
+```text
+모든 피해 원천
+  └─ EnemyBase.BeginDeath (생성 개체당 한 번)
+       └─ PrototypeGameSession.OnEnemyDefeated
+            └─ CombatFeedbackController.PlayDefeatingHit
+                 └─ CameraShakeController.Play
+```
+
+- 절단·정전기·참격·오물처럼 `ApplySkillHit`를 통과하는 공격도 공통 사망 경로에서 처치 흔들림을 받는다.
+- 공격 원천마다 흔들림 코드를 추가하지 않아 누락과 이중 호출을 동시에 막는다.
+- 한 프레임에 여러 요청이 와도 CameraShake는 강도를 누적하지 않고 더 강한 활성 요청 정책을 유지한다.
+
+### 26.5 전투 효과 Pool과 오물 VFX 소유권
+
+- 정전기 Arc는 `SlashTrailEffect`의 비활성 인스턴스 재사용 Pool을 사용하고 LineRenderer와 Material을 적중마다 생성·파괴하지 않는다. 재사용 시 위치, 폭, 색·Alpha와 수명 상태를 모두 초기화한다.
+- 데미지 팝업도 같은 원칙으로 별도 제한 Pool을 사용한다. 서로 표현과 컴포넌트가 달라 하나의 억지 범용 Pool 타입으로 합치지 않고, 소유 Facade와 재사용 정책만 통일한다.
+- 오물 장판은 기존 호출자 소유 List 재사용을 유지한다. 오물·이동 참격 투사체는 측정 후 `ComponentPrefabPool<T>`를 적용하고 Prefab별 비활성 인스턴스를 최대 16개 보관한다.
+- `FilthProjectile.prefab`의 구체·장판 시각 자산은 기획자가 소유한다. Builder는 유효한 기존 Prefab을 보존하고, 런타임은 `orbRenderer`, `fieldVisual` 참조를 통해 상태만 전환한다.
+
+## 27. Spatial Index·투사체 Pool·partial 모듈화
+
+### 27.1 2m Uniform Spatial Hash
+
+```text
+EnemyWorldService
+  ├─ enemies: 전체 등록 순서와 기존 Query API
+  ├─ spatialEntries: Enemy → SpawnGeneration + 점유 CellRange
+  ├─ separationBuckets: Cell → List<EnemyBase>
+  ├─ bucketListPool: 비어 있는 Bucket List 재사용
+  └─ separationCandidates: 분리 호출 중 후보 중복 제거·재사용
+```
+
+- 셀 크기는 2m다. Enemy의 위치와 충돌 반경으로 최소·최대 셀을 계산해 경계에 걸친 개체도 모든 점유 버킷에 등록한다.
+- 등록·해제와 이동 후 셀 범위가 바뀔 때만 버킷을 갱신한다. 빈 버킷의 List는 `bucketListPool`로 반환하며, 분리 중 후보 버퍼도 호출마다 새로 할당하지 않는다.
+- 분리 정책, SpawnGeneration 검사와 겹침 허용 규칙은 기존 구현을 유지한다. Spatial Hash는 후보 수집 방식만 교체한다.
+
+| Editor Mono, Enemy 800·전체 3 sweeps | 기존 O(N²) | 2m Spatial Hash | 변화 |
+|---|---:|---:|---:|
+| 간격 3 median | 1,141.060ms | 5.194ms | -99.54% |
+| 간격 3 pair/bucket | pair 3,835,200 | pair 0 + bucket 10,800 | pair 제거 |
+| 간격 0.55 median | 1,190.317ms | 135.967ms | -88.58% |
+| 간격 0.55 pair/bucket | pair 3,835,200 | pair 144,111 + bucket 12,909 | pair -96.24% |
+
+- 등록 메모리는 24,576B에서 208,896B로 증가했다. 인덱스 오버헤드는 184,320B, +750%, 약 230B/Enemy이며 warm 분리 경로의 GC 할당은 0B다.
+- 각 sweep은 800마리 각각의 `SeparateEnemy` 호출이며 호출 내부는 2-pass다. 기존 pair check 3,835,200은 `800×799×2 pass×3 sweeps`로 계산된다.
+- 이는 Unity Editor Mono 마이크로벤치마크다. 실제 빌드의 전체 프레임 성능과 동일하지 않고, 후보가 한 셀에 몰리는 정도에 따라 개선 폭이 달라진다.
+
+### 27.2 공용 Component Prefab Pool
+
+```text
+FilthProjectile.Spawn ─────┐
+                           ├─ ComponentPrefabPool<T>
+MovingSlashProjectile.Spawn┘    ├─ Prefab별 inactive Stack
+                                ├─ 상한 16
+                                ├─ Rent / Return
+                                └─ Runtime 종료 시 DestroyAll
+```
+
+- Pool은 Prefab을 Key로 분리해 잘못된 외형·직렬화 참조의 인스턴스가 섞이지 않게 한다. 비활성 상한 16을 넘긴 반환 개체는 보관하지 않는다.
+- 투사체는 반환 직전에 시각·충돌 상태를 끄고, 대여 후 Configure에서 소유자·월드·목표, 비행/장판 시간, Alpha, Enemy·SpawnGeneration 적중 이력을 초기화한다.
+- 1,000회 직렬 Spawn·완료 Editor Mono 벤치마크에서 오물은 23.807→2.221ms(-90.67%), 참격은 14.531→2.115ms(-85.44%)였다. 실행 중 생성/파괴는 1,000/1,000→1/0회이며 런타임 종료 최종 정리가 1회다.
+- 추적한 생성 할당 footprint는 오물 7,963B, 참격 2,601B로 기존 대비 약 99.9% 감소했다. 이 값은 반복 생성 allocation traffic 기준이다. inactive Pool의 resident memory가 남으므로 전역 메모리 절감률로 해석하지 않는다.
+
+### 27.3 partial 책임 경계
+
+```text
+PlayerController
+  ├─ PlayerController.cs (공통 입력·명령·직렬화, 1,766→862줄)
+  ├─ PlayerController.ModeOne.cs
+  └─ PlayerController.AimVisuals.cs
+
+PlayerCombatAbilities
+  ├─ PlayerCombatAbilities.cs (공통 상태·피해, 1,163→594줄)
+  ├─ PlayerCombatAbilities.Cards.cs
+  └─ PlayerCombatAbilities.Skills.cs
+
+FlyingSwordController
+  ├─ FlyingSwordController.cs (상태·설정·Slot, 1,028→207줄)
+  ├─ FlyingSwordController.Flight.cs
+  └─ FlyingSwordController.Visuals.cs
+
+PrototypeHUDView
+  ├─ PrototypeHUDView.cs (참조·공개 표시 API, 1,526→415줄)
+  ├─ PrototypeHUDView.ControlSettings.cs
+  ├─ PrototypeHUDView.Localization.cs
+  └─ PrototypeHUDView.Panels.cs
+
+PrototypeGameSession
+  ├─ PrototypeGameSession.cs (상태·연결·수명주기, 952→251줄)
+  ├─ PrototypeGameSession.CardSelection.cs
+  ├─ PrototypeGameSession.Pause.cs
+  └─ PrototypeGameSession.RunFlow.cs
+```
+
+- partial 파일은 컴파일 시 기존 단일 타입으로 합쳐진다. 직렬화 필드, 공개 API, MonoBehaviour 수와 Update 수가 동일하므로 이 분리 자체의 런타임 CPU·메모리 절감은 0%다.
+- 목적은 책임별 코드 탐색, 변경 검토와 병합 충돌 범위를 줄이면서 Unity Prefab·Scene 직렬화 호환을 유지하는 것이다.
+
+### 27.4 EnemyAssetCatalog Component 교체 호환
+
+- `EnemyActor` 통합은 Prefab 루트의 기존 `MeleeEnemy` 등 Component를 새 Component로 교체한다. ScriptableObject가 구 Component를 직접 가리키던 참조는 이 과정에서 비어 있을 수 있다.
+- `EnemyAssetEntry`는 직접 `EnemyBase` 참조와 Prefab 루트 `GameObject`를 함께 저장한다. 직접 참조가 없을 때 루트의 현재 `EnemyBase`를 `GetComponent`로 복구한다.
+- Builder도 Prefab을 `GameObject`로 먼저 로드한 뒤 현재 `EnemyBase`를 읽는다. 루트까지 없거나 현재 EnemyBase가 없으면 기존처럼 명시적으로 조회 실패한다.

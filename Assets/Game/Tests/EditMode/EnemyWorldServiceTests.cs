@@ -17,7 +17,7 @@ namespace SimpleGame.Tests
                 EnemyWorldService service =
                     serviceObject.AddComponent<EnemyWorldService>();
                 EnemyBase enemy =
-                    enemyObject.AddComponent<MeleeEnemy>();
+                    enemyObject.AddComponent<EnemyActor>();
 
                 service.Register(enemy);
                 service.Register(enemy);
@@ -112,7 +112,7 @@ namespace SimpleGame.Tests
                     "FirstLiving",
                     Vector2.zero);
                 deadEnemy = new GameObject("DeadEnemy")
-                    .AddComponent<MeleeEnemy>();
+                    .AddComponent<EnemyActor>();
                 secondLiving = CreateLiveEnemy(
                     "SecondLiving",
                     Vector2.one);
@@ -162,7 +162,7 @@ namespace SimpleGame.Tests
                 EnemyWorldService service =
                     serviceObject.AddComponent<EnemyWorldService>();
                 deadEnemy = new GameObject("DeadEnemy")
-                    .AddComponent<MeleeEnemy>();
+                    .AddComponent<EnemyActor>();
                 outsideEnemy = CreateLiveEnemy(
                     "Outside",
                     new Vector2(3f, 0f));
@@ -205,7 +205,7 @@ namespace SimpleGame.Tests
                     "Outside",
                     new Vector2(4f, 0f));
                 dead = new GameObject("Dead")
-                    .AddComponent<MeleeEnemy>();
+                    .AddComponent<EnemyActor>();
                 service.Register(farther);
                 service.Register(outside);
                 service.Register(dead);
@@ -1493,7 +1493,7 @@ namespace SimpleGame.Tests
             var enemyObject = new GameObject(name);
             enemyObject.transform.position = position;
             EnemyBase enemy =
-                enemyObject.AddComponent<MeleeEnemy>();
+                enemyObject.AddComponent<EnemyActor>();
             EnemyHealth health =
                 enemyObject.GetComponent<EnemyHealth>();
             health.Configure(10f);

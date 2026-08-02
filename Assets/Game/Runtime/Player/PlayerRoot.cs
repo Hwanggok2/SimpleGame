@@ -24,6 +24,7 @@ namespace SimpleGame
         [SerializeField] private SpriteRenderer attackRangeRenderer;
         [SerializeField] private TMP_Text levelLabel;
         [SerializeField] private PlayerHealthBar healthBar;
+        [SerializeField] private Transform damagePopupAnchor;
         [SerializeField] private string playerId = "LightBandit";
 
         private const float FrontRecoilDistance = 1.2f;
@@ -60,6 +61,11 @@ namespace SimpleGame
         public Transform TargetTransform => transform;
         public bool IsAlive => health != null && health.IsAlive;
         public bool IsInputLocked { get; private set; }
+        public Transform DamagePopupAnchor => damagePopupAnchor;
+        public Vector3 DamagePopupPosition =>
+            damagePopupAnchor != null
+                ? damagePopupAnchor.position
+                : transform.position + Vector3.up * 1.15f;
 
         public void ConfigureVisuals(
             SpriteRenderer configuredAttackRange,
@@ -69,6 +75,12 @@ namespace SimpleGame
             attackRangeRenderer = configuredAttackRange;
             levelLabel = configuredLevelLabel;
             healthBar = configuredHealthBar;
+        }
+
+        public void ConfigureDamagePopupAnchor(
+            Transform configuredDamagePopupAnchor)
+        {
+            damagePopupAnchor = configuredDamagePopupAnchor;
         }
 
         public void Configure(
@@ -283,9 +295,19 @@ namespace SimpleGame
 
         public void ReceiveDamage(int amount)
         {
+            int previousHealth = health.CurrentHealth;
             if (!health.ApplyDamage(amount))
             {
                 return;
+            }
+
+            int appliedDamage = previousHealth - health.CurrentHealth;
+            if (appliedDamage > 0)
+            {
+                session?.ShowDamagePopup(
+                    DamagePopupPosition,
+                    appliedDamage,
+                    DamagePopupStyle.Received);
             }
 
             if (health.IsAlive)

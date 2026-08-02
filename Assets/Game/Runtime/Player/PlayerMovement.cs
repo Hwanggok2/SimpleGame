@@ -313,31 +313,53 @@ namespace SimpleGame
             Vector2 center,
             float radius)
         {
-            float safeRadius = Mathf.Max(0f, radius);
-            if (safeRadius <= 0f)
+            float configuredRadius = Mathf.Max(0f, radius);
+            if (configuredRadius <= 0f)
             {
                 return proposed;
             }
 
-            float radiusSquared = safeRadius * safeRadius;
             Vector2 currentOffset = current - center;
-            Vector2 proposedOffset = proposed - center;
-            if (proposedOffset.sqrMagnitude >= radiusSquared &&
-                (currentOffset.sqrMagnitude < radiusSquared ||
-                 !DoesSegmentEnterCircle(
-                     current,
-                     proposed,
-                     center,
-                     radiusSquared)))
+            float currentDistance = currentOffset.magnitude;
+            if (currentDistance <= 0.000001f)
             {
                 return proposed;
             }
 
+            float safeRadius = Mathf.Min(
+                configuredRadius,
+                currentDistance);
+            float radiusSquared = safeRadius * safeRadius;
+            Vector2 proposedOffset = proposed - center;
             Vector2 movement = proposed - current;
+            if (movement.sqrMagnitude <= 0.000001f)
+            {
+                return current;
+            }
+
+            bool startsOnBoundary =
+                currentDistance <= safeRadius + 0.000001f;
+            Vector2 currentNormal = currentOffset / currentDistance;
+            if (startsOnBoundary &&
+                Vector2.Dot(movement, currentNormal) > 0.000001f)
+            {
+                return proposed;
+            }
+
+            if (!startsOnBoundary &&
+                proposedOffset.sqrMagnitude >= radiusSquared &&
+                !DoesSegmentEnterCircle(
+                    current,
+                    proposed,
+                    center,
+                    radiusSquared))
+            {
+                return proposed;
+            }
+
             Vector2 boundary = current;
             float remainingFraction = 1f;
-            if (currentOffset.sqrMagnitude > radiusSquared &&
-                movement.sqrMagnitude > 0.000001f)
+            if (!startsOnBoundary)
             {
                 float a = Vector2.Dot(movement, movement);
                 float b = 2f * Vector2.Dot(
@@ -346,24 +368,11 @@ namespace SimpleGame
                 float c = currentOffset.sqrMagnitude -
                     radiusSquared;
                 float discriminant = b * b - 4f * a * c;
-                if (discriminant >= 0f)
-                {
-                    float entry = Mathf.Clamp01(
-                        (-b - Mathf.Sqrt(discriminant)) /
-                        (2f * a));
-                    boundary = current + movement * entry;
-                    remainingFraction = 1f - entry;
-                }
-            }
-            else
-            {
-                Vector2 outward = currentOffset.sqrMagnitude >
-                        0.000001f
-                    ? currentOffset.normalized
-                    : (proposedOffset.sqrMagnitude > 0.000001f
-                        ? proposedOffset.normalized
-                        : Vector2.right);
-                boundary = center + outward * safeRadius;
+                float entry = Mathf.Clamp01(
+                    (-b - Mathf.Sqrt(Mathf.Max(0f, discriminant))) /
+                    (2f * a));
+                boundary = current + movement * entry;
+                remainingFraction = 1f - entry;
             }
 
             Vector2 boundaryOffset = boundary - center;
@@ -377,16 +386,12 @@ namespace SimpleGame
             Vector2 result = boundary +
                 remaining - normal * inwardAmount;
             Vector2 resultOffset = result - center;
-            if (resultOffset.sqrMagnitude < radiusSquared)
+            if (resultOffset.sqrMagnitude <= 0.000001f)
             {
-                Vector2 fallback = resultOffset.sqrMagnitude >
-                        0.000001f
-                    ? resultOffset.normalized
-                    : normal;
-                result = center + fallback * safeRadius;
+                return boundary;
             }
 
-            return result;
+            return center + resultOffset.normalized * safeRadius;
         }
 
         private static bool DoesSegmentEnterCircle(

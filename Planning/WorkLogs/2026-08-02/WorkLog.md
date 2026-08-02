@@ -7,6 +7,7 @@
 - 관통의 공격 효과와 이동 효과를 분리하고 모드 1의 비관통 이동을 보완한다.
 - 마지막 기본 공격 대상을 모드 1 잠금 대상으로 유지한다.
 - 모드 1 수동 이동의 경로 우선 대상, 양측 교전 가능 반경, 중립 입력 우선순위와 이동 관통 재충전 규칙을 실제 구현에 맞춘다.
+- 원거리 고블린·방패병을 상대로 원주 이동 중 공격과 관통이 간헐적으로 끊기고, Enemy 접근 후 Player가 바깥으로 밀리는 문제를 수정한다.
 - 변경 규칙을 Excel, GameString, 기획서와 기능 정의서에 동기화한다.
 
 ## 원인 확인과 수정
@@ -38,10 +39,18 @@
 ### 교전 반경 원주 이동
 
 - 기존에는 Player 공격 사거리 1.2를 그대로 원주 반경으로 사용해 공격 시작 사거리가 0.85인 근접 고블린과 0.95인 플라잉 아이가 공격을 시작하지 못했다.
-- 일반 Melee/Ranged의 반경을 `min(playerAttackRange, enemyAttackRange-min(0.02, enemyAttackRange×0.1))`로 바꿔 Player와 Enemy가 모두 공격 가능한 위치에서 선회하도록 했다.
-- 일반 공격 사거리를 사용하지 않는 Shield/Boss, 공격 사거리 0 이하 또는 Definition 누락 대상은 기존 Player 공격 사거리를 사용한다.
+- Player 안전 반경을 `playerAttackRange-min(0.02, playerAttackRange×0.1)`로 두고, 일반 Melee/Ranged는 Enemy 안전 반경과의 작은 값을 사용해 Player와 Enemy가 모두 안정적으로 공격 가능한 위치에서 선회하도록 했다.
+- 일반 공격 사거리를 사용하지 않는 Shield/Boss, 공격 사거리 0 이하 또는 Definition 누락 대상도 Player 안전 반경을 사용한다. Player 기본 사거리 1.2 기준 Ranged/Shield/Boss 교전 반경은 1.18이다.
 - 실제 방향 이동의 경로상 첫 Enemy는 잠금보다 먼저 원주 제약 대상이 되며, 실제 기본 공격 전에는 교전 반경 안쪽으로 통과하지 않는다.
-- 정확한 안쪽 입력은 교전 반경에서 멈추고, 대각선 입력은 안쪽 성분만 제거한 채 접선 성분으로 Enemy 주변을 선회한다. 바깥 입력은 수정하지 않으며 대상 사망·세대 변경 시 제약을 해제한다.
+- 정확한 안쪽 입력은 교전 반경에서 멈추고, 대각선·접선 입력은 안쪽 성분을 제거한 뒤 같은 원주에 재투영한다. 바깥 입력은 수정하지 않으며 대상 사망·세대 변경 시 제약을 해제한다.
+
+### 원거리·방패병 공격과 관통 지연
+
+- 원거리 고블린의 긴 공격 사거리 자체는 원인이 아니었다. Ranged와 Shield의 기존 교전 반경이 Player 최대 공격 사거리 1.2와 정확히 같았고, 공격 판정도 `distance≤1.2`라 경계 오차에 취약했다.
+- 기존 원주 이동은 접선 성분을 직선으로 더하고 원주에 재투영하지 않았다. 반경 1.2, 이동 속도 10, 60fps에서는 순수 접선 한 프레임만으로 거리가 약 1.2115가 되어 첫 공격 뒤 다음 공격 시점에는 사거리 밖으로 벗어났다.
+- 공격이 끊기면 마지막 타격 대상의 이동 관통 허용 상태도 갱신되지 않아 원거리 고블린의 공격 관통과 이동 관통이 함께 불안정하게 느껴졌다. 관통 타깃 수집·0.4초 예산·주 대상 뒤 판정 파이프라인에는 별도 결함이 없음을 확인했다.
+- 프레임 제약 반경을 `min(설정 교전 반경, 현재 Enemy와의 거리)`로 계산한다. Enemy가 다가와 거리가 가까워지면 그 거리를 보존하고, 안쪽·접선 입력은 현재 반경 원주에 재투영하며, 사용자의 명시적인 바깥 입력만 자유롭게 허용한다.
+- 모드 1 잠금 대상 자동 접근도 같은 안전 교전 반경을 사용한다. 방패 정면 공격의 반동·0.5초 입력 잠금과 생존 가능한 방패 정면의 관통 차단은 기존 의도대로 유지한다.
 
 ## 관통 규칙 분리
 
@@ -91,6 +100,7 @@
 
 - `dotnet build SimpleGame.sln --no-restore`: 성공, 오류 0건.
 - 메인 편집기가 프로젝트를 사용 중이어서 검증용 복제 프로젝트에서 관련 테스트 70개와 Unity EditMode 전체 테스트를 실행했다: 관련 70개 통과, 전체 359개 통과, 실패 0개.
+- 원주 재투영과 안전 반경 후속 수정 뒤 `MobileAimControlsTests` 55개와 Unity EditMode 전체 364개를 다시 실행했다: 55/55, 364/364 통과, 실패·건너뜀 0개.
 - 참격 레벨별 확률·피해 회귀 테스트 갱신.
 - 모드 1 null 잠금이 공격 예약 시각을 지우지 않는 회귀 테스트 추가.
 - 사거리 원주 이동의 정면 정지·대각선 접선 이동·바깥 이동 테스트 추가.
@@ -101,6 +111,7 @@
 - 기존 잠금이 사거리 밖이어도 실제 이동 경로상의 Enemy를 먼저 공격하고, 실제 타격 뒤에만 잠금을 교체하는 회귀 테스트 추가.
 - 중립 또는 잔류 패드 접촉이 우측 자동 조준의 자동 접근 명령을 막지 않는 회귀 테스트 추가.
 - 큰 프레임 이동도 교전 반경 원을 한 번에 가로지르지 못하는 sweep-through 회귀 테스트 추가.
+- Ranged/Shield/Boss의 Player 안전 반경 1.18, Enemy가 가까워진 거리의 보존, 반복 접선 이동의 반경 드리프트 방지, 명시적 후퇴 허용과 가까운 반경 sweep-through 차단 회귀 테스트 추가.
 - 이동 관통 예산이 입력을 유지한 채 소진 0.4초 뒤 재충전되고 동일 SpawnGeneration 통과 이력은 보존되는 회귀 테스트 추가.
 - Excel 전체 13개 시트를 렌더링해 표 구조와 변경 셀의 잘림 여부를 확인했다.
 - 후속 회귀 검증 기준에는 경로상 첫 Enemy의 잠금 우선 공격·공격 전 통과 금지, Melee/Ranged 교전 반경과 Shield/Boss 예외, 중립·잔류 held 상태의 자동 접근 유지, 이동 관통 예산 소진 0.4초 뒤 재충전과 동일 SpawnGeneration 중복 제외를 포함했다.
@@ -118,3 +129,103 @@
 - `Planning/GameData_10min_Balance.xlsx`
 - `Planning/GameDesignDocument.md`
 - `Planning/FunctionalSpecification.md`
+
+## 10차 전투 피드백·구조 정리
+
+### 기존 최적화 적용 상태 감사
+
+- 기존 작업에서 계획한 Enemy 제한 Pool, 오물 장판의 호출자 소유 List·비정렬 반경 쿼리, Enemy Collider 캐시, Animator 중복 파라미터 쓰기 방지가 실제 코드에 유지되고 있음을 확인했다.
+- Archetype 상수만 반환하던 `MeleeEnemy`, `RangedEnemy`, `ShieldEnemy`, `BossEnemy` 네 클래스를 직렬화된 Archetype의 `EnemyActor` 하나로 통합하고 Enemy Prefab 8개와 Builder·테스트 참조를 이전했다.
+- 호출되지 않던 `PlayerController.TickManualMovement()`를 제거했다. 이름만 유사하고 정책이 다른 `HealthComponent/EnemyHealth`, Player/Enemy HP Bar는 억지로 공용화하지 않았다.
+- 카메라 흔들림, 캐릭터 Animator Adapter와 전투 피드백을 `Runtime/Presentation`으로 이동하고 신규 `DamagePopupView`도 같은 책임 폴더에 배치했다.
+
+### 오물·정전기 융합 최초 피격
+
+- 기존 `FilthProjectile`이 장판마다 `Enemy + SpawnGeneration` Dictionary를 소유하고 각 0.5초 틱의 현재 범위 대상을 검사하는 구조임을 확인했다.
+- 장판의 3번째 틱에 처음 들어온 Enemy도 해당 틱에서 정전기가 발동하고, 같은 장판·같은 세대에는 이후 재발동하지 않는 순차 회귀 테스트를 추가했다.
+- 다른 장판은 각각 한 번 발동하고 Pool에서 세대가 바뀐 Enemy는 새 생성 개체로 다시 한 번 발동하는 기존 규칙을 유지했다.
+
+### 데미지 팝업과 공통 처치 흔들림
+
+- `EnemyBase.ReceivePlayerAttack`과 `PlayerRoot.ReceiveDamage`에서 피격 전후 HP 차이를 계산해 실제 감소량만 팝업으로 표시한다. Enemy 일반 피해는 흰색, 치명타는 노란 강조색, Player 피격은 빨간색이다.
+- Player와 8개 Enemy Prefab에는 TMP 대신 편집 가능한 빈 `DamagePopupAnchor`를 연결했다. 기본 높이는 Player `y=1.15`, 일반 Enemy `y=1.25`, Boss `y=1.8`이며 기획자가 Prefab에서 위치를 바꿀 수 있다.
+- 실제 World Space TMP는 `CombatFeedbackController`가 16개 미리 준비하고 최대 64개까지 전역 Pool로 재사용한다. 수명이 끝나면 비활성화하며 Enemy가 사망·반환돼도 피격 Entity와 독립된 Feedback Root에서 표시된다. Entity별 TMP 방식은 동시 타격 숫자 덮어쓰기와 사망·비활성화 시 표시 절단 때문에 채택하지 않았다.
+- 일반·치명타·Player 피격은 Bold 크기 `3.1/3.8/3.35`, 정렬 순서 `220` 이상을 사용한다. `0.82초` 동안 `0.9` 상승·Fade하고 순환 Stagger Offset으로 연속 숫자의 완전한 중첩을 피한다. 실제 감소량이 0 이하면 팝업을 생성하지 않는다.
+- 팝업 Prefab이 누락되면 같은 경고를 반복하지 않고 한 번만 출력한다. `GameDataAssetBuilder`가 `DamagePopup.prefab`을 명시적으로 로드·검증해 `CombatFeedbackController`에 전달하도록 연결 경로를 고정했다.
+- `CharacterAssetBuilder.MigrateDamagePopupAnchors`는 대상 9개 Prefab만 열어 Anchor가 없을 때 생성·연결한다. 이미 존재하는 Anchor와 사용자가 조정한 위치를 보존하므로 반복 실행해도 추가 변경이 없는 멱등 마이그레이션이다.
+- 실제 저장된 Player·Enemy Prefab을 검증 복제본에서 다시 임포트한 뒤 Unity EditMode 전체 테스트 `410/410`이 통과했다. 실제 `DamagePopup.prefab` 재생 시 TMP 메시가 생성되고 카메라 Viewport 안에 놓이는 것과 Anchor 마이그레이션 재실행 결과 `0 prefab(s)`도 확인했다.
+- 모든 Enemy 사망이 통과하는 `PrototypeGameSession.OnEnemyDefeated`에서 처치 흔들림을 호출하도록 통합했다. 개별 공격 피드백은 처치 시 흔들림을 넘겨 공통 경로와 중복되지 않는다.
+- 이 공통 사망 경로를 통해 절단, 정전기, 참격, 오물 투척 처치도 처치 화면 흔들림을 받는다.
+
+### 전투 효과와 VFX 편집
+
+- 정전기 Arc의 GameObject·LineRenderer·Material을 적중마다 생성·파괴하던 구조를 비활성 인스턴스 Pool로 바꿨다. 재사용 시 위치·색·Alpha·수명 상태를 다시 설정하고 런타임 종료 시 Pool과 Material을 정리한다.
+- `CharacterAssetBuilder`는 유효한 기존 `FilthProjectile.prefab`을 덮어쓰지 않는다. `Orb`, `DamageField/Outer`, `DamageField/Inner`의 Sprite·Material·Color·Scale을 직접 바꾸거나 자식 ParticleSystem/Animator를 추가할 수 있다.
+- `orbRenderer`, `fieldVisual` 직렬화 참조는 비행 구체와 장판 상태 전환에 사용하므로 유지해야 한다.
+
+### 문서화
+
+- `Planning/ScriptStructure.md`를 추가해 Runtime·Editor·EditMode 전체 C# 파일의 폴더 트리와 스크립트별 역할을 정리했다.
+- 기획서 26장, 기능 정의서 31장, 아키텍처 설계서 26장에 오물 최초 피격, 데미지 팝업, 처치 흔들림, 공용 Enemy 타입, Presentation 폴더, Pool과 오물 VFX 편집 규칙을 동기화했다.
+
+### 추가·이동·정리된 주요 스크립트
+
+- 추가: `Assets/Game/Runtime/Enemies/EnemyActor.cs`
+- 추가: `Assets/Game/Runtime/Presentation/DamagePopupView.cs`
+- 이동: `CameraShakeController.cs`, `CharacterSpriteAnimator.cs`, `CombatFeedbackController.cs` → `Assets/Game/Runtime/Presentation`
+- 제거: `MeleeEnemy.cs`, `RangedEnemy.cs`, `ShieldEnemy.cs`, `BossEnemy.cs`
+- 최적화: `Assets/Game/Runtime/Combat/SlashTrailEffect.cs`
+- 회귀 테스트: `CombatResolverTests.cs`, `GameDataExcelImporterTests.cs`, `Phase3GameplayTests.cs`, `SlashTrailEffectTests.cs`
+
+### 10차 검증 결과
+
+- 메인 Unity 편집기가 프로젝트를 사용 중이어서 `tmp/ui-validation-20260801` 복제본에서 Character Asset과 Prototype Scene을 재생성하고 컴파일 오류가 없음을 확인했다.
+- 첫 전체 검사에서 기존 `PauseDetailsPanel.prefab`의 계정 정보 정렬값이 Builder의 `TopRight` 규칙과 달라 1건이 실패했다. Builder가 오래된 프리팹도 재생성하도록 마이그레이션 조건을 보강하고 자산 정렬값을 맞췄다.
+- 최종 Unity EditMode 전체 테스트 결과는 384개 통과, 실패 0개다. 데미지 팝업 숫자 형식·비활성 인스턴스 재사용, 오물 장판 3번째 틱 최초 진입, 정전기 Arc 인스턴스·Material 재사용, EnemyActor Prefab 종류 보존을 포함한다.
+- 프리팹 보존 검토에서 Component 타입을 경로에서 직접 로드하던 부분을 `GameObject` 로드 후 `GetComponent`로 수정했다. `CharacterAssetBuilder.Build()` 실행 전후 `FilthProjectile.prefab`과 `DamagePopup.prefab`의 SHA-256이 각각 동일함을 확인해 수동 VFX가 덮어써지지 않는 것도 검증했다.
+
+## 11차 밀집 전투·투사체·대형 스크립트 최적화
+
+### Enemy 분리 Spatial Hash
+
+- `EnemyWorldService`의 지상 Enemy 분리 후보 수집을 전체 O(N²) 순회에서 셀 크기 2m의 Uniform Spatial Hash로 교체했다. Enemy 등록·해제·이동 시 점유 셀을 갱신하고 분리 반경과 겹치는 버킷만 방문한다.
+- 버킷 List와 분리 후보 버퍼를 재사용해 warm 분리 경로의 GC 할당을 0B로 유지했다.
+- Unity Editor Mono 마이크로벤치마크의 800마리·전체 3 sweeps에서 sparse 간격 3 median은 1,141.060→5.194ms(-99.54%), pair check는 3,835,200→0회, bucket 방문은 10,800회였다. 각 sweep은 모든 Enemy의 `SeparateEnemy`를 호출하고 호출 내부는 2-pass이며 기존 check 산식은 `800×799×2×3`이다.
+- dense 간격 0.55 median은 1,190.317→135.967ms(-88.58%), pair check는 3,835,200→144,111회(-96.24%), bucket 방문은 12,909회였다.
+- 등록 메모리는 24,576→208,896B로 늘었다. 인덱스 상주 오버헤드는 184,320B(+750%, 약 230B/Enemy)이며 속도와 메모리의 명시적 tradeoff다.
+- 위 수치는 Editor 마이크로벤치마크이고 실제 빌드 전체 프레임의 보편적 개선율이 아니다. Enemy 밀도와 한 셀에 모이는 후보 수에 따라 차이가 난다.
+
+### 오물·이동 참격 투사체 Pool
+
+- `ComponentPrefabPool<T>`를 추가하고 오물·이동 참격을 Prefab별 최대 16개의 비활성 인스턴스로 재사용한다. 비행·장판 시간, Alpha, 적중 Enemy·SpawnGeneration 기록을 대여 시 초기화한다.
+- 1,000회 직렬 Spawn·완료 Editor Mono 벤치마크에서 오물은 23.807→2.221ms(-90.67%), 참격은 14.531→2.115ms(-85.44%)였다.
+- 실행 중 생성/파괴는 1,000/1,000→1/0회로 줄고 런타임 종료 최종 정리만 1회 발생했다.
+- 추적한 생성 할당 footprint는 오물 7,963B, 참격 2,601B로 기존 대비 약 99.9% 감소했다. 이는 반복 allocation traffic 수치이며 최대 16개의 resident Pool 메모리가 남으므로 게임 전체 메모리 절감률은 아니다.
+- 통합 리뷰에서 씬 종료 후 fake-null 인스턴스가 비활성 Stack에 남는 경로와 실행 중 보관 상한을 낮췄을 때 기존 인스턴스가 즉시 정리되지 않는 경로를 확인했다. 씬 정리 시 Stack·파괴된 Prefab 키까지 제거하고 상한 변경 시 초과분을 즉시 정리하도록 보강했다.
+
+### 대형 MonoBehaviour partial 분리
+
+| 본체 | 분리 전 | 분리 후 | 추가 partial 책임 |
+|---|---:|---:|---|
+| `PlayerController.cs` | 1,766줄 | 862줄 | `ModeOne`, `AimVisuals` |
+| `PlayerCombatAbilities.cs` | 1,163줄 | 594줄 | `Cards`, `Skills` |
+| `FlyingSwordController.cs` | 1,028줄 | 207줄 | `Flight`, `Visuals` |
+| `PrototypeHUDView.cs` | 1,526줄 | 415줄 | `ControlSettings`, `Localization`, `Panels` |
+| `PrototypeGameSession.cs` | 952줄 | 251줄 | `CardSelection`, `Pause`, `RunFlow` |
+
+- 모두 같은 partial 타입으로 분리해 기존 직렬화/API/MonoBehaviour/Update 수를 유지했다. 구조 분리 자체의 런타임 CPU·메모리 절감은 0%이며 코드 탐색과 변경 충돌 범위를 줄이는 목적이다.
+
+### EnemyAssetCatalog 호환 보강
+
+- 개별 Enemy 파생 Component를 `EnemyActor`로 교체할 때 기존 Catalog의 직접 Component 참조가 사라질 수 있어 `EnemyAssetEntry`가 Prefab 루트 `GameObject`를 함께 보관하도록 했다.
+- 직접 `EnemyBase` 참조가 없으면 Prefab 루트에서 현재 Component를 다시 찾아 반환한다. Builder도 GameObject를 먼저 로드한 뒤 현재 EnemyBase를 해석한다.
+- `EnemyAssetCatalogTests`에 직접 참조 우선, Component 교체 뒤 루트 fallback과 완전 누락 실패 회귀를 추가했다.
+
+### 문서 동기화
+
+- `ScriptStructure.md`의 실제 파일 트리와 partial·Pool·Catalog 테스트 역할을 갱신했다.
+- 기획서 27장, 기능 정의서 32장, 아키텍처 설계서 27장에 알고리즘, 메모리 tradeoff, 측정 조건과 Editor 마이크로벤치마크 한계를 반영했다.
+
+### 11차 최종 검증 결과
+
+- Unity EditMode 전체 테스트는 Pool 상한 축소와 Catalog 3경로 회귀 테스트까지 포함해 399/399 통과, 실패 0개다.

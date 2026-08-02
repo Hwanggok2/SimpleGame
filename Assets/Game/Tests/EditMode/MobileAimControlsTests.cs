@@ -144,9 +144,9 @@ namespace SimpleGame.Tests
                     Vector2.zero,
                     1f);
 
-            Assert.That(result.x, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(result.x, Is.LessThan(1f));
             Assert.That(result.y, Is.GreaterThan(0f));
-            Assert.That(result.magnitude, Is.GreaterThanOrEqualTo(1f));
+            Assert.That(result.magnitude, Is.EqualTo(1f).Within(0.001f));
         }
 
         [Test]
@@ -177,11 +177,92 @@ namespace SimpleGame.Tests
             Assert.That(result.magnitude, Is.GreaterThanOrEqualTo(1f));
         }
 
+        [Test]
+        public void CircleSlide_CloserEnemyDoesNotPushPlayerOutward()
+        {
+            Vector2 result =
+                PlayerMovement.CalculateCircleSlidePosition(
+                    Vector2.right * 0.8f,
+                    Vector2.right * 0.6f,
+                    Vector2.zero,
+                    1.2f);
+
+            Assert.That(
+                result,
+                Is.EqualTo(Vector2.right * 0.8f));
+        }
+
+        [Test]
+        public void CircleSlide_CloserRadiusKeepsTangentialMovementOnArc()
+        {
+            Vector2 result =
+                PlayerMovement.CalculateCircleSlidePosition(
+                    Vector2.right * 0.8f,
+                    new Vector2(0.8f, 0.2f),
+                    Vector2.zero,
+                    1.2f);
+
+            Assert.That(result.x, Is.LessThan(0.8f));
+            Assert.That(result.y, Is.GreaterThan(0f));
+            Assert.That(
+                result.magnitude,
+                Is.EqualTo(0.8f).Within(0.001f));
+        }
+
+        [Test]
+        public void CircleSlide_RepeatedTangentialMovementDoesNotDriftOutward()
+        {
+            Vector2 current = Vector2.right * 1.2f;
+            for (int step = 0; step < 20; step++)
+            {
+                Vector2 tangent = new Vector2(
+                    -current.y,
+                    current.x).normalized;
+                current = PlayerMovement.CalculateCircleSlidePosition(
+                    current,
+                    current + tangent * 0.16f,
+                    Vector2.zero,
+                    1.2f);
+            }
+
+            Assert.That(
+                current.magnitude,
+                Is.EqualTo(1.2f).Within(0.001f));
+        }
+
+        [Test]
+        public void CircleSlide_CloserRadiusStillAllowsExplicitRetreat()
+        {
+            var proposed = Vector2.right * 0.9f;
+
+            Assert.That(
+                PlayerMovement.CalculateCircleSlidePosition(
+                    Vector2.right * 0.8f,
+                    proposed,
+                    Vector2.zero,
+                    1.2f),
+                Is.EqualTo(proposed));
+        }
+
+        [Test]
+        public void CircleSlide_CloserRadiusCannotSweepThroughEnemy()
+        {
+            Vector2 result =
+                PlayerMovement.CalculateCircleSlidePosition(
+                    Vector2.right * 0.8f,
+                    Vector2.left * 1.2f,
+                    Vector2.zero,
+                    1.2f);
+
+            Assert.That(result.x, Is.EqualTo(0.8f).Within(0.001f));
+            Assert.That(result.magnitude, Is.EqualTo(0.8f).Within(0.001f));
+        }
+
         [TestCase(1.2f, EnemyArchetype.Melee, 0.85f, 0.83f)]
         [TestCase(1.65f, EnemyArchetype.Melee, 0.95f, 0.93f)]
-        [TestCase(1.2f, EnemyArchetype.Ranged, 2.25f, 1.2f)]
-        [TestCase(1.2f, EnemyArchetype.Shield, 0f, 1.2f)]
-        [TestCase(1.2f, EnemyArchetype.Boss, 0.85f, 1.2f)]
+        [TestCase(1.2f, EnemyArchetype.Ranged, 2.25f, 1.18f)]
+        [TestCase(1.2f, EnemyArchetype.Shield, 0f, 1.18f)]
+        [TestCase(1.2f, EnemyArchetype.Boss, 0.85f, 1.18f)]
         public void ModeOneEngagementRadius_AllowsNormalEnemyAttack(
             float playerRange,
             EnemyArchetype archetype,

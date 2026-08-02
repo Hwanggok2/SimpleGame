@@ -7,6 +7,7 @@ namespace SimpleGame
     public sealed class SlashTrailEffect : MonoBehaviour
     {
         private static readonly List<SlashTrailEffect> severPool = new();
+        private static readonly List<SlashTrailEffect> staticArcPool = new();
 
         private LineRenderer line;
         private SpriteRenderer spriteRenderer;
@@ -36,29 +37,19 @@ namespace SimpleGame
 
         [RuntimeInitializeOnLoadMethod(
             RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetSeverPool()
+        private static void ResetPools()
         {
             severPool.Clear();
+            staticArcPool.Clear();
         }
 
         private static SlashTrailEffect AcquireSever(
             SpriteRenderer template)
         {
-            for (int index = severPool.Count - 1;
-                 index >= 0;
-                 index--)
+            SlashTrailEffect available = FindInactive(severPool);
+            if (available != null)
             {
-                SlashTrailEffect candidate = severPool[index];
-                if (candidate == null)
-                {
-                    severPool.RemoveAt(index);
-                    continue;
-                }
-
-                if (!candidate.gameObject.activeSelf)
-                {
-                    return candidate;
-                }
+                return available;
             }
 
             SpriteRenderer clonedRenderer = Instantiate(template);
@@ -79,20 +70,57 @@ namespace SimpleGame
             return effect;
         }
 
+        private static SlashTrailEffect FindInactive(
+            List<SlashTrailEffect> pool)
+        {
+            for (int index = pool.Count - 1;
+                 index >= 0;
+                 index--)
+            {
+                SlashTrailEffect candidate = pool[index];
+                if (candidate == null)
+                {
+                    pool.RemoveAt(index);
+                    continue;
+                }
+
+                if (!candidate.gameObject.activeSelf)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
         public static void ShowStaticArc(
             Vector2 start,
             Vector2 end)
         {
-            var effectObject = new GameObject("StaticArc");
-            var effect = effectObject.AddComponent<SlashTrailEffect>();
+            SlashTrailEffect effect = AcquireStaticArc();
+            effect.gameObject.SetActive(true);
             effect.Configure(
                 start,
                 end,
                 0.035f,
                 0.16f,
                 0.3f,
-                new Color(0.45f, 0.9f, 1f, 0.95f),
-                true);
+                new Color(0.45f, 0.9f, 1f, 0.95f));
+        }
+
+        private static SlashTrailEffect AcquireStaticArc()
+        {
+            SlashTrailEffect available = FindInactive(staticArcPool);
+            if (available != null)
+            {
+                return available;
+            }
+
+            var effectObject = new GameObject("StaticArc");
+            var effect = effectObject.AddComponent<SlashTrailEffect>();
+            effect.EnsureLine();
+            staticArcPool.Add(effect);
+            return effect;
         }
 
         private void ConfigureSprite(
@@ -115,8 +143,7 @@ namespace SimpleGame
                 template.transform.lossyScale.x,
                 template.transform.position.z);
             fadeCoroutine = StartCoroutine(FadeRoutine(
-                Mathf.Max(0.05f, duration),
-                false));
+                Mathf.Max(0.05f, duration)));
         }
 
         private void ApplySpriteTemplate(SpriteRenderer template)
@@ -170,8 +197,7 @@ namespace SimpleGame
             float width,
             float duration,
             float endWidthMultiplier,
-            Color color,
-            bool destroyWhenFinished)
+            Color color)
         {
             if (fadeCoroutine != null)
             {
@@ -190,8 +216,7 @@ namespace SimpleGame
             line.startColor = color;
             line.endColor = color;
             fadeCoroutine = StartCoroutine(FadeRoutine(
-                Mathf.Max(0.05f, duration),
-                destroyWhenFinished));
+                Mathf.Max(0.05f, duration)));
         }
 
         public static float CalculateFadeAlpha(
@@ -221,9 +246,7 @@ namespace SimpleGame
             }
         }
 
-        private IEnumerator FadeRoutine(
-            float duration,
-            bool destroyWhenFinished)
+        private IEnumerator FadeRoutine(float duration)
         {
             Color color = effectColor;
             float initialAlpha = color.a;
@@ -240,14 +263,7 @@ namespace SimpleGame
             color.a = 0f;
             ApplyColor(color);
             fadeCoroutine = null;
-            if (destroyWhenFinished)
-            {
-                Destroy(gameObject);
-            }
-            else
-            {
-                gameObject.SetActive(false);
-            }
+            gameObject.SetActive(false);
         }
 
         private void ApplyColor(Color color)
@@ -267,10 +283,18 @@ namespace SimpleGame
         private void OnDestroy()
         {
             severPool.Remove(this);
+            staticArcPool.Remove(this);
 
             if (material != null)
             {
-                Destroy(material);
+                if (Application.isPlaying)
+                {
+                    Destroy(material);
+                }
+                else
+                {
+                    DestroyImmediate(material);
+                }
             }
         }
     }

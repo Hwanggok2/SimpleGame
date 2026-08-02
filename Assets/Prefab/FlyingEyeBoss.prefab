@@ -346,6 +346,37 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &3371574420655400097
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3877731048261410829}
+  m_Layer: 0
+  m_Name: DamagePopupAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3877731048261410829
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3371574420655400097}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1941308243125553827}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3589088658086314461
 GameObject:
   m_ObjectHideFlags: 0
@@ -917,6 +948,7 @@ Transform:
   - {fileID: 2321930261616388259}
   - {fileID: 587593905683104650}
   - {fileID: 6297114967535886655}
+  - {fileID: 3877731048261410829}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1707409107099755424
@@ -1012,9 +1044,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 8486089697225297975}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bb63d06b12a2499eab385555ab8cb8ca, type: 3}
+  m_Script: {fileID: 11500000, guid: a2a23e8b064a4e48b3ef0ea9051dc627, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.BossEnemy
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.EnemyActor
+  archetype: 3
   level: 1
   health: {fileID: 0}
   facing: {fileID: 0}
@@ -1027,6 +1060,7 @@ MonoBehaviour:
   facingMarker: {fileID: 6771063436569446696}
   levelLabel: {fileID: 3493550656999582092}
   healthBar: {fileID: 4031866170915017269}
+  damagePopupAnchor: {fileID: 3877731048261410829}
 --- !u!50 &4618199423104886267
 Rigidbody2D:
   serializedVersion: 5

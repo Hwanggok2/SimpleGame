@@ -5,6 +5,7 @@ namespace SimpleGame
 {
     public sealed class FilthProjectile : MonoBehaviour
     {
+        public const int MaximumInactivePoolSize = 16;
         public const float ThrowDuration = 0.45f;
         public const float FieldDuration = 3f;
         public const float DamageTickInterval = 0.5f;
@@ -29,6 +30,9 @@ namespace SimpleGame
         private int appliedTickCount;
         private bool landed;
 
+        public bool HasConfiguredVisuals =>
+            orbRenderer != null && fieldVisual != null;
+
         public static void Spawn(
             FilthProjectile prefab,
             PlayerRoot owner,
@@ -47,7 +51,10 @@ namespace SimpleGame
                 return;
             }
 
-            FilthProjectile projectile = Instantiate(prefab);
+            FilthProjectile projectile =
+                ComponentPrefabPool<FilthProjectile>.Acquire(
+                    prefab,
+                    MaximumInactivePoolSize);
             projectile.name = "FilthProjectile";
             projectile.Configure(
                 owner,
@@ -138,10 +145,11 @@ namespace SimpleGame
             staticTriggeredEnemyGenerations.Clear();
             landed = false;
             transform.position = start;
+            transform.rotation = Quaternion.identity;
             transform.localScale = Vector3.one;
             if (orbRenderer != null)
             {
-                orbRenderer.enabled = true;
+                orbRenderer.gameObject.SetActive(true);
             }
 
             if (fieldVisual != null)
@@ -158,7 +166,7 @@ namespace SimpleGame
                 enemyWorld == null ||
                 !owner.IsAlive)
             {
-                Destroy(gameObject);
+                Recycle();
                 return;
             }
 
@@ -191,7 +199,7 @@ namespace SimpleGame
 
             if (fieldElapsed >= FieldDuration)
             {
-                Destroy(gameObject);
+                Recycle();
             }
         }
 
@@ -201,7 +209,7 @@ namespace SimpleGame
             transform.position = destination;
             if (orbRenderer != null)
             {
-                orbRenderer.enabled = false;
+                orbRenderer.gameObject.SetActive(false);
             }
 
             if (fieldVisual != null)
@@ -245,6 +253,41 @@ namespace SimpleGame
 
                 owner.ApplySkillHit(enemy, damageMultiplier);
             }
+        }
+
+        private void Recycle()
+        {
+            damageTargets.Clear();
+            staticTriggeredEnemyGenerations.Clear();
+            owner = null;
+            enemyWorld = null;
+            start = Vector2.zero;
+            destination = Vector2.zero;
+            damageMultiplier = 0f;
+            damageRadius = 0f;
+            staticChargeLevel = 0;
+            staticDamageMultiplier = 0f;
+            throwElapsed = 0f;
+            fieldElapsed = 0f;
+            appliedTickCount = 0;
+            landed = false;
+            if (orbRenderer != null)
+            {
+                orbRenderer.gameObject.SetActive(true);
+            }
+
+            if (fieldVisual != null)
+            {
+                fieldVisual.SetActive(false);
+                fieldVisual.transform.localScale = Vector3.one;
+            }
+
+            ComponentPrefabPool<FilthProjectile>.Release(this);
+        }
+
+        private void OnDestroy()
+        {
+            ComponentPrefabPool<FilthProjectile>.Forget(this);
         }
 
     }

@@ -381,7 +381,23 @@ namespace SimpleGameEditor
             factory.ConfigureAssets(
                 manifest.EnemyAssets,
                 manifest.EnemyBalance);
-            feedback.Configure(cameraShake, manifest.CombatFeedback);
+            GameObject damagePopupObject =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    CharacterAssetBuilder.DamagePopupPrefabPath);
+            DamagePopupView damagePopup = damagePopupObject != null
+                ? damagePopupObject.GetComponent<DamagePopupView>()
+                : null;
+            if (damagePopup == null)
+            {
+                throw new InvalidOperationException(
+                    "Damage popup prefab is missing or invalid: " +
+                    CharacterAssetBuilder.DamagePopupPrefabPath);
+            }
+
+            feedback.Configure(
+                cameraShake,
+                manifest.CombatFeedback,
+                damagePopup);
             stageSpawner.Configure(manifest, registry, factory);
             session.ConfigureData(manifest, stageSpawner);
 

@@ -5,6 +5,7 @@ namespace SimpleGame
 {
     public sealed class MovingSlashProjectile : MonoBehaviour
     {
+        public const int MaximumInactivePoolSize = 16;
         public const string AnimationResourcePath =
             "Effects/MovingSlash_Crescent_6f";
         public const int AnimationFrameCount = 6;
@@ -35,6 +36,8 @@ namespace SimpleGame
         private bool isFading;
         private float fadeElapsed;
         private int fadeStartFrame;
+        private Color baseRendererColor;
+        private bool hasBaseRendererColor;
 
         public static void Spawn(
             MovingSlashProjectile prefab,
@@ -54,7 +57,10 @@ namespace SimpleGame
                 return;
             }
 
-            MovingSlashProjectile projectile = Instantiate(prefab);
+            MovingSlashProjectile projectile =
+                ComponentPrefabPool<MovingSlashProjectile>.Acquire(
+                    prefab,
+                    MaximumInactivePoolSize);
             projectile.name = "MovingSlash";
             projectile.Configure(
                 owner,
@@ -73,6 +79,7 @@ namespace SimpleGame
             spriteRenderer = configuredRenderer;
             animationFrames =
                 configuredFrames ?? new Sprite[0];
+            hasBaseRendererColor = false;
         }
 
         private void Configure(
@@ -100,7 +107,11 @@ namespace SimpleGame
             sizeMultiplier = Mathf.Max(0.1f, configuredSizeMultiplier);
             damageMultiplier = Mathf.Max(0f, configuredDamageMultiplier);
             activeElapsed = 0f;
+            isFading = false;
+            fadeElapsed = 0f;
+            fadeStartFrame = 0;
             hitEnemyGenerations.Clear();
+            candidates.Clear();
             origin = (Vector2)owner.transform.position + direction * 0.45f;
             transform.position = origin;
 
@@ -112,9 +123,17 @@ namespace SimpleGame
                     "Moving slash prefab requires a SpriteRenderer and " +
                     $"{AnimationFrameCount} animation frames.",
                     this);
-                Destroy(gameObject);
+                Recycle();
                 return;
             }
+
+            if (!hasBaseRendererColor)
+            {
+                baseRendererColor = spriteRenderer.color;
+                hasBaseRendererColor = true;
+            }
+
+            spriteRenderer.color = baseRendererColor;
 
             spriteRenderer.sortingOrder = 24;
             transform.rotation = Quaternion.Euler(
@@ -133,7 +152,7 @@ namespace SimpleGame
                 enemyWorld == null ||
                 !owner.IsAlive)
             {
-                Destroy(gameObject);
+                Recycle();
                 return;
             }
 
@@ -143,7 +162,7 @@ namespace SimpleGame
                 RefreshFadeVisual();
                 if (fadeElapsed >= FadeOutDuration)
                 {
-                    Destroy(gameObject);
+                    Recycle();
                 }
 
                 return;
@@ -337,6 +356,36 @@ namespace SimpleGame
                     enemy,
                     out uint generation) &&
                 generation == enemy.SpawnGeneration;
+        }
+
+        private void Recycle()
+        {
+            hitEnemyGenerations.Clear();
+            candidates.Clear();
+            owner = null;
+            enemyWorld = null;
+            direction = Vector2.zero;
+            origin = Vector2.zero;
+            travelSpeed = 0f;
+            sizeMultiplier = 0f;
+            travelDistance = 0f;
+            damageMultiplier = 0f;
+            activeElapsed = 0f;
+            remainingHits = 0;
+            isFading = false;
+            fadeElapsed = 0f;
+            fadeStartFrame = 0;
+            if (spriteRenderer != null && hasBaseRendererColor)
+            {
+                spriteRenderer.color = baseRendererColor;
+            }
+
+            ComponentPrefabPool<MovingSlashProjectile>.Release(this);
+        }
+
+        private void OnDestroy()
+        {
+            ComponentPrefabPool<MovingSlashProjectile>.Forget(this);
         }
 
         private readonly struct HitCandidate

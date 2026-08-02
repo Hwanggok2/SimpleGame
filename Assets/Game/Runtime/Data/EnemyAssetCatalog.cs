@@ -9,15 +9,32 @@ namespace SimpleGame
     {
         [SerializeField] private string enemyId;
         [SerializeField] private EnemyBase prefab;
+        [SerializeField] private GameObject prefabObject;
 
         public EnemyAssetEntry(string enemyId, EnemyBase prefab)
         {
             this.enemyId = enemyId;
             this.prefab = prefab;
+            prefabObject = prefab != null
+                ? prefab.gameObject
+                : null;
         }
 
         public string EnemyId => enemyId;
-        public EnemyBase Prefab => prefab;
+        public EnemyBase Prefab
+        {
+            get
+            {
+                if (prefab != null)
+                {
+                    return prefab;
+                }
+
+                return prefabObject != null
+                    ? prefabObject.GetComponent<EnemyBase>()
+                    : null;
+            }
+        }
     }
 
     [CreateAssetMenu(
@@ -40,7 +57,10 @@ namespace SimpleGame
                         StringComparison.Ordinal))
                 {
                     prefab = entry.Prefab;
-                    return prefab != null;
+                    if (prefab != null)
+                    {
+                        return true;
+                    }
                 }
             }
 

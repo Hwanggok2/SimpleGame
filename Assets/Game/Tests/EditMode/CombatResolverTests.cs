@@ -1,5 +1,7 @@
 using NUnit.Framework;
+using TMPro;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace SimpleGame.Tests
 {
@@ -187,6 +189,108 @@ namespace SimpleGame.Tests
                     critical,
                     reaction),
                 Is.EqualTo(expected));
+        }
+
+        [TestCase(0f, "0")]
+        [TestCase(-3f, "0")]
+        [TestCase(2.25f, "2.25")]
+        [TestCase(10.5f, "10.5")]
+        public void DamagePopup_FormatsActualDamageCompactly(
+            float amount,
+            string expected)
+        {
+            Assert.That(
+                DamagePopupView.FormatDamage(amount),
+                Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void DamagePopupController_ReusesInactivePopup()
+        {
+            var controllerObject = new GameObject("CombatFeedback");
+            var templateObject = new GameObject("DamagePopupTemplate");
+            try
+            {
+                DamagePopupView template =
+                    templateObject.AddComponent<DamagePopupView>();
+                var labelObject = new GameObject("DamageText");
+                labelObject.transform.SetParent(
+                    templateObject.transform,
+                    false);
+                template.Configure(
+                    labelObject.AddComponent<TextMeshPro>());
+                templateObject.SetActive(false);
+
+                CombatFeedbackController controller =
+                    controllerObject.AddComponent<
+                        CombatFeedbackController>();
+                controller.Configure(null, null, template);
+                Assert.That(
+                    controller.HasConfiguredDamagePopup,
+                    Is.True);
+                controller.ShowDamagePopup(
+                    Vector3.zero,
+                    3f,
+                    DamagePopupStyle.Dealt);
+
+                DamagePopupView first = controllerObject
+                    .GetComponentInChildren<DamagePopupView>(true);
+                Assert.That(first, Is.Not.Null);
+                Assert.That(first.IsPlaying, Is.True);
+                TMP_Text firstLabel = first.GetComponentInChildren<
+                    TMP_Text>(true);
+                Assert.That(firstLabel.text, Is.EqualTo("3"));
+                Assert.That(
+                    firstLabel.fontStyle,
+                    Is.EqualTo(FontStyles.Bold));
+                Assert.That(firstLabel.raycastTarget, Is.False);
+                Assert.That(
+                    firstLabel.GetComponent<Renderer>().sortingOrder,
+                    Is.GreaterThanOrEqualTo(220));
+
+                first.Stop();
+                controller.ShowDamagePopup(
+                    Vector3.one,
+                    4f,
+                    DamagePopupStyle.Received);
+                DamagePopupView reused = controllerObject
+                    .GetComponentInChildren<DamagePopupView>(true);
+
+                Assert.That(reused, Is.SameAs(first));
+                Assert.That(
+                    controllerObject
+                        .GetComponentsInChildren<DamagePopupView>(true),
+                    Has.Length.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(controllerObject);
+                Object.DestroyImmediate(templateObject);
+            }
+        }
+
+        [Test]
+        public void DamagePopupController_ReportsMissingPrefab()
+        {
+            var controllerObject = new GameObject("CombatFeedback");
+            try
+            {
+                CombatFeedbackController controller =
+                    controllerObject.AddComponent<
+                        CombatFeedbackController>();
+                LogAssert.Expect(
+                    LogType.Warning,
+                    "Damage popup prefab is not configured.");
+
+                controller.ShowDamagePopup(
+                    Vector3.zero,
+                    1f,
+                    DamagePopupStyle.Dealt);
+            }
+            finally
+            {
+                Object.DestroyImmediate(controllerObject);
+            }
         }
 
         [TestCase(EnemyArchetype.Shield, AttackSide.Front, false, false)]

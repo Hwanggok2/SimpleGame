@@ -1076,9 +1076,9 @@ namespace SimpleGame.Tests
             try
             {
                 EnemyBase directEnemy =
-                    directObject.AddComponent<MeleeEnemy>();
+                    directObject.AddComponent<EnemyActor>();
                 EnemyBase pathEnemy =
-                    pathObject.AddComponent<MeleeEnemy>();
+                    pathObject.AddComponent<EnemyActor>();
 
                 Assert.That(
                     PlayerController.SelectCommandEnemy(
@@ -1107,7 +1107,7 @@ namespace SimpleGame.Tests
             try
             {
                 EnemyBase enemy =
-                    enemyObject.AddComponent<MeleeEnemy>();
+                    enemyObject.AddComponent<EnemyActor>();
                 SpriteRenderer marker =
                     markerObject.AddComponent<SpriteRenderer>();
                 marker.enabled = true;
@@ -1119,6 +1119,29 @@ namespace SimpleGame.Tests
                     null);
 
                 Assert.That(marker.enabled, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(enemyObject);
+            }
+        }
+
+        [TestCase(EnemyArchetype.Melee)]
+        [TestCase(EnemyArchetype.Ranged)]
+        [TestCase(EnemyArchetype.Shield)]
+        [TestCase(EnemyArchetype.Boss)]
+        public void EnemyActor_UsesConfiguredArchetype(
+            EnemyArchetype archetype)
+        {
+            var enemyObject = new GameObject("Enemy");
+            try
+            {
+                EnemyActor enemy =
+                    enemyObject.AddComponent<EnemyActor>();
+
+                enemy.ConfigureArchetype(archetype);
+
+                Assert.That(enemy.Archetype, Is.EqualTo(archetype));
             }
             finally
             {

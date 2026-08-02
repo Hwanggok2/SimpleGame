@@ -22,6 +22,7 @@ namespace SimpleGame
         [SerializeField] private SpriteRenderer facingMarker;
         [SerializeField] private TMP_Text levelLabel;
         [SerializeField] private EnemyHealthBar healthBar;
+        [SerializeField] private Transform damagePopupAnchor;
 
         private Collider2D hitCollider;
         private CircleCollider2D circleCollider;
@@ -42,6 +43,11 @@ namespace SimpleGame
         public float MaxHealth =>
             health != null ? health.MaxHealth : 0f;
         public bool IsAlive => health != null && health.IsAlive;
+        public Transform DamagePopupAnchor => damagePopupAnchor;
+        public Vector3 DamagePopupPosition =>
+            damagePopupAnchor != null
+                ? damagePopupAnchor.position
+                : transform.position + Vector3.up * 1.25f;
         public bool AllowsEnemyOverlap =>
             Definition != null && Definition.AllowsEnemyOverlap;
         public float CollisionRadius
@@ -85,6 +91,12 @@ namespace SimpleGame
 
             levelLabel = configuredLevelLabel;
             healthBar = configuredHealthBar;
+        }
+
+        public void ConfigureDamagePopupAnchor(
+            Transform configuredDamagePopupAnchor)
+        {
+            damagePopupAnchor = configuredDamagePopupAnchor;
         }
 
         public void Configure(
@@ -265,10 +277,23 @@ namespace SimpleGame
                 return false;
             }
 
+            float previousHealth = health.CurrentHealth;
             bool damaged = health.Apply(result);
+            float appliedDamage =
+                previousHealth - health.CurrentHealth;
             Vector2 hitDirection =
                 (Vector2)attacker.transform.position -
                 (Vector2)transform.position;
+
+            if (appliedDamage > 0f)
+            {
+                Session.ShowDamagePopup(
+                    DamagePopupPosition,
+                    appliedDamage,
+                    critical
+                        ? DamagePopupStyle.Critical
+                        : DamagePopupStyle.Dealt);
+            }
 
             string fallbackEnemyName =
                 PrototypeEnemyDefinitions.GetDisplayName(
@@ -305,7 +330,7 @@ namespace SimpleGame
 
             if (!health.IsAlive)
             {
-                BeginDeath(hitDirection);
+                BeginDeath(hitDirection, critical);
                 return damaged;
             }
 
@@ -374,6 +399,7 @@ namespace SimpleGame
                     this,
                     AllowsEnemyOverlap)
                 : position;
+            enemyWorld?.NotifyPositionChanged(this);
             facing.FaceImmediate(targetPosition);
             stateMachine.ResetAfterReposition();
         }
@@ -383,7 +409,9 @@ namespace SimpleGame
             enemyWorld?.SeparateEnemy(this);
         }
 
-        private void BeginDeath(Vector2 hitDirection)
+        private void BeginDeath(
+            Vector2 hitDirection,
+            bool critical = false)
         {
             movement.StopImmediately();
             attack?.Cancel();
@@ -396,7 +424,7 @@ namespace SimpleGame
             SetGameplayVisualsVisible(false);
             float deathDuration =
                 characterAnimation.PlayDeath(hitDirection);
-            Session.OnEnemyDefeated(this);
+            Session.OnEnemyDefeated(this, critical);
             deathRoutine = StartCoroutine(
                 DeactivateAfterDeath(deathDuration));
         }

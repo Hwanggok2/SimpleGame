@@ -741,9 +741,12 @@ namespace SimpleGame.Tests
                 Is.Not.Null);
 
             Assert.That(mushroomPrefab, Is.Not.Null);
-            BossEnemy mushroomBoss =
-                mushroomPrefab.GetComponent<BossEnemy>();
+            EnemyActor mushroomBoss =
+                mushroomPrefab.GetComponent<EnemyActor>();
             Assert.That(mushroomBoss, Is.Not.Null);
+            Assert.That(
+                mushroomBoss.Archetype,
+                Is.EqualTo(EnemyArchetype.Boss));
             Assert.That(
                 mushroomPrefab.GetComponent<Animator>(),
                 Is.Not.Null);
@@ -755,17 +758,26 @@ namespace SimpleGame.Tests
                 Is.True);
             Assert.That(mappedPrefab, Is.SameAs(mushroomBoss));
             Assert.That(flyingEyePrefab, Is.Not.Null);
+            EnemyActor flyingEye =
+                flyingEyePrefab.GetComponent<EnemyActor>();
+            Assert.That(flyingEye, Is.Not.Null);
             Assert.That(
-                flyingEyePrefab.GetComponent<MeleeEnemy>(),
-                Is.Not.Null);
+                flyingEye.Archetype,
+                Is.EqualTo(EnemyArchetype.Melee));
             Assert.That(flyingEyeBossPrefab, Is.Not.Null);
+            EnemyActor flyingEyeBoss =
+                flyingEyeBossPrefab.GetComponent<EnemyActor>();
+            Assert.That(flyingEyeBoss, Is.Not.Null);
             Assert.That(
-                flyingEyeBossPrefab.GetComponent<BossEnemy>(),
-                Is.Not.Null);
+                flyingEyeBoss.Archetype,
+                Is.EqualTo(EnemyArchetype.Boss));
             Assert.That(skeletonBossPrefab, Is.Not.Null);
+            EnemyActor skeletonBoss =
+                skeletonBossPrefab.GetComponent<EnemyActor>();
+            Assert.That(skeletonBoss, Is.Not.Null);
             Assert.That(
-                skeletonBossPrefab.GetComponent<BossEnemy>(),
-                Is.Not.Null);
+                skeletonBoss.Archetype,
+                Is.EqualTo(EnemyArchetype.Boss));
             Assert.That(filthPrefab, Is.Not.Null);
             Assert.That(
                 filthPrefab.GetComponent<FilthProjectile>(),
@@ -785,6 +797,186 @@ namespace SimpleGame.Tests
                     PrototypeEnemyDefinitions.SkeletonBossId,
                     out _),
                 Is.True);
+        }
+
+        [Test]
+        public void DamagePopupPrefab_HasReusableWorldLabel()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                CharacterAssetBuilder.DamagePopupPrefabPath);
+
+            Assert.That(prefab, Is.Not.Null);
+            DamagePopupView popup =
+                prefab.GetComponent<DamagePopupView>();
+            Assert.That(popup, Is.Not.Null);
+            var serializedPopup = new SerializedObject(popup);
+            TMP_Text label = serializedPopup
+                .FindProperty("label")
+                .objectReferenceValue as TMP_Text;
+            Assert.That(label, Is.Not.Null);
+            Assert.That(label.name, Is.EqualTo("DamageText"));
+            Assert.That(
+                AssetDatabase.GetAssetPath(label.font),
+                Is.EqualTo(CharacterAssetBuilder.DefaultFontPath));
+            Assert.That(label.fontStyle, Is.EqualTo(FontStyles.Bold));
+            Assert.That(label.raycastTarget, Is.False);
+            Assert.That(
+                label.GetComponent<Renderer>().sortingOrder,
+                Is.GreaterThanOrEqualTo(220));
+            Assert.That(
+                serializedPopup.FindProperty("lifetime").floatValue,
+                Is.GreaterThanOrEqualTo(0.8f));
+            Assert.That(
+                serializedPopup.FindProperty("dealtFontSize").floatValue,
+                Is.GreaterThanOrEqualTo(3f));
+        }
+
+        [Test]
+        public void DamagePopupPrefab_Play_CreatesVisibleWorldGeometry()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                CharacterAssetBuilder.DamagePopupPrefabPath);
+            GameObject instance = UnityEngine.Object.Instantiate(prefab);
+            var cameraObject = new GameObject("PopupTestCamera");
+            try
+            {
+                Camera worldCamera = cameraObject.AddComponent<Camera>();
+                worldCamera.orthographic = true;
+                worldCamera.orthographicSize = 10f;
+                cameraObject.transform.position =
+                    new Vector3(0f, 0f, -10f);
+
+                DamagePopupView popup =
+                    instance.GetComponent<DamagePopupView>();
+                Vector3 anchorPosition = new(0f, 1.15f, 0f);
+                popup.Play(
+                    anchorPosition,
+                    12.5f,
+                    DamagePopupStyle.Dealt);
+                TMP_Text label = instance.GetComponentInChildren<
+                    TMP_Text>(true);
+                label.ForceMeshUpdate();
+
+                Vector3 viewportPosition =
+                    worldCamera.WorldToViewportPoint(
+                        instance.transform.position);
+                Assert.That(popup.IsPlaying, Is.True);
+                Assert.That(label.text, Is.EqualTo("12.5"));
+                Assert.That(viewportPosition.z, Is.GreaterThan(0f));
+                Assert.That(viewportPosition.x, Is.InRange(0f, 1f));
+                Assert.That(viewportPosition.y, Is.InRange(0f, 1f));
+                Assert.That(
+                    label.GetComponent<Renderer>().bounds.size.sqrMagnitude,
+                    Is.GreaterThan(0f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(instance);
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+            }
+        }
+
+        [TestCase(
+            CharacterAssetBuilder.PlayerPrefabPath,
+            CharacterAssetBuilder.PlayerDamagePopupAnchorHeight)]
+        [TestCase(
+            CharacterAssetBuilder.MeleePrefabPath,
+            CharacterAssetBuilder.EnemyDamagePopupAnchorHeight)]
+        [TestCase(
+            CharacterAssetBuilder.RangedPrefabPath,
+            CharacterAssetBuilder.EnemyDamagePopupAnchorHeight)]
+        [TestCase(
+            CharacterAssetBuilder.ShieldPrefabPath,
+            CharacterAssetBuilder.EnemyDamagePopupAnchorHeight)]
+        [TestCase(
+            CharacterAssetBuilder.FlyingEyePrefabPath,
+            CharacterAssetBuilder.EnemyDamagePopupAnchorHeight)]
+        [TestCase(
+            CharacterAssetBuilder.BossPrefabPath,
+            CharacterAssetBuilder.BossDamagePopupAnchorHeight)]
+        [TestCase(
+            CharacterAssetBuilder.MushroomBossPrefabPath,
+            CharacterAssetBuilder.BossDamagePopupAnchorHeight)]
+        [TestCase(
+            CharacterAssetBuilder.FlyingEyeBossPrefabPath,
+            CharacterAssetBuilder.BossDamagePopupAnchorHeight)]
+        [TestCase(
+            CharacterAssetBuilder.SkeletonBossPrefabPath,
+            CharacterAssetBuilder.BossDamagePopupAnchorHeight)]
+        public void ActorPrefab_AssignsEditableDamagePopupAnchor(
+            string prefabPath,
+            float expectedHeight)
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                prefabPath);
+
+            Assert.That(prefab, Is.Not.Null);
+            PlayerRoot player = prefab.GetComponent<PlayerRoot>();
+            EnemyBase enemy = prefab.GetComponent<EnemyBase>();
+            Assert.That(player != null || enemy != null, Is.True);
+
+            Transform anchor = prefab.transform.Find(
+                CharacterAssetBuilder.DamagePopupAnchorName);
+            Assert.That(anchor, Is.Not.Null);
+            Assert.That(anchor.parent, Is.SameAs(prefab.transform));
+            Assert.That(
+                anchor.localPosition.y,
+                Is.EqualTo(expectedHeight).Within(0.001f));
+            Assert.That(
+                anchor.GetComponentsInChildren<TMP_Text>(true),
+                Is.Empty);
+            Assert.That(
+                anchor.GetComponentsInChildren<Renderer>(true),
+                Is.Empty);
+
+            var serializedActor = new SerializedObject(
+                player != null ? (UnityEngine.Object)player : enemy);
+            Assert.That(
+                serializedActor
+                    .FindProperty("damagePopupAnchor")
+                    .objectReferenceValue,
+                Is.SameAs(anchor));
+        }
+
+        [TestCase(
+            CharacterAssetBuilder.MeleePrefabPath,
+            EnemyArchetype.Melee)]
+        [TestCase(
+            CharacterAssetBuilder.RangedPrefabPath,
+            EnemyArchetype.Ranged)]
+        [TestCase(
+            CharacterAssetBuilder.ShieldPrefabPath,
+            EnemyArchetype.Shield)]
+        [TestCase(
+            CharacterAssetBuilder.BossPrefabPath,
+            EnemyArchetype.Boss)]
+        [TestCase(
+            CharacterAssetBuilder.MushroomBossPrefabPath,
+            EnemyArchetype.Boss)]
+        [TestCase(
+            CharacterAssetBuilder.FlyingEyePrefabPath,
+            EnemyArchetype.Melee)]
+        [TestCase(
+            CharacterAssetBuilder.FlyingEyeBossPrefabPath,
+            EnemyArchetype.Boss)]
+        [TestCase(
+            CharacterAssetBuilder.SkeletonBossPrefabPath,
+            EnemyArchetype.Boss)]
+        public void EnemyPrefabs_UseOneConfiguredEnemyActor(
+            string prefabPath,
+            EnemyArchetype expectedArchetype)
+        {
+            GameObject prefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+
+            Assert.That(prefab, Is.Not.Null, prefabPath);
+            EnemyBase[] actors = prefab.GetComponents<EnemyBase>();
+            Assert.That(actors, Has.Length.EqualTo(1), prefabPath);
+            Assert.That(actors[0], Is.TypeOf<EnemyActor>(), prefabPath);
+            Assert.That(
+                actors[0].Archetype,
+                Is.EqualTo(expectedArchetype),
+                prefabPath);
         }
 
         [Test]
@@ -821,9 +1013,11 @@ namespace SimpleGame.Tests
                     prefab,
                     Is.Not.Null,
                     $"Missing boss prefab: {prefabPath}");
+                EnemyActor boss = prefab.GetComponent<EnemyActor>();
+                Assert.That(boss, Is.Not.Null, prefabPath);
                 Assert.That(
-                    prefab.GetComponent<BossEnemy>(),
-                    Is.Not.Null,
+                    boss.Archetype,
+                    Is.EqualTo(EnemyArchetype.Boss),
                     prefabPath);
                 Assert.That(
                     prefab.GetComponent<BossAttackModule>(),
@@ -1441,8 +1635,13 @@ namespace SimpleGame.Tests
             string sceneYaml = File.ReadAllText(scenePath);
             string hudGuid = AssetDatabase.AssetPathToGUID(
                 PrototypeSceneBuilder.PrototypeHudPrefabPath);
+            string damagePopupGuid = AssetDatabase.AssetPathToGUID(
+                CharacterAssetBuilder.DamagePopupPrefabPath);
 
             StringAssert.Contains($"guid: {hudGuid}", sceneYaml);
+            StringAssert.Contains(
+                $"guid: {damagePopupGuid}",
+                sceneYaml);
             StringAssert.DoesNotContain(
                 "m_Name: DebugButtons",
                 sceneYaml);

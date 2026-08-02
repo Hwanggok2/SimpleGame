@@ -73,9 +73,13 @@ namespace SimpleGameEditor
                 GetOrCreateSystemGroup(systems.transform, "Combat");
             CombatFeedbackController combatFeedback =
                 combatSystems.AddComponent<CombatFeedbackController>();
+            DamagePopupView damagePopupPrefab =
+                LoadPrefabComponent<DamagePopupView>(
+                    CharacterAssetBuilder.DamagePopupPrefabPath);
             combatFeedback.Configure(
                 camera.GetComponent<CameraShakeController>(),
-                gameData.CombatFeedback);
+                gameData.CombatFeedback,
+                damagePopupPrefab);
 
             GameObject spawningSystems =
                 GetOrCreateSystemGroup(systems.transform, "Spawning");
@@ -512,10 +516,14 @@ namespace SimpleGameEditor
                 controlSettingsPanel != null
                     ? controlSettingsPanel.GetComponent<Image>()
                     : null;
+            TMP_Text accountOverview = pausePrefab.transform
+                .Find("SettingsPage/AccountOverview")
+                ?.GetComponent<TMP_Text>();
             if (pausePrefab.transform.Find(
                     "SettingsPage") == null ||
-                pausePrefab.transform.Find(
-                    "SettingsPage/AccountOverview") == null ||
+                accountOverview == null ||
+                accountOverview.alignment !=
+                    TextAlignmentOptions.TopRight ||
                 pausePrefab.transform.Find(
                     "ControlSettingsButton") == null ||
                 controlSettingsPanel == null ||
