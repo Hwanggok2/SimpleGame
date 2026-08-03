@@ -9,7 +9,9 @@ namespace SimpleGameEditor
         private const string SourceAssetRoot =
             "Assets/SourceAssets/";
         private const string ImageDataRoot = "Assets/Image/";
-        private const uint ImportPolicyVersion = 2;
+        private const string SeverImagePath =
+            "Assets/Image/Skill/Cutting.png";
+        private const uint ImportPolicyVersion = 3;
 
         private void OnPreprocessTexture()
         {
@@ -31,7 +33,9 @@ namespace SimpleGameEditor
             if (isImageDataAsset)
             {
                 importer.textureType = TextureImporterType.Sprite;
-                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.spriteImportMode = assetPath == SeverImagePath
+                    ? SpriteImportMode.Multiple
+                    : SpriteImportMode.Single;
                 importer.alphaIsTransparency = true;
             }
         }

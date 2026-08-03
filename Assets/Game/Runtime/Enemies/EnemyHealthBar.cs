@@ -54,16 +54,18 @@ namespace SimpleGame
             }
         }
 
-        private void Refresh(float current, float maximum)
+        private void Refresh(int current, int maximum)
         {
             if (slider != null)
             {
-                slider.value = maximum > 0f ? current / maximum : 0f;
+                slider.value = maximum > 0
+                    ? (float)current / maximum
+                    : 0f;
             }
 
             if (valueLabel != null)
             {
-                valueLabel.text = $"{current:0.#}/{maximum:0.#}";
+                valueLabel.text = $"{current}/{maximum}";
             }
         }
     }

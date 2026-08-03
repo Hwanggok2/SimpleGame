@@ -343,42 +343,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1121697660343287440, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_SizeDelta.x
-      value: 1536
-      objectReference: {fileID: 0}
-    - target: {fileID: 1121697660343287440, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: 1121697660343287440, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1121697660343287440, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1121697660343287440, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: 1121697660343287440, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 46
-      objectReference: {fileID: 0}
-    - target: {fileID: 1121697660343287440, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 48
-      objectReference: {fileID: 0}
-    - target: {fileID: 1121697660343287440, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 90
-      objectReference: {fileID: 0}
-    - target: {fileID: 2546643851059623839, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: -7
-      objectReference: {fileID: 0}
     - target: {fileID: 2964792381086540925, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -463,9 +427,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: LobbyScreen
       objectReference: {fileID: 0}
-    - target: {fileID: 7787226994335083772, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: -60
+    - target: {fileID: 7309430764379610624, guid: c78f31b43abd45a4db9766e70388867e, type: 3}
+      propertyPath: traitsLabel
+      value: 
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

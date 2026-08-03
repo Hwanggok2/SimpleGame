@@ -28,6 +28,8 @@ namespace SimpleGameEditor
             "Assets/Prefab/UI/Lobby/LobbySettingsPanel.prefab";
         public const string LobbyMusicClipPath =
             "Assets/Music/harumachimusic-pastorale-idyllic-irish-harp-294840.mp3";
+        public const string TouchEffectClipPath =
+            "Assets/Music/Effect/Touch.mp3";
         public const string LobbyMusicObjectName = "LobbyBgm";
 
         private const string ImageRoot = "Assets/Image";
@@ -414,13 +416,14 @@ namespace SimpleGameEditor
         private static void EnsurePlaceholderImages()
         {
             EditorAssetUtility.EnsureFolder(ImageRoot);
+            EditorAssetUtility.EnsureFolder(ImageRoot + "/Background");
             var sources = new Dictionary<string, string>
             {
-                ["LobbyDifficulty_Easy.png"] =
+                ["Background/LobbyDifficulty_Easy.png"] =
                     "Assets/Screenshots/PrototypeScene_PlayMode.png",
-                ["LobbyDifficulty_Normal.png"] =
+                ["Background/LobbyDifficulty_Normal.png"] =
                     "Assets/Screenshots/PrototypeScene_Final.png",
-                ["LobbyDifficulty_Hard.png"] =
+                ["Background/LobbyDifficulty_Hard.png"] =
                     "Assets/Screenshots/PrototypeScene_PlayMode-1.png"
             };
 
@@ -1060,7 +1063,12 @@ namespace SimpleGameEditor
             CanvasScaler scaler = root.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080f, 1920f);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.screenMatchMode =
+                CanvasScaler.ScreenMatchMode.Expand;
+
+            root.AddComponent<UiTouchSoundPlayer>().Configure(
+                AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    TouchEffectClipPath));
 
             EnsureLobbyMusic(root.transform);
 

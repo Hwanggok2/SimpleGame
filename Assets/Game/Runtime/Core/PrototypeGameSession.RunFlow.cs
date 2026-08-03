@@ -53,7 +53,7 @@ namespace SimpleGame
 
         public void ShowDamagePopup(
             Vector3 worldPosition,
-            float amount,
+            int amount,
             DamagePopupStyle style)
         {
             combatFeedback?.ShowDamagePopup(

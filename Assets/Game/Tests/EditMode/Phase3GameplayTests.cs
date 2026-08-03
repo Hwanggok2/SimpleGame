@@ -36,21 +36,21 @@ namespace SimpleGame.Tests
             CombatResult front = CombatResolver.Resolve(
                 definition,
                 definition.CalculateMaxHealth(1),
-                1f,
+                1,
                 3f,
                 AttackSide.Front,
                 false);
             CombatResult rear = CombatResolver.Resolve(
                 definition,
                 definition.CalculateMaxHealth(1),
-                1f,
+                1,
                 3f,
                 AttackSide.Rear,
                 false);
             CombatResult critical = CombatResolver.Resolve(
                 definition,
                 definition.CalculateMaxHealth(1),
-                1f,
+                1,
                 3f,
                 AttackSide.Front,
                 true);

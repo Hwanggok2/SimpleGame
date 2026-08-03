@@ -68,7 +68,6 @@ namespace SimpleGame
                     target.SpawnGeneration;
                 modeOnePassDirection = movementInput.normalized;
                 modeOnePassStartPosition = transform.position;
-                modeOnePassStartedAt = Time.time;
             }
 
             if (ResolveModeOnePassEnemy() == target)
@@ -130,7 +129,6 @@ namespace SimpleGame
 
             ExecuteSingleAttack(
                 target,
-                false,
                 out _);
         }
 
@@ -595,9 +593,8 @@ namespace SimpleGame
                 movementPiercedEnemyGenerations[target] =
                     target.SpawnGeneration;
                 root.CombatAbilities
-                    .TryScheduleSeverForCompletedMovementPierce(
-                        modeOnePassStartPosition,
-                        modeOnePassStartedAt);
+                    .TryTriggerSeverForCompletedMovementPierce(
+                        modeOnePassStartPosition);
             }
 
             CancelModeOnePassCandidate();
@@ -609,8 +606,6 @@ namespace SimpleGame
             modeOnePassEnemyGeneration = 0u;
             modeOnePassDirection = Vector2.zero;
             modeOnePassStartPosition = Vector2.zero;
-            modeOnePassStartedAt = 0f;
         }
     }
 }
-

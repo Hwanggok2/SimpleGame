@@ -94,12 +94,12 @@ namespace SimpleGame.Tests
             Assert.That(
                 model.Images.Single(value =>
                     value.Id == "LOBBY_DIFFICULTY_EASY").FileName,
-                Is.EqualTo("LobbyDifficulty_Easy.png"));
+                Is.EqualTo("Background/LobbyDifficulty_Easy.png"));
             Assert.That(
                 model.Images.Single(value =>
                     value.Id == "LOBBY_SELECTED_DIFFICULTY_EASY")
                     .FileName,
-                Is.EqualTo("Easy_Text.png"));
+                Is.EqualTo("UI/Easy_Text.png"));
             Assert.That(
                 easyLobby.SelectedDifficultyImageId,
                 Is.EqualTo("LOBBY_SELECTED_DIFFICULTY_EASY"));
@@ -625,9 +625,16 @@ namespace SimpleGame.Tests
             Assert.That(cutting.sprite, Is.Not.Null);
             Assert.That(cutting.gameObject.activeSelf, Is.False);
             Assert.That(cutting.sortingOrder, Is.EqualTo(100));
-            Assert.That(cutting.color.r, Is.LessThan(0.1f));
-            Assert.That(cutting.color.g, Is.LessThan(0.1f));
-            Assert.That(cutting.color.b, Is.LessThan(0.1f));
+            Assert.That(cutting.color, Is.EqualTo(Color.white));
+            Assert.That(
+                cutting.drawMode,
+                Is.EqualTo(SpriteDrawMode.Sliced));
+            Assert.That(cutting.size.y, Is.EqualTo(0.9f));
+            Assert.That(
+                AssetDatabase.GetAssetPath(cutting.sprite),
+                Is.EqualTo("Assets/Image/Skill/Cutting.png"));
+            Assert.That(cutting.sprite.border.x, Is.GreaterThan(0f));
+            Assert.That(cutting.sprite.border.z, Is.GreaterThan(0f));
 
             MovingSlashProjectile movingSlashPrefab =
                 serializedAbilities
@@ -732,6 +739,34 @@ namespace SimpleGame.Tests
             Assert.That(
                 AssetDatabase.GetAssetPath(commandArrow.sprite),
                 Is.EqualTo(CharacterAssetBuilder.AimArrowAssetPath));
+        }
+
+        [Test]
+        public void PlayerPrefab_HasRequiredWorldVisualReferences()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                CharacterAssetBuilder.PlayerPrefabPath);
+            Assert.That(prefab, Is.Not.Null);
+
+            PlayerRoot playerRoot = prefab.GetComponent<PlayerRoot>();
+            Assert.That(playerRoot, Is.Not.Null);
+            var serializedRoot = new SerializedObject(playerRoot);
+
+            foreach (string propertyName in new[]
+                     {
+                         "attackRangeRenderer",
+                         "levelLabel",
+                         "healthBar"
+                     })
+            {
+                SerializedProperty visual =
+                    serializedRoot.FindProperty(propertyName);
+                Assert.That(visual, Is.Not.Null, propertyName);
+                Assert.That(
+                    visual.objectReferenceValue,
+                    Is.Not.Null,
+                    propertyName);
+            }
         }
 
         [Test]
@@ -890,7 +925,7 @@ namespace SimpleGame.Tests
                 Vector3 anchorPosition = new(0f, 1.15f, 0f);
                 popup.Play(
                     anchorPosition,
-                    12.5f,
+                    13,
                     DamagePopupStyle.Dealt);
                 TMP_Text label = instance.GetComponentInChildren<
                     TMP_Text>(true);
@@ -900,7 +935,7 @@ namespace SimpleGame.Tests
                     worldCamera.WorldToViewportPoint(
                         instance.transform.position);
                 Assert.That(popup.IsPlaying, Is.True);
-                Assert.That(label.text, Is.EqualTo("12.5"));
+                Assert.That(label.text, Is.EqualTo("13"));
                 Assert.That(viewportPosition.z, Is.GreaterThan(0f));
                 Assert.That(viewportPosition.x, Is.InRange(0f, 1f));
                 Assert.That(viewportPosition.y, Is.InRange(0f, 1f));
@@ -1455,6 +1490,9 @@ namespace SimpleGame.Tests
                     pauseRoot.Find("ControlSettingsButton");
                 Transform controlSettingsPanel =
                     pauseRoot.Find("ControlSettingsPanel");
+                Assert.That(
+                    controlSettingsButton.GetSiblingIndex(),
+                    Is.EqualTo(pauseRoot.childCount - 1));
                 Assert.That(settingsPage.gameObject.activeSelf, Is.True);
                 Assert.That(
                     controlSettingsPanel.gameObject.activeSelf,
@@ -1831,6 +1869,32 @@ namespace SimpleGame.Tests
             }
 
             return new ExcelSheet("GameString", sheetRows);
+        }
+
+        [Test]
+        public void ExcelTable_SkipsStructuredMetadataRows()
+        {
+            var sheet = new ExcelSheet(
+                "Levels",
+                new[]
+                {
+                    new ExcelRow(1, new[] { "Level", "RequiredExp" }),
+                    new ExcelRow(2, new[] { "int", "int" }),
+                    new ExcelRow(3, new[] { "All", "All" }),
+                    new ExcelRow(4, new[] { "레벨", "필요 경험치" }),
+                    new ExcelRow(5, new[] { "1", "10" })
+                });
+
+            var table = new ExcelTable(
+                sheet,
+                "Level",
+                "RequiredExp");
+
+            Assert.That(table.DataRows, Has.Count.EqualTo(1));
+            Assert.That(table.DataRows[0].RowNumber, Is.EqualTo(5));
+            Assert.That(
+                table.PositiveInt(table.DataRows[0], "RequiredExp"),
+                Is.EqualTo(10));
         }
 
         [Test]

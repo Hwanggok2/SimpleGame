@@ -59,6 +59,7 @@ namespace SimpleGame
         public event Action<bool> GameOverVisibilityChanged;
 
         public PlayerRoot Player => player;
+        public EnemyWorldService EnemyWorld => enemyWorld;
         public int Score { get; private set; }
         public int AccountExperience =>
             gameData != null && gameData.GlobalBalance != null

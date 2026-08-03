@@ -37,6 +37,8 @@ namespace SimpleGameEditor
             CharacterAssetBuilder.PrefabRootPath +
             "/DifficultySelectionPanel.prefab";
         public const string BattleScenePath = "Assets/Scenes/Battle.unity";
+        public const string TouchEffectClipPath =
+            "Assets/Music/Effect/Touch.mp3";
         private const string WorldTilePath = "Assets/Game/World/Tiles";
         private const float LevelUpCardWidth = 300f;
         private const float LevelUpCardHeight =
@@ -640,6 +642,10 @@ namespace SimpleGameEditor
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 0.5f;
+
+            canvasObject.AddComponent<UiTouchSoundPlayer>().Configure(
+                AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    TouchEffectClipPath));
 
             GameObject topPanel = CreatePanel(
                 canvasObject.transform,

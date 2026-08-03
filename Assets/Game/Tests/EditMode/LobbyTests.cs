@@ -101,6 +101,9 @@ namespace SimpleGame.Tests
                 Object.Instantiate(prefab);
             try
             {
+                Assert.That(
+                    instance.GetComponent<CanvasScaler>().screenMatchMode,
+                    Is.EqualTo(CanvasScaler.ScreenMatchMode.Expand));
                 LobbyView view = instance.GetComponent<LobbyView>();
                 view.Initialize();
 

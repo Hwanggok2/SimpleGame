@@ -22,13 +22,16 @@ namespace SimpleGame
             characterAnimation?.SetIdle();
         }
 
-        public void StepTowards(Vector2 target, Vector2 facingDirection)
+        public void StepTowards(
+            Vector2 target,
+            Vector2 facingDirection,
+            float speedMultiplier = 1f)
         {
             characterAnimation?.SetMoving(facingDirection);
             transform.position = Vector2.MoveTowards(
                 transform.position,
                 target,
-                speed * Time.deltaTime);
+                speed * Mathf.Max(0f, speedMultiplier) * Time.deltaTime);
         }
 
         public void Knockback(

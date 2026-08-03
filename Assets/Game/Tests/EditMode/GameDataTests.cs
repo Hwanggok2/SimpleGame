@@ -797,51 +797,26 @@ namespace SimpleGame.Tests
                     nextAvailableTime),
                 Is.EqualTo(expected));
             Assert.That(
-                PlayerCombatAbilities.SeverDelay,
-                Is.EqualTo(0.3f).Within(0.0001f));
-            Assert.That(
                 PlayerCombatAbilities.SeverReuseCooldown,
                 Is.EqualTo(0.1f).Within(0.0001f));
-            Assert.That(
-                PlayerCombatAbilities.SeverDelay /
-                    PlayerCombatAbilities.SeverReuseCooldown,
-                Is.EqualTo(3f).Within(0.0001f),
-                "Three independently reserved sever triggers fit before " +
-                "the first delayed activation.");
         }
 
-        [TestCase(true, true, true, true)]
-        [TestCase(true, false, true, false)]
-        [TestCase(true, true, false, false)]
-        [TestCase(false, true, true, false)]
-        public void Sever_TriggersOnlyAfterSuccessfulPiercing(
-            bool hasSever,
-            bool piercingAllowed,
-            bool primaryDamaged,
+        [TestCase(0.9f, 0f, false)]
+        [TestCase(1f, 0f, true)]
+        [TestCase(2f, 0f, true)]
+        [TestCase(2f, 1.1f, false)]
+        public void Sever_TriggersWhenPlayerClearsPiercedEnemy(
+            float playerX,
+            float playerY,
             bool expected)
         {
             Assert.That(
-                PlayerCombatAbilities.CanTriggerSever(
-                    hasSever,
-                    piercingAllowed,
-                    primaryDamaged),
+                PlayerController.HasClearedSeverPass(
+                    new Vector2(playerX, playerY),
+                    Vector2.zero,
+                    Vector2.right,
+                    1f),
                 Is.EqualTo(expected));
-        }
-
-        [TestCase(10f, 10f, 0.3f)]
-        [TestCase(10f, 10.1f, 0.2f)]
-        [TestCase(10f, 10.3f, 0f)]
-        [TestCase(10f, 10.5f, 0f)]
-        public void Sever_CompletedMovementUsesRemainingStartDelay(
-            float startedAt,
-            float completedAt,
-            float expectedDelay)
-        {
-            Assert.That(
-                PlayerCombatAbilities.CalculateRemainingSeverDelay(
-                    startedAt,
-                    completedAt),
-                Is.EqualTo(expectedDelay).Within(0.0001f));
         }
 
         [TestCase(0f, 1f)]
@@ -872,7 +847,26 @@ namespace SimpleGame.Tests
                 new GameObject("SeverVisualPoolTemplate");
             SpriteRenderer template =
                 templateObject.AddComponent<SpriteRenderer>();
-            template.color = Color.black;
+            var texture = new Texture2D(8, 8);
+            var pixels = new Color[64];
+            for (int index = 0; index < pixels.Length; index++)
+            {
+                pixels[index] = Color.white;
+            }
+
+            texture.SetPixels(pixels);
+            texture.Apply();
+            Sprite sprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, 8f, 8f),
+                new Vector2(0.5f, 0.5f),
+                8f,
+                0u,
+                SpriteMeshType.FullRect,
+                new Vector4(2f, 0f, 2f, 0f));
+            template.sprite = sprite;
+            template.drawMode = SpriteDrawMode.Sliced;
+            template.size = new Vector2(1f, 0.9f);
             templateObject.SetActive(false);
 
             Vector2[] starts =
@@ -934,10 +928,26 @@ namespace SimpleGame.Tests
                             continue;
                         }
 
+                        SpriteRenderer renderer =
+                            effect.GetComponent<SpriteRenderer>();
+                        Assert.That(renderer.drawMode,
+                            Is.EqualTo(SpriteDrawMode.Sliced));
                         Assert.That(
-                            effect.transform.localScale.y,
+                            renderer.size.x,
                             Is.EqualTo(expectedLength)
                                 .Within(0.0001f));
+                        Assert.That(
+                            effect.transform.localScale,
+                            Is.EqualTo(Vector3.one));
+                        LineRenderer line =
+                            effect.GetComponent<LineRenderer>();
+                        Assert.That(line, Is.Not.Null);
+                        Assert.That(
+                            (Vector2)line.GetPosition(0),
+                            Is.EqualTo(starts[index]));
+                        Assert.That(
+                            (Vector2)line.GetPosition(1),
+                            Is.EqualTo(ends[index]));
                         found = true;
                         break;
                     }
@@ -952,6 +962,8 @@ namespace SimpleGame.Tests
             {
                 DestroySeverTrailObjects();
                 Object.DestroyImmediate(templateObject);
+                Object.DestroyImmediate(sprite);
+                Object.DestroyImmediate(texture);
             }
         }
 
@@ -1279,18 +1291,16 @@ namespace SimpleGame.Tests
         {
             var owner = new GameObject("EnemyHealthTest");
             EnemyHealth health = owner.AddComponent<EnemyHealth>();
-            health.Configure(5.1f);
+            health.Configure(5);
 
             bool applied = health.Apply(new CombatResult(
-                3f,
-                5.1f,
+                3,
+                5,
                 PlayerAttackReaction.None));
 
             Assert.That(applied, Is.True);
-            Assert.That(health.MaxHealth, Is.EqualTo(5.1f).Within(0.001f));
-            Assert.That(
-                health.CurrentHealth,
-                Is.EqualTo(2.1f).Within(0.001f));
+            Assert.That(health.MaxHealth, Is.EqualTo(5));
+            Assert.That(health.CurrentHealth, Is.EqualTo(2));
             Object.DestroyImmediate(owner);
         }
 
@@ -1308,17 +1318,17 @@ namespace SimpleGame.Tests
             Assert.That(result.y, Is.EqualTo(0f).Within(0.001f));
         }
 
-        [TestCase(10f, 5f)]
-        [TestCase(1.5f, 0.75f)]
-        [TestCase(-1f, 0f)]
+        [TestCase(10, 5)]
+        [TestCase(3, 2)]
+        [TestCase(-1, 0)]
         public void Continue_DamagesHalfOfCurrentEnemyHealth(
-            float currentHealth,
-            float expectedDamage)
+            int currentHealth,
+            int expectedDamage)
         {
             Assert.That(
                 EnemyWorldRecycler.CalculateContinueDamage(
                     currentHealth),
-                Is.EqualTo(expectedDamage).Within(0.001f));
+                Is.EqualTo(expectedDamage));
         }
 
         [TestCase(2f, 0f, 7f, 0f)]

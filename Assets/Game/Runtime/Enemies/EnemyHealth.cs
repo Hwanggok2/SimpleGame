@@ -5,19 +5,19 @@ namespace SimpleGame
 {
     public sealed class EnemyHealth : MonoBehaviour
     {
-        [SerializeField] private float maxHealth = 1f;
-        [SerializeField] private float currentHealth = 1f;
+        [SerializeField] private int maxHealth = 1;
+        [SerializeField] private int currentHealth = 1;
         [SerializeField] private bool alive = true;
 
-        public event Action<float, float> Changed;
+        public event Action<int, int> Changed;
 
-        public float MaxHealth => maxHealth;
-        public float CurrentHealth => currentHealth;
+        public int MaxHealth => maxHealth;
+        public int CurrentHealth => currentHealth;
         public bool IsAlive => alive;
 
-        public void Configure(float configuredMaxHealth)
+        public void Configure(int configuredMaxHealth)
         {
-            maxHealth = Mathf.Max(1f, configuredMaxHealth);
+            maxHealth = Mathf.Max(1, configuredMaxHealth);
             currentHealth = maxHealth;
             alive = true;
             Changed?.Invoke(currentHealth, maxHealth);
@@ -30,8 +30,8 @@ namespace SimpleGame
                 return false;
             }
 
-            currentHealth = Mathf.Max(0f, currentHealth - result.Damage);
-            alive = currentHealth > 0.0001f;
+            currentHealth = Mathf.Max(0, currentHealth - result.Damage);
+            alive = currentHealth > 0;
             Changed?.Invoke(currentHealth, maxHealth);
 
             return true;

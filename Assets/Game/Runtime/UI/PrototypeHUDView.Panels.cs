@@ -221,6 +221,8 @@ namespace SimpleGame
                 ? dragSurfaceTransform.GetComponent<ControlLayoutDragSurface>()
                 : null;
 
+            BindControlSettingsNavigation();
+
             if (settingsPage == null ||
                 playerOverviewLabel == null ||
                 accountOverviewLabel == null ||
@@ -254,7 +256,6 @@ namespace SimpleGame
                     settingsButton.gameObject.AddComponent<CanvasGroup>();
             }
 
-            BindButton(controlSettingsButton, ToggleControlSettingsPage);
             BindButton(defaultsButton, RestoreDefaultControlSettings);
             BindButton(applyButton, ApplyPendingControlSettings);
             BindButton(
@@ -278,6 +279,18 @@ namespace SimpleGame
             ApplyPauseStrings();
             ApplyPauseDetails();
             SetControlSettingsPageVisible(false);
+        }
+
+        private void BindControlSettingsNavigation()
+        {
+            if (controlSettingsButton == null)
+            {
+                return;
+            }
+
+            controlSettingsButton.interactable = true;
+            controlSettingsButton.transform.SetAsLastSibling();
+            BindButton(controlSettingsButton, ToggleControlSettingsPage);
         }
 
         private static TMP_Text FindText(Transform parent, string path)
@@ -444,7 +457,7 @@ namespace SimpleGame
             }
         }
 
-        private static void BindButton(
+        private void BindButton(
             Button button,
             Action callback)
         {
@@ -454,6 +467,13 @@ namespace SimpleGame
             }
 
             button.onClick.RemoveAllListeners();
+            UiTouchSoundPlayer touchSoundPlayer =
+                GetComponent<UiTouchSoundPlayer>();
+            if (touchSoundPlayer != null)
+            {
+                button.onClick.AddListener(touchSoundPlayer.Play);
+            }
+
             if (callback != null)
             {
                 button.onClick.AddListener(() => callback());

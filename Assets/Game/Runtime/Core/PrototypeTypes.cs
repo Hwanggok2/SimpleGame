@@ -90,8 +90,8 @@ namespace SimpleGame
     public readonly struct CombatResult
     {
         public CombatResult(
-            float damage,
-            float targetMaxHealth,
+            int damage,
+            int targetMaxHealth,
             PlayerAttackReaction playerReaction)
         {
             Damage = damage;
@@ -99,8 +99,8 @@ namespace SimpleGame
             PlayerReaction = playerReaction;
         }
 
-        public float Damage { get; }
-        public float TargetMaxHealth { get; }
+        public int Damage { get; }
+        public int TargetMaxHealth { get; }
         public PlayerAttackReaction PlayerReaction { get; }
     }
 
@@ -151,6 +151,16 @@ namespace SimpleGame
                 LinearLevelWeight * levelOffset;
             return Mathf.Max(0f, baseValue) +
                 Mathf.Max(0f, growthRate) * curve;
+        }
+
+        public static int RoundPositiveStat(float value)
+        {
+            if (value <= 0f)
+            {
+                return 0;
+            }
+
+            return Mathf.Max(1, Mathf.FloorToInt(value + 0.5f));
         }
 
         public static int CalculateEnemyAttackDamage(
@@ -311,7 +321,7 @@ namespace SimpleGame
             archetype == EnemyArchetype.Shield ||
             PrototypeEnemyDefinitions.IsSkeletonBoss(enemyId);
 
-        public float CalculateMaxHealth(
+        public int CalculateMaxHealth(
             int enemyLevel,
             int waveNumber = 1)
         {
@@ -323,8 +333,7 @@ namespace SimpleGame
                     baseMaxHp,
                     hpGrowthRate,
                     effectiveLevel);
-            return Mathf.Max(
-                1f,
+            return ProgressionCurve.RoundPositiveStat(
                 levelHealth *
                 ProgressionCurve.CalculateWaveHealthMultiplier(
                     waveNumber));
@@ -493,17 +502,17 @@ namespace SimpleGame
                     0.75f,
                     2.6f,
                     4,
-                    1.5f,
-                    0.5f,
-                    3f,
+                    1f,
+                    0.33f,
+                    2f,
                     1.35f,
                     0f,
                     0.5f,
                     0f,
                     8,
                     50,
-                    15f,
-                    3.4f,
+                    38f,
+                    8.5f,
                     0,
                     "Boss",
                     true),
@@ -519,17 +528,17 @@ namespace SimpleGame
                 0.72f,
                 2.6f,
                 4,
-                1.3f,
-                0.5f,
-                2.8f,
+                0.87f,
+                0.33f,
+                1.87f,
                 1.5f,
                 0f,
                 0.5f,
                 0f,
                 10,
                 70,
-                18f,
-                3.8f,
+                45f,
+                9.5f,
                 0,
                 "BossMushroom",
                 true);
@@ -540,7 +549,7 @@ namespace SimpleGame
             return new EnemyDefinition(
                 FlyingEyeId,
                 EnemyArchetype.Melee,
-                0.95f,
+                1.28f,
                 0.95f,
                 1,
                 0.65f,
@@ -567,17 +576,17 @@ namespace SimpleGame
                 0.88f,
                 3.6f,
                 4,
-                0.9f,
-                0.5f,
-                2.5f,
+                0.6f,
+                0.33f,
+                1.67f,
                 1.6f,
                 0f,
                 0.5f,
                 0f,
                 12,
                 90,
-                20f,
-                4f,
+                50f,
+                10f,
                 0,
                 "BossFlyingEye",
                 true);
@@ -591,17 +600,17 @@ namespace SimpleGame
                 0.8f,
                 3f,
                 4,
-                1.2f,
-                0.5f,
-                3f,
+                0.8f,
+                0.33f,
+                2f,
                 1.5f,
                 0f,
                 0.5f,
                 0f,
                 15,
                 120,
-                22f,
-                4.2f,
+                55f,
+                10.5f,
                 0,
                 "BossSkeleton",
                 true);

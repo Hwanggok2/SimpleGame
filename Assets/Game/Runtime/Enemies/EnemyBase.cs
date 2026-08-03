@@ -38,10 +38,10 @@ namespace SimpleGame
         public EnemyMovement Movement => movement;
         public EnemyAttackModule Attack => attack;
         public BossAttackModule BossAttack => bossAttack;
-        public float CurrentHealth =>
-            health != null ? health.CurrentHealth : 0f;
-        public float MaxHealth =>
-            health != null ? health.MaxHealth : 0f;
+        public int CurrentHealth =>
+            health != null ? health.CurrentHealth : 0;
+        public int MaxHealth =>
+            health != null ? health.MaxHealth : 0;
         public bool IsAlive => health != null && health.IsAlive;
         public Transform DamagePopupAnchor => damagePopupAnchor;
         public Vector3 DamagePopupPosition =>
@@ -198,6 +198,18 @@ namespace SimpleGame
             enemyWorld?.SeparateEnemy(this);
         }
 
+        public void DashStraightStep(
+            Vector2 destination,
+            Vector2 direction,
+            float speedMultiplier)
+        {
+            movement.StepTowards(
+                destination,
+                direction,
+                speedMultiplier);
+            enemyWorld?.NotifyPositionChanged(this);
+        }
+
         public void FaceTowards(Vector2 position)
         {
             facing.Face(position);
@@ -277,15 +289,15 @@ namespace SimpleGame
                 return false;
             }
 
-            float previousHealth = health.CurrentHealth;
+            int previousHealth = health.CurrentHealth;
             bool damaged = health.Apply(result);
-            float appliedDamage =
+            int appliedDamage =
                 previousHealth - health.CurrentHealth;
             Vector2 hitDirection =
                 (Vector2)attacker.transform.position -
                 (Vector2)transform.position;
 
-            if (appliedDamage > 0f)
+            if (appliedDamage > 0)
             {
                 Session.ShowDamagePopup(
                     DamagePopupPosition,
@@ -345,7 +357,7 @@ namespace SimpleGame
         public void ApplyContinuePush(
             Vector2 position,
             Vector2 playerPosition,
-            float damage,
+            int damage,
             float duration)
         {
             if (!IsAlive)
@@ -360,7 +372,7 @@ namespace SimpleGame
 
             Vector2 startPosition = transform.position;
             bool damaged = health.Apply(new CombatResult(
-                Mathf.Max(0f, damage),
+                Mathf.Max(0, damage),
                 MaxHealth,
                 PlayerAttackReaction.None));
             Vector2 hitDirection = playerPosition - startPosition;
@@ -486,6 +498,7 @@ namespace SimpleGame
 
         private void SetGameplayVisualsVisible(bool visible)
         {
+            attack?.SetGameplayVisualsVisible(visible);
             if (approachRangeRenderer != null)
             {
                 approachRangeRenderer.enabled = visible;

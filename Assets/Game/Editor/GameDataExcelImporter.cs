@@ -511,12 +511,20 @@ namespace SimpleGameEditor
 
                 string fileName = table.RequiredText(row, "FileName");
                 string extension = Path.GetExtension(fileName);
-                if (fileName.IndexOfAny(new[] { '/', '\\' }) >= 0 ||
+                string[] pathSegments = fileName.Split('/');
+                if (fileName.IndexOf('\\') >= 0 ||
+                    fileName.IndexOf(':') >= 0 ||
                     Path.IsPathRooted(fileName) ||
-                    !string.Equals(
-                        Path.GetFileName(fileName),
-                        fileName,
-                        StringComparison.Ordinal) ||
+                    pathSegments.Any(segment =>
+                        string.IsNullOrWhiteSpace(segment) ||
+                        string.Equals(
+                            segment,
+                            ".",
+                            StringComparison.Ordinal) ||
+                        string.Equals(
+                            segment,
+                            "..",
+                            StringComparison.Ordinal)) ||
                     (!string.Equals(
                          extension,
                          ".png",
@@ -533,7 +541,8 @@ namespace SimpleGameEditor
                     throw table.Error(
                         row,
                         "FileName",
-                        "must be a PNG or JPG file name without a path");
+                        "must be a PNG or JPG path relative to Assets/Image " +
+                        "using forward slashes");
                 }
 
                 model.Images.Add(new ImageDataDefinition(
@@ -1209,6 +1218,16 @@ namespace SimpleGameEditor
 
     public sealed class ExcelTable
     {
+        private static readonly HashSet<string> MetadataTypes = new(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            "string",
+            "int",
+            "float",
+            "bool",
+            "none"
+        };
+
         private readonly Dictionary<string, int> columns;
 
         public ExcelTable(
@@ -1251,13 +1270,59 @@ namespace SimpleGameEditor
                 }
             }
 
+            int metadataRowCount = HasMetadataRows(sheet, header)
+                ? 3
+                : 0;
             DataRows = sheet.Rows
-                .Where(row => row.RowNumber > header.RowNumber && !row.IsEmpty)
+                .Where(row =>
+                    row.RowNumber > header.RowNumber + metadataRowCount &&
+                    !row.IsEmpty)
                 .ToList();
         }
 
         public string SheetName { get; }
         public IReadOnlyList<ExcelRow> DataRows { get; }
+
+        private static bool HasMetadataRows(
+            ExcelSheet sheet,
+            ExcelRow header)
+        {
+            ExcelRow typeRow = sheet.Rows.FirstOrDefault(row =>
+                row.RowNumber == header.RowNumber + 1);
+            ExcelRow scopeRow = sheet.Rows.FirstOrDefault(row =>
+                row.RowNumber == header.RowNumber + 2);
+            ExcelRow displayHeaderRow = sheet.Rows.FirstOrDefault(row =>
+                row.RowNumber == header.RowNumber + 3);
+            if (typeRow == null ||
+                scopeRow == null ||
+                displayHeaderRow == null ||
+                displayHeaderRow.IsEmpty)
+            {
+                return false;
+            }
+
+            for (int index = 0; index < header.Cells.Count; index++)
+            {
+                string columnName = header.GetCell(index);
+                if (string.IsNullOrWhiteSpace(columnName))
+                {
+                    continue;
+                }
+
+                if (!MetadataTypes.Contains(typeRow.GetCell(index).Trim()) ||
+                    !string.Equals(
+                        scopeRow.GetCell(index).Trim(),
+                        "All",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    string.IsNullOrWhiteSpace(
+                        displayHeaderRow.GetCell(index)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         public string RequiredText(ExcelRow row, string columnName)
         {

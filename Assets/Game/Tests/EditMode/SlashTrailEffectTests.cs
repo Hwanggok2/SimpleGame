@@ -1,11 +1,29 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace SimpleGame.Tests
 {
     public sealed class SlashTrailEffectTests
     {
+        [Test]
+        public void CuttingSprite_UsesHorizontalNineSliceBorders()
+        {
+            Sprite[] sprites = AssetDatabase
+                .LoadAllAssetsAtPath("Assets/Image/Skill/Cutting.png")
+                .OfType<Sprite>()
+                .ToArray();
+
+            Assert.That(sprites, Has.Length.EqualTo(1));
+            Assert.That(sprites[0].name, Is.EqualTo("Cutting_0"));
+            Assert.That(sprites[0].rect.width, Is.EqualTo(1082f));
+            Assert.That(sprites[0].rect.height, Is.EqualTo(385f));
+            Assert.That(sprites[0].border.x, Is.EqualTo(180f));
+            Assert.That(sprites[0].border.z, Is.EqualTo(180f));
+        }
+
         [Test]
         public void StaticArcPool_ReusesInactiveRendererAndMaterial()
         {

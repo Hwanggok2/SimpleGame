@@ -79,10 +79,10 @@ namespace SimpleGame
 
         public void ShowDamagePopup(
             Vector3 worldPosition,
-            float amount,
+            int amount,
             DamagePopupStyle style)
         {
-            if (amount <= 0f)
+            if (amount <= 0)
             {
                 return;
             }

@@ -115,11 +115,51 @@ namespace SimpleGame
                 view.SetExperience(0, 0);
             }
 
+            RefreshBossHealth();
+
             view.SetGameOverDetails(session.FormatString(
                 GameStringIds.HudGameOverSummaryFormat,
                 "게임 종료\n점수 {0} / 계정 경험치 {1}",
                 session.Score,
                 session.AccountExperience));
+        }
+
+        private void RefreshBossHealth()
+        {
+            EnemyBase visibleBoss = null;
+            if (session.EnemyWorld != null)
+            {
+                foreach (EnemyBase enemy in session.EnemyWorld.Enemies)
+                {
+                    if (enemy != null &&
+                        enemy.IsAlive &&
+                        enemy.Archetype == EnemyArchetype.Boss)
+                    {
+                        visibleBoss = enemy;
+                        break;
+                    }
+                }
+            }
+
+            if (visibleBoss == null)
+            {
+                view.SetBossHealth(string.Empty, 0, 1, false);
+                return;
+            }
+
+            string fallbackName =
+                PrototypeEnemyDefinitions.GetDisplayName(
+                    visibleBoss.Definition.EnemyId,
+                    visibleBoss.Archetype);
+            string bossName = session.GetString(
+                GameStringIds.EnemyName(
+                    visibleBoss.Definition.EnemyId),
+                fallbackName);
+            view.SetBossHealth(
+                bossName,
+                visibleBoss.CurrentHealth,
+                visibleBoss.MaxHealth,
+                true);
         }
     }
 }

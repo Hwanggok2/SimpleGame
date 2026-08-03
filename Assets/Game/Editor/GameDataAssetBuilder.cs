@@ -293,8 +293,8 @@ namespace SimpleGameEditor
                     0.14f,
                     0.13f,
                     0.14f,
-                    0.22f,
-                    0.18f);
+                    0.38f,
+                    0.24f);
             }
 
             GameDataManifest manifest =

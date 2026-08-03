@@ -1,4 +1,3 @@
-using System.Globalization;
 using TMPro;
 using UnityEngine;
 
@@ -50,16 +49,14 @@ namespace SimpleGame
             CachePresentation();
         }
 
-        public static string FormatDamage(float amount)
+        public static string FormatDamage(int amount)
         {
-            return Mathf.Max(0f, amount).ToString(
-                "0.##",
-                CultureInfo.InvariantCulture);
+            return Mathf.Max(0, amount).ToString();
         }
 
         public void Play(
             Vector3 worldPosition,
-            float amount,
+            int amount,
             DamagePopupStyle style)
         {
             if (label == null)

@@ -20,22 +20,23 @@ namespace SimpleGame
 
         public static CombatResult Resolve(
             EnemyDefinition definition,
-            float targetMaxHealth,
-            float playerAttackPower,
+            int targetMaxHealth,
+            int playerAttackPower,
             float rearAttackMultiplier,
             AttackSide side,
             bool critical)
         {
-            float safeTargetMaxHealth =
-                Mathf.Max(1f, targetMaxHealth);
-            float damage = Mathf.Max(0f, playerAttackPower) *
+            int safeTargetMaxHealth = Mathf.Max(1, targetMaxHealth);
+            float rawDamage = Mathf.Max(0, playerAttackPower) *
                 (side == AttackSide.Rear
                     ? Mathf.Max(1f, rearAttackMultiplier)
                     : 1f);
             if (critical)
             {
-                damage *= 3f;
+                rawDamage *= 3f;
             }
+
+            int damage = RoundDamage(rawDamage);
 
             bool causesRecoil = side == AttackSide.Front &&
                 definition.BlocksFrontAttacks &&
@@ -52,8 +53,8 @@ namespace SimpleGame
 
         public static EnemyThreatLevel GetThreatLevel(
             EnemyDefinition definition,
-            float targetMaxHealth,
-            float playerAttackPower,
+            int targetMaxHealth,
+            int playerAttackPower,
             float rearAttackMultiplier)
         {
             CombatResult front = Resolve(
@@ -107,9 +108,14 @@ namespace SimpleGame
         private static int GetRequiredHitCount(CombatResult result)
         {
             return result.Damage > 0
-                ? Mathf.CeilToInt(
-                    result.TargetMaxHealth / result.Damage)
+                ? (result.TargetMaxHealth + result.Damage - 1) /
+                    result.Damage
                 : int.MaxValue;
+        }
+
+        public static int RoundDamage(float rawDamage)
+        {
+            return ProgressionCurve.RoundPositiveStat(rawDamage);
         }
     }
 }

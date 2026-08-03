@@ -1496,7 +1496,7 @@ namespace SimpleGame.Tests
                 enemyObject.AddComponent<EnemyActor>();
             EnemyHealth health =
                 enemyObject.GetComponent<EnemyHealth>();
-            health.Configure(10f);
+            health.Configure(10);
             FieldInfo healthField = typeof(EnemyBase).GetField(
                 "health",
                 BindingFlags.Instance | BindingFlags.NonPublic);

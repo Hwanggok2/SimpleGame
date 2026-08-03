@@ -157,7 +157,7 @@ MonoBehaviour:
     effectType: 1
     targetStat: 8
     operation: 0
-    value: 1.8
+    value: 2
     maxStack: 5
     selectionWeight: 65
     minPlayerLevel: 3
@@ -174,7 +174,7 @@ MonoBehaviour:
     effectType: 1
     targetStat: 9
     operation: 0
-    value: 0.1
+    value: 0.3
     maxStack: 3
     selectionWeight: 55
     minPlayerLevel: 3
@@ -225,7 +225,7 @@ MonoBehaviour:
     effectType: 1
     targetStat: 12
     operation: 0
-    value: 0.35
+    value: 0.6
     maxStack: 5
     selectionWeight: 60
     minPlayerLevel: 3

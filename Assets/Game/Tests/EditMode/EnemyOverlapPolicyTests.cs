@@ -168,7 +168,7 @@ namespace SimpleGame.Tests
             mover.ApplyContinuePush(
                 Vector2.zero,
                 Vector2.left,
-                0f,
+                0,
                 0f);
 
             Assert.That(
@@ -310,7 +310,7 @@ namespace SimpleGame.Tests
             pushed.ApplyContinuePush(
                 new Vector2(20.1f, 0f),
                 Vector2.left,
-                0f,
+                0,
                 0f);
             EnemyBase mover = CreateLiveEnemy(
                 service,
@@ -423,7 +423,7 @@ namespace SimpleGame.Tests
             SetPrivateField(enemy, "characterAnimation", animation);
             SetPrivateField(enemy, "enemyWorld", service);
 
-            health.Configure(10f);
+            health.Configure(10);
             facing.Configure(0f);
             movement.Configure(0f, animation);
             stateMachine.Configure(enemy);

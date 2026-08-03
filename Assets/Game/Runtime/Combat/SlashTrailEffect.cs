@@ -12,7 +12,8 @@ namespace SimpleGame
         private LineRenderer line;
         private SpriteRenderer spriteRenderer;
         private Material material;
-        private Color effectColor;
+        private Color spriteColor;
+        private Color lineColor;
         private Coroutine fadeCoroutine;
 
         public static void Show(
@@ -136,7 +137,15 @@ namespace SimpleGame
             }
 
             ApplySpriteTemplate(template);
-            effectColor = template.color;
+            spriteColor = template.color;
+            lineColor = new Color(0.8f, 0.12f, 0.08f, 0.95f);
+            ConfigureLine(
+                start,
+                end,
+                0.04f,
+                1f,
+                lineColor,
+                template.sortingOrder - 1);
             PositionSprite(
                 start,
                 end,
@@ -176,11 +185,20 @@ namespace SimpleGame
             Vector2 midpoint = (start + end) * 0.5f;
             transform.position =
                 new Vector3(midpoint.x, midpoint.y, worldZ);
-            transform.rotation = Quaternion.Euler(
-                0f,
-                0f,
-                Mathf.Atan2(direction.y, direction.x) *
-                    Mathf.Rad2Deg - 90f);
+            float angle = Mathf.Atan2(direction.y, direction.x) *
+                Mathf.Rad2Deg;
+
+            if (spriteRenderer.drawMode != SpriteDrawMode.Simple)
+            {
+                transform.rotation = Quaternion.Euler(0f, 0f, angle);
+                transform.localScale = Vector3.one;
+                spriteRenderer.size = new Vector2(
+                    Mathf.Max(0.01f, length),
+                    Mathf.Max(0.01f, spriteRenderer.size.y));
+                return;
+            }
+
+            transform.rotation = Quaternion.Euler(0f, 0f, angle - 90f);
 
             Vector2 spriteSize = spriteRenderer.sprite != null
                 ? spriteRenderer.sprite.bounds.size
@@ -204,7 +222,27 @@ namespace SimpleGame
                 StopCoroutine(fadeCoroutine);
             }
 
-            effectColor = color;
+            spriteColor = Color.clear;
+            lineColor = color;
+            ConfigureLine(
+                start,
+                end,
+                width,
+                endWidthMultiplier,
+                color,
+                25);
+            fadeCoroutine = StartCoroutine(FadeRoutine(
+                Mathf.Max(0.05f, duration)));
+        }
+
+        private void ConfigureLine(
+            Vector2 start,
+            Vector2 end,
+            float width,
+            float endWidthMultiplier,
+            Color color,
+            int sortingOrder)
+        {
             EnsureLine();
             line.positionCount = 2;
             line.useWorldSpace = true;
@@ -215,8 +253,7 @@ namespace SimpleGame
                 Mathf.Max(0f, endWidthMultiplier);
             line.startColor = color;
             line.endColor = color;
-            fadeCoroutine = StartCoroutine(FadeRoutine(
-                Mathf.Max(0.05f, duration)));
+            line.sortingOrder = sortingOrder;
         }
 
         public static float CalculateFadeAlpha(
@@ -248,35 +285,34 @@ namespace SimpleGame
 
         private IEnumerator FadeRoutine(float duration)
         {
-            Color color = effectColor;
-            float initialAlpha = color.a;
             float elapsed = 0f;
             while (elapsed < duration)
             {
-                color.a = initialAlpha *
-                    CalculateFadeAlpha(elapsed, duration);
-                ApplyColor(color);
+                ApplyFade(CalculateFadeAlpha(elapsed, duration));
                 yield return null;
                 elapsed += Time.deltaTime;
             }
 
-            color.a = 0f;
-            ApplyColor(color);
+            ApplyFade(0f);
             fadeCoroutine = null;
             gameObject.SetActive(false);
         }
 
-        private void ApplyColor(Color color)
+        private void ApplyFade(float alphaMultiplier)
         {
             if (spriteRenderer != null)
             {
-                spriteRenderer.color = color;
+                Color fadedSprite = spriteColor;
+                fadedSprite.a *= alphaMultiplier;
+                spriteRenderer.color = fadedSprite;
             }
 
             if (line != null)
             {
-                line.startColor = color;
-                line.endColor = color;
+                Color fadedLine = lineColor;
+                fadedLine.a *= alphaMultiplier;
+                line.startColor = fadedLine;
+                line.endColor = fadedLine;
             }
         }
 

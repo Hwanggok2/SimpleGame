@@ -40,7 +40,7 @@ namespace SimpleGame
         public CriticalSystem Critical => critical;
         public PlayerProgression Progression => progression;
         public PlayerCombatAbilities CombatAbilities => combatAbilities;
-        public float AttackPower =>
+        public int AttackPower =>
             stats.GetAttackPower(progression.Level);
         public float RearAttackMultiplier =>
             stats.RearAttackMultiplier;
@@ -207,14 +207,12 @@ namespace SimpleGame
         public PlayerAttackExecution AttackEnemy(
             EnemyBase enemy,
             bool criticalHit,
-            bool allowAttackPiercing,
-            bool movementPiercingRequested)
+            bool allowAttackPiercing)
         {
             return combatAbilities.ExecuteNormalAttack(
                 enemy,
                 criticalHit,
-                allowAttackPiercing,
-                movementPiercingRequested);
+                allowAttackPiercing);
         }
 
         public bool ApplySkillHit(
@@ -362,6 +360,17 @@ namespace SimpleGame
             characterAnimation.PlayHurt(
                 enemyPosition - (Vector2)transform.position);
             LockInput(FrontRecoilInputLockDuration);
+        }
+
+        public void ApplyStun(float seconds)
+        {
+            if (!IsAlive)
+            {
+                return;
+            }
+
+            controller.CancelCommand();
+            LockInput(seconds);
         }
 
         public void LockInput(float seconds)

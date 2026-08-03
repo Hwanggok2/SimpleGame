@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -11,7 +10,6 @@ namespace SimpleGame
         public const float PiercingReach = 4.5f;
         public const float PiercingHalfWidth = 0.42f;
         public const float PiercingWindowDuration = 0.4f;
-        public const float SeverDelay = 0.3f;
         public const float SeverReuseCooldown = 0.1f;
         public const float SeverTrailFadeDuration = 0.1f;
         public const float SeverHalfWidth = 0.17f;
@@ -217,8 +215,7 @@ namespace SimpleGame
         public PlayerAttackExecution ExecuteNormalAttack(
             EnemyBase primary,
             bool critical,
-            bool allowAttackPiercing,
-            bool movementPiercingRequested)
+            bool allowAttackPiercing)
         {
             if (primary == null ||
                 !primary.IsAlive ||
@@ -305,18 +302,6 @@ namespace SimpleGame
                 flyingSwordStaticFusion?.HandlePrimaryHit(primary);
             }
 
-            if (CanTriggerSever(
-                    HasSever,
-                    movementPiercingRequested &&
-                        piercingAllowed,
-                    primaryDamaged) &&
-                TryReserveSever())
-            {
-                StartCoroutine(SpawnSeverAfterDelay(
-                    owner.transform.position,
-                    SeverDelay));
-            }
-
             if (staticChargeLevel > 0)
             {
                 int adjacentCount =
@@ -364,9 +349,9 @@ namespace SimpleGame
             }
 
             AttackSide side = ResolveSide(enemy);
-            float damage =
+            int damage = CombatResolver.RoundDamage(
                 CalculateSkillBaseDamage(side) *
-                Mathf.Max(0f, damageMultiplier);
+                Mathf.Max(0f, damageMultiplier));
             var result = new CombatResult(
                 damage,
                 enemy.MaxHealth,
@@ -477,7 +462,10 @@ namespace SimpleGame
                 ? CalculateSkillBaseDamage(side) *
                     staticDamageMultiplier
                 : 0f;
-            float damage = baseResult.Damage + bonusDamage;
+            int damage = CombatResolver.RoundDamage(
+                CalculateSkillBaseDamage(side) *
+                    (critical ? 3f : 1f) +
+                bonusDamage);
             PlayerAttackReaction reaction =
                 isPrimary &&
                 target.Definition.BlocksFrontAttacks &&
@@ -556,20 +544,13 @@ namespace SimpleGame
             return true;
         }
 
-        private IEnumerator SpawnSeverAfterDelay(
-            Vector2 piercingStartPosition,
-            float delay)
+        private void TriggerSever(Vector2 piercingStartPosition)
         {
-            if (delay > 0f)
-            {
-                yield return new WaitForSeconds(delay);
-            }
-
             if (owner == null ||
                 enemyWorld == null ||
                 !owner.IsAlive)
             {
-                yield break;
+                return;
             }
 
             Vector2 currentPlayerPosition =

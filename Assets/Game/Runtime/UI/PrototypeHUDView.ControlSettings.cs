@@ -64,13 +64,13 @@ namespace SimpleGame
         private void OpenControlSettingsPage()
         {
             editingControlSettings = true;
+            SetControlSettingsPageVisible(true);
             SynchronizeControlSettingsUi();
             ApplyControlLayout(pendingControlSettings);
             ApplyControlModePresentation(
                 pendingControlSettings.controlMode);
             ApplyCommandControlsVisibility(
                 pendingControlSettings.controlsEnabled);
-            SetControlSettingsPageVisible(true);
         }
 
         private void CloseControlSettingsPage()
@@ -150,11 +150,11 @@ namespace SimpleGame
 
         private void SynchronizeControlSettingsUi()
         {
-            joystickSizeSlider.SetValueWithoutNotify(
+            joystickSizeSlider?.SetValueWithoutNotify(
                 pendingControlSettings.joystickScale);
-            attackSizeSlider.SetValueWithoutNotify(
+            attackSizeSlider?.SetValueWithoutNotify(
                 pendingControlSettings.attackScale);
-            autoAttackToggle.SetIsOnWithoutNotify(
+            autoAttackToggle?.SetIsOnWithoutNotify(
                 pendingControlSettings.autoAttackEnabled);
             RefreshControlSettingLabels();
             ApplyControlModePresentation(
@@ -223,6 +223,11 @@ namespace SimpleGame
             Slider slider,
             float value)
         {
+            if (slider == null)
+            {
+                return;
+            }
+
             Transform valueTransform = slider.transform.Find("Value");
             TMP_Text label = valueTransform != null
                 ? valueTransform.GetComponent<TMP_Text>()

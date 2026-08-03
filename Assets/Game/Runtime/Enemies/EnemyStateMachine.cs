@@ -68,7 +68,7 @@ namespace SimpleGame
             float distance = Vector2.Distance(
                 transform.position,
                 playerPosition);
-            if (distance <= owner.Definition.AttackRange &&
+            if (distance <= owner.Attack.AttackRange &&
                 owner.Attack.CanStart)
             {
                 owner.Attack.Begin(player);

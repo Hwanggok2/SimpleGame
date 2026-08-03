@@ -94,6 +94,8 @@ namespace SimpleGame
         private GameStringTable gameStrings;
         private string difficultyStageName = string.Empty;
         private string difficultyStageDescription = string.Empty;
+        private Slider bossHealthSlider;
+        private TMP_Text bossHealthLabel;
 
         public GameObject CardSelectionPanelPrefab =>
             cardSelectionPanelPrefab;
@@ -150,6 +152,7 @@ namespace SimpleGame
         {
             gameStrings = configuredGameStrings;
             ValidateConfiguration();
+            EnsureBossHealthBar();
             cardChoicesInteractable = false;
             if (settingsButton != null)
             {
@@ -358,6 +361,32 @@ namespace SimpleGame
                 remaining);
         }
 
+        public void SetBossHealth(
+            string bossName,
+            int current,
+            int maximum,
+            bool visible)
+        {
+            EnsureBossHealthBar();
+            if (bossHealthSlider == null || bossHealthLabel == null)
+            {
+                return;
+            }
+
+            bossHealthSlider.gameObject.SetActive(visible);
+            if (!visible)
+            {
+                return;
+            }
+
+            int safeMaximum = Mathf.Max(1, maximum);
+            int safeCurrent = Mathf.Clamp(current, 0, safeMaximum);
+            bossHealthSlider.SetValueWithoutNotify(
+                (float)safeCurrent / safeMaximum);
+            bossHealthLabel.text =
+                $"{bossName}  {safeCurrent} / {safeMaximum}";
+        }
+
         public void SetPauseDetails(PauseDetailsData value)
         {
             pauseDetails = value;
@@ -369,6 +398,7 @@ namespace SimpleGame
             if (visible)
             {
                 EnsurePauseDetailsPanel();
+                BindControlSettingsNavigation();
                 pendingControlSettings = controlSettings;
                 editingControlSettings = false;
                 ApplyPauseDetails();
@@ -410,6 +440,40 @@ namespace SimpleGame
                     "PrototypeHUD prefab references are incomplete.",
                     this);
             }
+        }
+
+        private void EnsureBossHealthBar()
+        {
+            if (bossHealthSlider != null || experienceSlider == null)
+            {
+                return;
+            }
+
+            GameObject bossBar = Instantiate(
+                experienceSlider.gameObject,
+                experienceSlider.transform.parent);
+            bossBar.name = "BossHealthBar";
+            bossHealthSlider = bossBar.GetComponent<Slider>();
+            bossHealthLabel = bossBar.GetComponentInChildren<TMP_Text>(true);
+
+            RectTransform rect = bossBar.GetComponent<RectTransform>();
+            rect.anchoredPosition = new Vector2(0f, -120f);
+            rect.sizeDelta = new Vector2(0f, 36f);
+            if (bossHealthLabel != null)
+            {
+                bossHealthLabel.name = "BossHealthLabel";
+            }
+
+            Image fill = bossHealthSlider != null &&
+                bossHealthSlider.fillRect != null
+                    ? bossHealthSlider.fillRect.GetComponent<Image>()
+                    : null;
+            if (fill != null)
+            {
+                fill.color = new Color(0.82f, 0.12f, 0.16f, 1f);
+            }
+
+            bossBar.SetActive(false);
         }
     }
 }

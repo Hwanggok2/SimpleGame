@@ -689,6 +689,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.BossAttackModule
   indicator: {fileID: 6143340465990690288}
+  dashSpeedMultiplier: 5
 --- !u!114 &5425904399480325235
 MonoBehaviour:
   m_ObjectHideFlags: 0

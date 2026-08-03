@@ -63,7 +63,11 @@ namespace SimpleGame
         private uint modeOnePassEnemyGeneration;
         private Vector2 modeOnePassDirection;
         private Vector2 modeOnePassStartPosition;
-        private float modeOnePassStartedAt;
+        private bool pathSeverPending;
+        private Vector2 pathSeverStartPosition;
+        private Vector2 pathSeverTargetPosition;
+        private Vector2 pathSeverDirection;
+        private float pathSeverClearance;
         private Vector2 commandMarkerDestination;
         private MobileControlMode controlMode =
             MobileControlMode.AimCommand;
@@ -418,6 +422,7 @@ namespace SimpleGame
                     bool reachedDestination = root.Movement.StepTowards(
                         destination,
                         root.MoveArrivalTolerance);
+                    UpdatePathSever();
                     hasDestination = !reachedDestination;
                     if (reachedDestination)
                     {
@@ -445,6 +450,7 @@ namespace SimpleGame
                 pendingEnemy.transform.position,
                 stoppingDistance,
                 true);
+            UpdatePathSever();
             if (!reached)
             {
                 return;
@@ -490,7 +496,6 @@ namespace SimpleGame
 
                 if (ExecuteSingleAttack(
                         targetEnemy,
-                        movementPiercingAvailable,
                         out lastExecution) ==
                     PlayerAttackReaction.Recoil)
                 {
@@ -506,6 +511,10 @@ namespace SimpleGame
                 movementPiercingAvailable &&
                 lastExecution.PiercingAllowed &&
                 TryConsumeMovementPierce();
+            if (movementPiercingConsumed)
+            {
+                BeginPathSever(targetEnemy);
+            }
             if (!ShouldContinueAfterPathAttack(
                 defeated,
                 movementPiercingConsumed,
@@ -532,7 +541,6 @@ namespace SimpleGame
 
         private PlayerAttackReaction ExecuteSingleAttack(
             EnemyBase targetEnemy,
-            bool movementPiercingRequested,
             out PlayerAttackExecution execution)
         {
             bool critical = root.Critical.Roll();
@@ -540,8 +548,7 @@ namespace SimpleGame
             execution = root.AttackEnemy(
                 targetEnemy,
                 critical,
-                root.CombatAbilities.PiercingLevel > 0,
-                movementPiercingRequested);
+                root.CombatAbilities.PiercingLevel > 0);
             RetainModeOnePrimaryTarget(
                 targetEnemy,
                 execution.PiercingAllowed);
@@ -766,6 +773,7 @@ namespace SimpleGame
             pendingAttackCount = 0;
             modeOneLockedCommandActive = false;
             autoAttackRepeatCommandActive = false;
+            CancelPathSever();
             root?.Movement.CancelMove();
             HideCommandMarker();
         }

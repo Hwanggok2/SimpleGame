@@ -12,57 +12,57 @@ namespace SimpleGame.Tests
             1,
             1,
             AttackSide.Front,
-            1f,
-            3f)]
+            1,
+            3)]
         [TestCase(
             EnemyArchetype.Melee,
             1,
             1,
             AttackSide.Rear,
-            3f,
-            3f)]
+            3,
+            3)]
         [TestCase(
             EnemyArchetype.Melee,
             1,
             2,
             AttackSide.Front,
-            1f,
-            4.003f)]
+            1,
+            4)]
         [TestCase(
             EnemyArchetype.Melee,
             1,
             2,
             AttackSide.Rear,
-            3f,
-            4.003f)]
+            3,
+            4)]
         [TestCase(
             EnemyArchetype.Ranged,
             1,
             1,
             AttackSide.Front,
-            1f,
-            3f)]
+            1,
+            3)]
         [TestCase(
             EnemyArchetype.Ranged,
             1,
             2,
             AttackSide.Front,
-            1f,
-            3f)]
+            1,
+            3)]
         [TestCase(
             EnemyArchetype.Ranged,
             1,
             3,
             AttackSide.Rear,
-            3f,
-            4.003f)]
+            3,
+            4)]
         public void Resolve_UsesAttackPowerAndScaledHealth(
             EnemyArchetype archetype,
             int playerLevel,
             int enemyLevel,
             AttackSide side,
-            float expectedDamage,
-            float expectedMaxHealth)
+            int expectedDamage,
+            int expectedMaxHealth)
         {
             EnemyDefinition definition =
                 PrototypeEnemyDefinitions.Create(archetype);
@@ -74,12 +74,10 @@ namespace SimpleGame.Tests
                 side,
                 false);
 
-            Assert.That(
-                result.Damage,
-                Is.EqualTo(expectedDamage).Within(0.001f));
+            Assert.That(result.Damage, Is.EqualTo(expectedDamage));
             Assert.That(
                 result.TargetMaxHealth,
-                Is.EqualTo(expectedMaxHealth).Within(0.001f));
+                Is.EqualTo(expectedMaxHealth));
         }
 
         [Test]
@@ -91,20 +89,20 @@ namespace SimpleGame.Tests
             CombatResult front = CombatResolver.Resolve(
                 definition,
                 definition.CalculateMaxHealth(2),
-                1f,
+                1,
                 3f,
                 AttackSide.Front,
                 true);
             CombatResult rear = CombatResolver.Resolve(
                 definition,
                 definition.CalculateMaxHealth(2),
-                1f,
+                1,
                 3f,
                 AttackSide.Rear,
                 true);
 
-            Assert.That(front.Damage, Is.EqualTo(3f));
-            Assert.That(rear.Damage, Is.EqualTo(9f));
+            Assert.That(front.Damage, Is.EqualTo(3));
+            Assert.That(rear.Damage, Is.EqualTo(9));
         }
 
         [TestCase(10, 1, false)]
@@ -138,12 +136,12 @@ namespace SimpleGame.Tests
             CombatResult result = CombatResolver.Resolve(
                 definition,
                 definition.CalculateMaxHealth(2),
-                1f,
+                1,
                 3f,
                 AttackSide.Front,
                 true);
 
-            Assert.That(result.Damage, Is.EqualTo(3f));
+            Assert.That(result.Damage, Is.EqualTo(3));
             Assert.That(
                 result.PlayerReaction,
                 Is.EqualTo(PlayerAttackReaction.None));
@@ -160,7 +158,7 @@ namespace SimpleGame.Tests
             CombatResult result = CombatResolver.Resolve(
                 definition,
                 definition.CalculateMaxHealth(20),
-                1f,
+                1,
                 3f,
                 AttackSide.Front,
                 false);
@@ -191,12 +189,12 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expected));
         }
 
-        [TestCase(0f, "0")]
-        [TestCase(-3f, "0")]
-        [TestCase(2.25f, "2.25")]
-        [TestCase(10.5f, "10.5")]
+        [TestCase(0, "0")]
+        [TestCase(-3, "0")]
+        [TestCase(2, "2")]
+        [TestCase(11, "11")]
         public void DamagePopup_FormatsActualDamageCompactly(
-            float amount,
+            int amount,
             string expected)
         {
             Assert.That(
@@ -230,7 +228,7 @@ namespace SimpleGame.Tests
                     Is.True);
                 controller.ShowDamagePopup(
                     Vector3.zero,
-                    3f,
+                    3,
                     DamagePopupStyle.Dealt);
 
                 DamagePopupView first = controllerObject
@@ -251,7 +249,7 @@ namespace SimpleGame.Tests
                 first.Stop();
                 controller.ShowDamagePopup(
                     Vector3.one,
-                    4f,
+                    4,
                     DamagePopupStyle.Received);
                 DamagePopupView reused = controllerObject
                     .GetComponentInChildren<DamagePopupView>(true);
@@ -284,7 +282,7 @@ namespace SimpleGame.Tests
 
                 controller.ShowDamagePopup(
                     Vector3.zero,
-                    1f,
+                    1,
                     DamagePopupStyle.Dealt);
             }
             finally
@@ -426,21 +424,15 @@ namespace SimpleGame.Tests
                 PrototypeEnemyDefinitions.Create(
                     EnemyArchetype.Melee);
 
-            float waveFour = definition.CalculateMaxHealth(4, 4);
-            float waveFive = definition.CalculateMaxHealth(4, 5);
-            float waveSeven = definition.CalculateMaxHealth(5, 7);
-            float waveEight = definition.CalculateMaxHealth(6, 8);
+            int waveFour = definition.CalculateMaxHealth(4, 4);
+            int waveFive = definition.CalculateMaxHealth(4, 5);
+            int waveSeven = definition.CalculateMaxHealth(5, 7);
+            int waveEight = definition.CalculateMaxHealth(6, 8);
 
-            Assert.That(
-                waveFive / waveFour,
-                Is.EqualTo(1.2f).Within(0.001f));
-            Assert.That(waveSeven, Is.GreaterThan(waveFive));
-            Assert.That(
-                waveSeven / waveFive,
-                Is.LessThan(1.15f));
-            Assert.That(
-                waveEight / waveSeven,
-                Is.GreaterThan(1.25f));
+            Assert.That(waveFour, Is.EqualTo(5));
+            Assert.That(waveFive, Is.EqualTo(6));
+            Assert.That(waveSeven, Is.EqualTo(7));
+            Assert.That(waveEight, Is.EqualTo(9));
         }
 
         [TestCase(0, 1f)]
@@ -491,12 +483,27 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expected));
         }
 
-        private static float PlayerAttack(int level)
+        [TestCase(0f, 0)]
+        [TestCase(-0.1f, 0)]
+        [TestCase(0.35f, 1)]
+        [TestCase(1.77f, 2)]
+        [TestCase(2.5f, 3)]
+        public void RoundDamage_UsesConventionalWholeNumbers(
+            float rawDamage,
+            int expected)
         {
-            return ProgressionCurve.CalculateAdditiveStat(
-                1f,
-                0.65f,
-                level);
+            Assert.That(
+                CombatResolver.RoundDamage(rawDamage),
+                Is.EqualTo(expected));
+        }
+
+        private static int PlayerAttack(int level)
+        {
+            return ProgressionCurve.RoundPositiveStat(
+                ProgressionCurve.CalculateAdditiveStat(
+                    1f,
+                    0.65f,
+                    level));
         }
     }
 }

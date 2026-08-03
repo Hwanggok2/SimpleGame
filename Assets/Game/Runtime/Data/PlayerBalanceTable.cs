@@ -67,12 +67,13 @@ namespace SimpleGame
         public float BaseCriticalChance => baseCriticalChance;
         public bool Enabled => enabled;
 
-        public float CalculateAttackPower(int level)
+        public int CalculateAttackPower(int level)
         {
-            return ProgressionCurve.CalculateAdditiveStat(
-                baseAttackPower,
-                attackGrowthRate,
-                level);
+            return ProgressionCurve.RoundPositiveStat(
+                ProgressionCurve.CalculateAdditiveStat(
+                    baseAttackPower,
+                    attackGrowthRate,
+                    level));
         }
     }
 

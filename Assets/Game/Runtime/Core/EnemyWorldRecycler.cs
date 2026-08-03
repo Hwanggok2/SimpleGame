@@ -52,11 +52,12 @@ namespace SimpleGame
             }
         }
 
-        public static float CalculateContinueDamage(
-            float currentHealth)
+        public static int CalculateContinueDamage(
+            int currentHealth)
         {
-            return Mathf.Max(0f, currentHealth) *
-                ContinueDamageFraction;
+            return CombatResolver.RoundDamage(
+                Mathf.Max(0, currentHealth) *
+                ContinueDamageFraction);
         }
 
         private void Update()

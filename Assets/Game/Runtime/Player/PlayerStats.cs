@@ -38,11 +38,11 @@ namespace SimpleGame
             attackRangeBonus = 0f;
         }
 
-        public float GetAttackPower(int playerLevel)
+        public int GetAttackPower(int playerLevel)
         {
             return definition != null
                 ? definition.CalculateAttackPower(playerLevel)
-                : 1f;
+                : 1;
         }
 
         public void AddMoveSpeed(float amount)

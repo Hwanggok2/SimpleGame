@@ -35,6 +35,8 @@ namespace SimpleGameEditor
             PrefabRootPath + "/MovingSlash.prefab";
         public const string FilthProjectilePrefabPath =
             PrefabRootPath + "/FilthProjectile.prefab";
+        public const string RangedArrowPrefabPath =
+            PrefabRootPath + "/RangedArrow.prefab";
         public const string DamagePopupPrefabPath =
             PrefabRootPath + "/DamagePopup.prefab";
         public const string HealthPickupPrefabPath =
@@ -76,6 +78,10 @@ namespace SimpleGameEditor
         private const string MovingSlashSpritePath =
             SourceAssetRootPath +
             "/Effects/MovingSlash_Crescent_6f.png";
+        private const string SeverSpritePath =
+            "Assets/Image/Skill/Cutting.png";
+        private const string RangedArrowSpritePath =
+            "Assets/Image/UI/Arrow.png";
         private const string SpriteBindingPath = "Visual/Sprite";
 
         [MenuItem("SimpleGame/Build Character Assets %#g")]
@@ -257,6 +263,8 @@ namespace SimpleGameEditor
                 BuildMovingSlashPrefab();
             FilthProjectile filthProjectilePrefab =
                 BuildFilthProjectilePrefab();
+            RangedArrowProjectile rangedArrowPrefab =
+                BuildRangedArrowPrefab();
             BuildDamagePopupPrefab();
             BuildHealthPickupPrefab();
             BuildPoisonCloudPrefab();
@@ -274,7 +282,8 @@ namespace SimpleGameEditor
                 EnemyArchetype.Ranged,
                 goblinController,
                 goblinIdle[0],
-                RangedPrefabPath);
+                RangedPrefabPath,
+                rangedArrowPrefab);
             BuildEnemyPrefab(
                 EnemyArchetype.Shield,
                 skeletonController,
@@ -1043,17 +1052,14 @@ namespace SimpleGameEditor
             SpriteRenderer cutting = CreateSpriteVisual(
                 root.transform,
                 "cutting",
-                new Color(
-                    0.06918234f,
-                    0.06918234f,
-                    0.06918234f,
-                    1f),
-                new Vector2(0.038196404f, 6.480458f),
+                Color.white,
+                Vector2.one,
                 100);
-            cutting.transform.localPosition =
-                new Vector3(-5.25f, 7.03f, -0.15f);
-            cutting.transform.localRotation =
-                Quaternion.Euler(-0.89f, -0.53f, 49.59f);
+            cutting.sprite = LoadSprites(SeverSpritePath)[0];
+            cutting.drawMode = SpriteDrawMode.Sliced;
+            cutting.size = new Vector2(1f, 0.9f);
+            cutting.transform.localPosition = Vector3.zero;
+            cutting.transform.localRotation = Quaternion.identity;
             cutting.gameObject.SetActive(false);
             combatAbilities.ConfigureSeverVisual(cutting);
             combatAbilities.ConfigureMovingSlashPrefab(
@@ -1218,7 +1224,8 @@ namespace SimpleGameEditor
             EnemyArchetype archetype,
             RuntimeAnimatorController controller,
             Sprite idleSprite,
-            string path)
+            string path,
+            RangedArrowProjectile rangedArrowPrefab = null)
         {
             var root = new GameObject($"{archetype}Enemy");
             root.AddComponent<EnemyHealth>();
@@ -1307,6 +1314,21 @@ namespace SimpleGameEditor
             EnemyAttackModule attack = root.GetComponent<EnemyAttackModule>();
             if (attack != null)
             {
+                SpriteRenderer rangedAttackRange = null;
+                if (archetype == EnemyArchetype.Ranged)
+                {
+                    float range = PrototypeEnemyDefinitions
+                        .Create(archetype)
+                        .AttackRange;
+                    rangedAttackRange = CreateSpriteVisual(
+                        root.transform,
+                        "RangedAttackRange",
+                        new Color(1f, 0.16f, 0.08f, 0.2f),
+                        Vector2.one * range * 2f,
+                        4);
+                    rangedAttackRange.sprite = LoadAimEllipseSprite();
+                }
+
                 SpriteRenderer warning = CreateSpriteVisual(
                     root.transform,
                     "AttackWarning",
@@ -1315,6 +1337,11 @@ namespace SimpleGameEditor
                     5);
                 warning.enabled = false;
                 attack.ConfigureIndicator(warning);
+                if (archetype == EnemyArchetype.Ranged)
+                {
+                    attack.ConfigureRangedAttackRange(rangedAttackRange);
+                    attack.ConfigureProjectile(rangedArrowPrefab);
+                }
             }
 
             BossAttackModule bossAttack = root.GetComponent<BossAttackModule>();
@@ -1333,6 +1360,29 @@ namespace SimpleGameEditor
 
             PrefabUtility.SaveAsPrefabAsset(root, path);
             UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        private static RangedArrowProjectile BuildRangedArrowPrefab()
+        {
+            Sprite arrowSprite = AssetDatabase.LoadAssetAtPath<Sprite>(
+                RangedArrowSpritePath);
+            if (arrowSprite == null)
+            {
+                throw new InvalidOperationException(
+                    $"Missing ranged arrow sprite: {RangedArrowSpritePath}");
+            }
+
+            var root = new GameObject("RangedArrow");
+            SpriteRenderer renderer = root.AddComponent<SpriteRenderer>();
+            renderer.sprite = arrowSprite;
+            renderer.sortingOrder = 35;
+            root.transform.localScale = new Vector3(0.22f, 0.22f, 1f);
+            root.AddComponent<RangedArrowProjectile>();
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(
+                root,
+                RangedArrowPrefabPath);
+            UnityEngine.Object.DestroyImmediate(root);
+            return prefab.GetComponent<RangedArrowProjectile>();
         }
 
         private static void BuildHealthPickupPrefab()

@@ -24,30 +24,17 @@ namespace SimpleGame
                 movingSlashDamageMultiplier);
         }
 
-        public void TryScheduleSeverForCompletedMovementPierce(
-            Vector2 piercingStartPosition,
-            float piercingStartedAt)
+        public void TryTriggerSeverForCompletedMovementPierce(
+            Vector2 piercingStartPosition)
         {
-            if (owner == null || !HasSever || !TryReserveSever())
+            if (owner == null ||
+                !HasSever ||
+                !TryReserveSever())
             {
                 return;
             }
 
-            StartCoroutine(SpawnSeverAfterDelay(
-                piercingStartPosition,
-                CalculateRemainingSeverDelay(
-                    piercingStartedAt,
-                    Time.time)));
-        }
-
-        public static float CalculateRemainingSeverDelay(
-            float piercingStartedAt,
-            float piercingCompletedAt)
-        {
-            float elapsed = Mathf.Max(
-                0f,
-                piercingCompletedAt - piercingStartedAt);
-            return Mathf.Max(0f, SeverDelay - elapsed);
+            TriggerSever(piercingStartPosition);
         }
 
         public static int CalculateStaticAdjacentTargetCount(int level)
@@ -303,16 +290,6 @@ namespace SimpleGame
             return currentTime >= nextAvailableTime;
         }
 
-        public static bool CanTriggerSever(
-            bool hasSever,
-            bool piercingAllowed,
-            bool primaryDamaged)
-        {
-            return hasSever &&
-                piercingAllowed &&
-                primaryDamaged;
-        }
-
         public bool RollShieldBypass()
         {
             return shieldBypassLevel > 0 &&
@@ -320,4 +297,3 @@ namespace SimpleGame
         }
     }
 }
-
