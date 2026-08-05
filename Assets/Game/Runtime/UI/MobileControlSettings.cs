@@ -25,7 +25,7 @@ namespace SimpleGame
         {
             version = MobileControlSettingsStore.CurrentVersion,
             controlsEnabled = true,
-            autoAttackEnabled = false,
+            autoAttackEnabled = true,
             controlMode = MobileControlMode.DirectMoveAutoAim,
             joystickScale = 1f,
             joystickPosition = new Vector2(0.05f, 0.11f),
