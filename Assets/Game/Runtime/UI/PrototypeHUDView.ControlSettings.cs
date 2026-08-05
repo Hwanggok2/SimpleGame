@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace SimpleGame
 {
@@ -20,45 +19,6 @@ namespace SimpleGame
                 attackButton.gameObject.SetActive(enabled);
             }
 
-        }
-
-        private void BindControlSettingSliders()
-        {
-            ConfigureControlSlider(
-                joystickSizeSlider,
-                MobileControlSettingsStore.MinimumScale,
-                MobileControlSettingsStore.MaximumScale,
-                OnJoystickSizeChanged);
-            ConfigureControlSlider(
-                attackSizeSlider,
-                MobileControlSettingsStore.MinimumScale,
-                MobileControlSettingsStore.MaximumScale,
-                OnAttackSizeChanged);
-        }
-
-        private static void ConfigureControlSlider(
-            Slider slider,
-            float minimum,
-            float maximum,
-            UnityEngine.Events.UnityAction<float> callback)
-        {
-            slider.minValue = minimum;
-            slider.maxValue = maximum;
-            slider.wholeNumbers = false;
-            slider.onValueChanged.RemoveAllListeners();
-            slider.onValueChanged.AddListener(callback);
-        }
-
-        private void ToggleControlSettingsPage()
-        {
-            if (editingControlSettings)
-            {
-                CloseControlSettingsPage();
-            }
-            else
-            {
-                OpenControlSettingsPage();
-            }
         }
 
         private void OpenControlSettingsPage()
@@ -132,32 +92,14 @@ namespace SimpleGame
 
         private void SetControlSettingsPageVisible(bool visible)
         {
-            settingsPage?.SetActive(!visible);
-            controlSettingsPanel?.SetActive(visible);
-            if (settingsButton != null)
-            {
-                settingsButton.interactable = !visible;
-            }
-
-            if (settingsButtonGroup != null)
-            {
-                settingsButtonGroup.alpha = visible ? 0.35f : 1f;
-                settingsButtonGroup.interactable = !visible;
-                settingsButtonGroup.blocksRaycasts = !visible;
-            }
-
-            controlDragSurface?.SetDragEnabled(
+            pauseDetailsPanel?.SetControlSettingsVisible(visible);
+            controlSettingsPanel?.SetDragEnabled(
                 visible && pendingControlSettings.controlsEnabled);
         }
 
         private void SynchronizeControlSettingsUi()
         {
-            joystickSizeSlider?.SetValueWithoutNotify(
-                pendingControlSettings.joystickScale);
-            attackSizeSlider?.SetValueWithoutNotify(
-                pendingControlSettings.attackScale);
-            autoAttackToggle?.SetIsOnWithoutNotify(
-                pendingControlSettings.autoAttackEnabled);
+            controlSettingsPanel?.SetValues(pendingControlSettings);
             RefreshControlSettingLabels();
             ApplyControlModePresentation(
                 pendingControlSettings.controlMode);
@@ -204,106 +146,52 @@ namespace SimpleGame
                 pendingControlSettings.controlMode);
             ApplyCommandControlsVisibility(
                 pendingControlSettings.controlsEnabled);
-            controlDragSurface?.SetDragEnabled(
+            controlSettingsPanel?.SetDragEnabled(
                 editingControlSettings &&
                 pendingControlSettings.controlsEnabled);
         }
 
         private void RefreshControlSettingLabels()
         {
-            SetControlSettingLabel(
-                joystickSizeSlider,
-                pendingControlSettings.joystickScale);
-            SetControlSettingLabel(
-                attackSizeSlider,
-                pendingControlSettings.attackScale);
-            RefreshControlModeButtons();
+            controlSettingsPanel?.SetValues(pendingControlSettings);
             RefreshAutoAttackSwitch();
-        }
-
-        private static void SetControlSettingLabel(
-            Slider slider,
-            float value)
-        {
-            if (slider == null)
-            {
-                return;
-            }
-
-            Transform valueTransform = slider.transform.Find("Value");
-            TMP_Text label = valueTransform != null
-                ? valueTransform.GetComponent<TMP_Text>()
-                : null;
-            if (label != null)
-            {
-                label.text = $"{Mathf.RoundToInt(value * 100f)}%";
-            }
-        }
-
-        private void RefreshControlModeButtons()
-        {
-            bool hidden = !pendingControlSettings.controlsEnabled;
-            SetControlModeButtonSelected(
-                modeOneButton,
-                !hidden && pendingControlSettings.controlMode ==
-                    MobileControlMode.DirectMoveAutoAim);
-            SetControlModeButtonSelected(
-                modeTwoButton,
-                !hidden && pendingControlSettings.controlMode ==
-                    MobileControlMode.AimCommand);
-            SetControlModeButtonSelected(hiddenModeButton, hidden);
-        }
-
-        private static void SetControlModeButtonSelected(
-            Button button,
-            bool selected)
-        {
-            Image image = button != null
-                ? button.GetComponent<Image>()
-                : null;
-            if (image != null)
-            {
-                image.color = selected
-                    ? new Color(0.16f, 0.56f, 0.92f, 0.98f)
-                    : new Color(0.23f, 0.27f, 0.31f, 0.94f);
-            }
         }
 
         private void RefreshAutoAttackSwitch()
         {
-            if (autoAttackToggle == null)
+            if (controlSettingsPanel == null)
             {
                 return;
             }
 
             bool enabled = pendingControlSettings.autoAttackEnabled;
-            autoAttackToggle.SetIsOnWithoutNotify(enabled);
-            if (autoAttackTrack != null)
-            {
-                autoAttackTrack.color = enabled
-                    ? new Color(0.16f, 0.56f, 0.92f, 1f)
-                    : new Color(0.34f, 0.36f, 0.39f, 1f);
-            }
+            controlSettingsPanel.SetAutoAttackPresentation(enabled);
+            controlSettingsPanel.SetAutoAttackValueText(enabled
+                ? Text(GameStringIds.UiAutoAttackOn, "On")
+                : Text(GameStringIds.UiAutoAttackOff, "Off"));
+        }
 
-            if (autoAttackKnob != null)
+        private void OnControlSettingsActionRequested(
+            ControlSettingsAction action)
+        {
+            switch (action)
             {
-                Vector2 position = autoAttackKnob.anchoredPosition;
-                position.x = enabled ? 32f : -32f;
-                autoAttackKnob.anchoredPosition = position;
-            }
-
-            if (autoAttackKnobImage != null)
-            {
-                autoAttackKnobImage.color = enabled
-                    ? new Color(0.52f, 0.78f, 1f, 1f)
-                    : new Color(0.62f, 0.63f, 0.65f, 1f);
-            }
-
-            if (autoAttackValueLabel != null)
-            {
-                autoAttackValueLabel.text = enabled
-                    ? Text(GameStringIds.UiAutoAttackOn, "On")
-                    : Text(GameStringIds.UiAutoAttackOff, "Off");
+                case ControlSettingsAction.RestoreDefaults:
+                    RestoreDefaultControlSettings();
+                    break;
+                case ControlSettingsAction.Apply:
+                    ApplyPendingControlSettings();
+                    break;
+                case ControlSettingsAction.ModeOne:
+                    SelectControlMode(
+                        MobileControlMode.DirectMoveAutoAim);
+                    break;
+                case ControlSettingsAction.ModeTwo:
+                    SelectControlMode(MobileControlMode.AimCommand);
+                    break;
+                case ControlSettingsAction.Hidden:
+                    SelectHiddenControlMode();
+                    break;
             }
         }
 

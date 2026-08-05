@@ -108,6 +108,34 @@ namespace SimpleGame.Tests
             }
         }
 
+        [Test]
+        public void GameManager_OwnsAudioWithoutFramePolling()
+        {
+            var managerObject = new GameObject("TestManager");
+            try
+            {
+                GameManager manager =
+                    managerObject.AddComponent<GameManager>();
+
+                Assert.That(GameManager.RootName, Is.EqualTo("Manager"));
+                Assert.That(manager.UiAudioSource, Is.Not.Null);
+                Assert.That(
+                    manager.UiAudioSource.playOnAwake,
+                    Is.False);
+                Assert.That(
+                    typeof(GameManager).GetMethod(
+                        "Update",
+                        BindingFlags.Instance |
+                        BindingFlags.Public |
+                        BindingFlags.NonPublic),
+                    Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(managerObject);
+            }
+        }
+
         private static GameObject CreateButton(string name)
         {
             return new GameObject(

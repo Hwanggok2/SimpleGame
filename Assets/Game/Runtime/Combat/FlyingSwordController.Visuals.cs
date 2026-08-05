@@ -150,24 +150,10 @@ namespace SimpleGame
 
             if (showReadyIndicators)
             {
-                Transform readyRoot = owner != null
-                    ? owner.transform.Find("Visual")
-                    : null;
                 for (int index = 0;
                      index < readySwordVisuals.Length;
                      index++)
                 {
-                    if (readySwordVisuals[index] == null &&
-                        readyRoot != null)
-                    {
-                        Transform candidate = readyRoot.Find(
-                            $"Flying_Sword{index + 1}");
-                        readySwordVisuals[index] =
-                            candidate != null
-                                ? candidate.GetComponent<SpriteRenderer>()
-                                : null;
-                    }
-
                     SpriteRenderer readyRenderer =
                         readySwordVisuals[index];
                     if (readyRenderer != null)
@@ -178,17 +164,6 @@ namespace SimpleGame
                         readyRenderer.gameObject.SetActive(false);
                     }
                 }
-            }
-
-            if (attackVisualTemplate == null &&
-                owner != null)
-            {
-                Transform candidate = owner.transform.Find(
-                    "Flying_Sword_Attack");
-                attackVisualTemplate =
-                    candidate != null
-                        ? candidate.GetComponent<SpriteRenderer>()
-                        : null;
             }
 
             if (attackVisualTemplate != null)
@@ -365,4 +340,3 @@ namespace SimpleGame
         }
     }
 }
-

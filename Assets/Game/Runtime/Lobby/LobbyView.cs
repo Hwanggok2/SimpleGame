@@ -1,13 +1,12 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace SimpleGame
 {
     public sealed class LobbyView : MonoBehaviour
     {
-        public const string BattleSceneName = "Battle";
+        public const string BattleSceneName = GameManager.BattleSceneName;
 
         [Header("Data")]
         [SerializeField] private GameDataManifest gameData;
@@ -87,9 +86,19 @@ namespace SimpleGame
             settingsView = configuredSettingsView;
         }
 
+        private void Awake()
+        {
+            GameManager.RegisterLobby(this);
+        }
+
         private void Start()
         {
             Initialize();
+        }
+
+        private void OnDestroy()
+        {
+            GameManager.UnregisterLobby(this);
         }
 
         public void Initialize()
@@ -151,7 +160,7 @@ namespace SimpleGame
                 return;
             }
 
-            SceneManager.LoadScene(BattleSceneName);
+            GameManager.Instance.LoadBattle();
         }
 
         private void ConfigureNavigationButtons()

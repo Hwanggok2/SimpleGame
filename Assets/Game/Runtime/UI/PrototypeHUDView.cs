@@ -15,6 +15,7 @@ namespace SimpleGame
         CardReroll1,
         CardReroll2,
         Settings,
+        ControlSettings,
         ContinueAd,
         Attack,
         DifficultyEasy,
@@ -40,6 +41,8 @@ namespace SimpleGame
         [SerializeField] private Slider experienceSlider;
         [SerializeField] private TMP_Text experienceLabel;
         [SerializeField] private Button settingsButton;
+        [SerializeField] private Button controlSettingsButton;
+        [SerializeField] private TMP_Text controlSettingsButtonLabel;
         [SerializeField] private Button attackButton;
         [SerializeField] private AimJoystickControl aimJoystick;
         [Header("Transient UI")]
@@ -56,42 +59,12 @@ namespace SimpleGame
         private readonly Button[] cardRerollButtons = new Button[3];
         private readonly LevelUpCardView[] cardChoiceViews =
             new LevelUpCardView[3];
-        private GameObject cardSelectionPanel;
-        private GameObject pauseDetailsPanel;
-        private GameObject settingsPage;
-        private TMP_Text playerOverviewLabel;
-        private TMP_Text accountOverviewLabel;
-        private TMP_Text playerStatsLabel;
-        private TMP_Text acquiredSkillsLabel;
-        private Toggle autoAttackToggle;
-        private Image autoAttackTrack;
-        private RectTransform autoAttackKnob;
-        private Image autoAttackKnobImage;
-        private TMP_Text autoAttackValueLabel;
-        private Button controlSettingsButton;
-        private GameObject controlSettingsPanel;
-        private CanvasGroup settingsButtonGroup;
-        private Slider joystickSizeSlider;
-        private Slider attackSizeSlider;
-        private Button modeOneButton;
-        private Button modeTwoButton;
-        private Button hiddenModeButton;
-        private ControlLayoutDragSurface controlDragSurface;
-        private GameObject gameOverPanel;
-        private GameObject difficultySelectionPanel;
-        private Button difficultyEasyButton;
-        private Button difficultyNormalButton;
-        private Button difficultyHardButton;
-        private TMP_Text gameOverTitle;
-        private Button continueButton;
-        private Button resultRetryButton;
-        private Button resultLobbyButton;
-        private Button pauseRetryButton;
-        private Button pauseLobbyButton;
-        private GameObject confirmationDialog;
-        private TMP_Text confirmationMessage;
-        private Button confirmationConfirmButton;
-        private Button confirmationCancelButton;
+        private CardSelectionPanelView cardSelectionPanel;
+        private PauseDetailsPanelView pauseDetailsPanel;
+        private ControlSettingsPanelView controlSettingsPanel;
+        private ResultPanelView gameOverPanel;
+        private DifficultySelectionPanelView difficultySelectionPanel;
+        private ConfirmationDialogView confirmationDialog;
         private HudButtonId pendingConfirmationAction = HudButtonId.Count;
         private bool cardChoicesInteractable;
         private bool hasCardRerollAlternative;
@@ -123,11 +96,13 @@ namespace SimpleGame
         public GameObject ConfirmationDialogPrefab =>
             confirmationDialogPrefab;
         public Button SettingsButton => settingsButton;
+        public Button ControlSettingsButton => controlSettingsButton;
         public Button AttackButton => attackButton;
         public AimJoystickControl AimJoystick => aimJoystick;
         public bool CommandControlsEnabled =>
             commandControlsEnabled;
         public MobileControlSettings ControlSettings => controlSettings;
+        public bool IsControlSettingsVisible => editingControlSettings;
 
         public void Configure(
             TMP_Text configuredTimeLabel,
@@ -135,6 +110,8 @@ namespace SimpleGame
             Slider configuredExperienceSlider,
             TMP_Text configuredExperienceLabel,
             Button configuredSettingsButton,
+            Button configuredControlSettingsButton,
+            TMP_Text configuredControlSettingsButtonLabel,
             Button configuredAttackButton,
             AimJoystickControl configuredAimJoystick,
             Transform configuredModalRoot,
@@ -149,6 +126,9 @@ namespace SimpleGame
             experienceSlider = configuredExperienceSlider;
             experienceLabel = configuredExperienceLabel;
             settingsButton = configuredSettingsButton;
+            controlSettingsButton = configuredControlSettingsButton;
+            controlSettingsButtonLabel =
+                configuredControlSettingsButtonLabel;
             attackButton = configuredAttackButton;
             aimJoystick = configuredAimJoystick;
             modalRoot = configuredModalRoot;
@@ -184,6 +164,12 @@ namespace SimpleGame
             if (settingsButton != null)
             {
                 settingsButton.transform.SetAsLastSibling();
+            }
+
+            if (controlSettingsButton != null)
+            {
+                controlSettingsButton.transform.SetAsLastSibling();
+                controlSettingsButton.gameObject.SetActive(true);
             }
 
             CaptureControlBaseSizes();
@@ -229,7 +215,6 @@ namespace SimpleGame
             pendingControlSettings.autoAttackEnabled = enabled;
             MobileControlSettingsStore.Save(controlSettings);
             aimControlsPlayer?.SetAutoAttackEnabled(enabled);
-            autoAttackToggle?.SetIsOnWithoutNotify(enabled);
             RefreshAutoAttackSwitch();
         }
 
@@ -268,7 +253,7 @@ namespace SimpleGame
 
             if (cardSelectionPanel != null)
             {
-                cardSelectionPanel.SetActive(visible);
+                cardSelectionPanel.gameObject.SetActive(visible);
             }
         }
 
@@ -281,7 +266,7 @@ namespace SimpleGame
 
             if (difficultySelectionPanel != null)
             {
-                difficultySelectionPanel.SetActive(visible);
+                difficultySelectionPanel.gameObject.SetActive(visible);
                 if (visible)
                 {
                     difficultySelectionPanel.transform.SetAsLastSibling();
@@ -347,27 +332,20 @@ namespace SimpleGame
             if (visible)
             {
                 EnsureGameOverPanel();
-                continueButton?.gameObject.SetActive(true);
-                SetResultNavigationPositions(0f, 260f);
-                if (gameOverTitle != null)
-                {
-                    gameOverTitle.text = gameOverDetails;
-                }
+                gameOverPanel?.SetClearMode(false);
+                gameOverPanel?.SetSummary(gameOverDetails);
             }
 
             if (gameOverPanel != null)
             {
-                gameOverPanel.SetActive(visible);
+                gameOverPanel.gameObject.SetActive(visible);
             }
         }
 
         public void SetGameOverDetails(string value)
         {
             gameOverDetails = value;
-            if (gameOverTitle != null)
-            {
-                gameOverTitle.text = value;
-            }
+            gameOverPanel?.SetSummary(value);
         }
 
         public void SetExperience(int current, int required)
@@ -396,38 +374,13 @@ namespace SimpleGame
             if (visible)
             {
                 EnsureGameOverPanel();
-                continueButton?.gameObject.SetActive(false);
-                SetResultNavigationPositions(-140f, 140f);
-                if (gameOverTitle != null)
-                {
-                    gameOverTitle.text = gameOverDetails;
-                }
+                gameOverPanel?.SetClearMode(true);
+                gameOverPanel?.SetSummary(gameOverDetails);
             }
 
             if (gameOverPanel != null)
             {
-                gameOverPanel.SetActive(visible);
-            }
-        }
-
-        private void SetResultNavigationPositions(
-            float retryX,
-            float lobbyX)
-        {
-            if (resultRetryButton != null)
-            {
-                RectTransform rect = resultRetryButton.GetComponent<RectTransform>();
-                rect.anchoredPosition = new Vector2(
-                    retryX,
-                    rect.anchoredPosition.y);
-            }
-
-            if (resultLobbyButton != null)
-            {
-                RectTransform rect = resultLobbyButton.GetComponent<RectTransform>();
-                rect.anchoredPosition = new Vector2(
-                    lobbyX,
-                    rect.anchoredPosition.y);
+                gameOverPanel.gameObject.SetActive(visible);
             }
         }
 
@@ -463,12 +416,31 @@ namespace SimpleGame
             ApplyPauseDetails();
         }
 
+        public void ShowControlSettings()
+        {
+            EnsurePauseDetailsPanel();
+            if (pauseDetailsPanel == null ||
+                !pauseDetailsPanel.gameObject.activeSelf)
+            {
+                return;
+            }
+
+            OpenControlSettingsPage();
+        }
+
+        public void ShowPauseSettings()
+        {
+            if (editingControlSettings)
+            {
+                CloseControlSettingsPage();
+            }
+        }
+
         public void ShowPauseDetails(bool visible)
         {
             if (visible)
             {
                 EnsurePauseDetailsPanel();
-                BindControlSettingsNavigation();
                 pendingControlSettings = controlSettings;
                 editingControlSettings = false;
                 ApplyPauseDetails();
@@ -482,12 +454,13 @@ namespace SimpleGame
 
             if (pauseDetailsPanel != null)
             {
-                pauseDetailsPanel.SetActive(visible);
+                pauseDetailsPanel.gameObject.SetActive(visible);
                 if (visible)
                 {
                     pauseDetailsPanel.transform.SetAsLastSibling();
                 }
             }
+
         }
 
         private void ValidateConfiguration()
@@ -497,6 +470,8 @@ namespace SimpleGame
                 experienceSlider == null ||
                 experienceLabel == null ||
                 settingsButton == null ||
+                controlSettingsButton == null ||
+                controlSettingsButtonLabel == null ||
                 attackButton == null ||
                 attackButton.GetComponent<AttackCommandButton>() == null ||
                 aimJoystick == null ||

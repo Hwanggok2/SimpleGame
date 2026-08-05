@@ -1243,11 +1243,36 @@ namespace SimpleGame.Tests
             Assert.That(hud.transform.Find("ModalRoot"), Is.Not.Null);
             Transform settings = hud.transform.Find(
                 HudButtonId.Settings.ToString());
+            Transform controlSettingsButton =
+                hud.transform.Find("ControlSettingsButton");
             Assert.That(settings, Is.Not.Null);
             Assert.That(settings.GetComponent<Button>(), Is.Not.Null);
+            Assert.That(controlSettingsButton, Is.Not.Null);
+            Assert.That(
+                controlSettingsButton.GetComponent<Button>(),
+                Is.Not.Null);
+            Assert.That(controlSettingsButton.gameObject.activeSelf, Is.True);
             Assert.That(
                 settings.GetSiblingIndex(),
+                Is.EqualTo(hud.transform.childCount - 2));
+            Assert.That(
+                controlSettingsButton.GetSiblingIndex(),
                 Is.EqualTo(hud.transform.childCount - 1));
+            RectTransform settingsRect =
+                settings.GetComponent<RectTransform>();
+            RectTransform controlSettingsRect =
+                controlSettingsButton.GetComponent<RectTransform>();
+            Assert.That(
+                controlSettingsRect.anchoredPosition.x,
+                Is.EqualTo(settingsRect.anchoredPosition.x)
+                    .Within(0.001f));
+            Assert.That(
+                controlSettingsRect.anchoredPosition.y,
+                Is.EqualTo(
+                        settingsRect.anchoredPosition.y -
+                        settingsRect.sizeDelta.y -
+                        8f)
+                    .Within(0.001f));
             Assert.That(hud.transform.Find("DebugButtons"), Is.Null);
             Assert.That(
                 hud.transform.Find("CardSelectionPanel"),
@@ -1261,6 +1286,9 @@ namespace SimpleGame.Tests
             Assert.That(
                 view.SettingsButton,
                 Is.EqualTo(settings.GetComponent<Button>()));
+            Assert.That(
+                view.ControlSettingsButton,
+                Is.EqualTo(controlSettingsButton.GetComponent<Button>()));
             Assert.That(
                 view.AimJoystick,
                 Is.EqualTo(
@@ -1326,6 +1354,26 @@ namespace SimpleGame.Tests
                 cardSelection.GetComponentsInChildren<
                     LevelUpCardView>(true).Length,
                 Is.EqualTo(3));
+            Assert.That(
+                cardSelection.GetComponent<CardSelectionPanelView>()
+                    ?.IsConfigured,
+                Is.True);
+            Assert.That(
+                pause.GetComponent<PauseDetailsPanelView>()
+                    ?.IsConfigured,
+                Is.True);
+            Assert.That(
+                gameOver.GetComponent<ResultPanelView>()
+                    ?.IsConfigured,
+                Is.True);
+            Assert.That(
+                difficulty.GetComponent<
+                    DifficultySelectionPanelView>()?.IsConfigured,
+                Is.True);
+            Assert.That(
+                confirmation.GetComponent<ConfirmationDialogView>()
+                    ?.IsConfigured,
+                Is.True);
             foreach (LevelUpCardView cardView in
                      cardSelection.GetComponentsInChildren<
                          LevelUpCardView>(true))
@@ -1369,15 +1417,16 @@ namespace SimpleGame.Tests
             Assert.That(
                 accountOverview.alignment,
                 Is.EqualTo(TextAlignmentOptions.TopRight));
-            Transform controlSettingsButton =
-                pause.transform.Find("ControlSettingsButton");
             Transform controlSettingsPanel =
                 pause.transform.Find("ControlSettingsPanel");
-            Assert.That(controlSettingsButton, Is.Not.Null);
             Assert.That(
-                controlSettingsButton.GetComponent<Button>(),
-                Is.Not.Null);
+                pause.transform.Find("ControlSettingsButton"),
+                Is.Null);
             Assert.That(controlSettingsPanel, Is.Not.Null);
+            Assert.That(
+                controlSettingsPanel.GetComponent<
+                    ControlSettingsPanelView>()?.IsConfigured,
+                Is.True);
             Assert.That(controlSettingsPanel.gameObject.activeSelf, Is.False);
             Assert.That(
                 controlSettingsPanel.GetComponent<Image>().color.a,
@@ -1525,12 +1574,20 @@ namespace SimpleGame.Tests
                 PrototypeHUDView view =
                     hud.GetComponent<PrototypeHUDView>();
                 int settingsClicks = 0;
+                int controlSettingsClicks = 0;
                 int rerollClicks = 0;
                 int attackPresses = 0;
                 view.Initialize();
                 view.Bind(
                     HudButtonId.Settings,
                     () => settingsClicks++);
+                view.Bind(
+                    HudButtonId.ControlSettings,
+                    () =>
+                    {
+                        controlSettingsClicks++;
+                        view.ShowControlSettings();
+                    });
                 view.Bind(
                     HudButtonId.CardReroll0,
                     () => rerollClicks++);
@@ -1547,12 +1604,17 @@ namespace SimpleGame.Tests
                 Transform settingsPage =
                     pauseRoot.Find("SettingsPage");
                 Transform controlSettingsButton =
-                    pauseRoot.Find("ControlSettingsButton");
+                    hud.transform.Find("ControlSettingsButton");
                 Transform controlSettingsPanel =
                     pauseRoot.Find("ControlSettingsPanel");
+                Assert.That(controlSettingsButton, Is.Not.Null);
+                Assert.That(controlSettingsButton.gameObject.activeSelf, Is.True);
                 Assert.That(
                     controlSettingsButton.GetSiblingIndex(),
-                    Is.EqualTo(pauseRoot.childCount - 1));
+                    Is.EqualTo(hud.transform.childCount - 1));
+                Assert.That(
+                    pauseRoot.Find("ControlSettingsButton"),
+                    Is.Null);
                 Assert.That(settingsPage.gameObject.activeSelf, Is.True);
                 Assert.That(
                     controlSettingsPanel.gameObject.activeSelf,
@@ -1563,14 +1625,21 @@ namespace SimpleGame.Tests
                 Button controlButton =
                     controlSettingsButton.GetComponent<Button>();
                 controlButton.onClick.Invoke();
+                Assert.That(controlSettingsClicks, Is.EqualTo(1));
+                Assert.That(settingsClicks, Is.Zero);
                 Assert.That(settingsPage.gameObject.activeSelf, Is.False);
                 Assert.That(
                     controlSettingsPanel.gameObject.activeSelf,
                     Is.True);
-                Assert.That(view.SettingsButton.interactable, Is.False);
                 Assert.That(
-                    view.SettingsButton.GetComponent<CanvasGroup>().alpha,
-                    Is.EqualTo(0.35f).Within(0.001f));
+                    pauseRoot.Find(HudButtonId.Retry.ToString())
+                        .gameObject.activeSelf,
+                    Is.False);
+                Assert.That(
+                    pauseRoot.Find(HudButtonId.ReturnToLobby.ToString())
+                        .gameObject.activeSelf,
+                    Is.False);
+                Assert.That(view.SettingsButton.interactable, Is.True);
                 Assert.That(
                     view.AimJoystick.gameObject.activeSelf,
                     Is.True);
@@ -1601,7 +1670,7 @@ namespace SimpleGame.Tests
                     .GetComponent<RectTransform>();
                 TMP_Text attackButtonLabel =
                     view.AttackButton.GetComponentInChildren<TMP_Text>();
-                Assert.That(attackButtonLabel.text, Is.EqualTo("공격"));
+                Assert.That(attackButtonLabel.text, Is.EqualTo("자동 조준"));
 
                 joystickSize.value = 1.5f;
                 modeOne.onClick.Invoke();
@@ -1616,13 +1685,13 @@ namespace SimpleGame.Tests
                     Is.GreaterThan(0f));
                 Assert.That(
                     view.ControlSettings.controlMode,
-                    Is.EqualTo(MobileControlMode.AimCommand));
+                    Is.EqualTo(MobileControlMode.DirectMoveAutoAim));
                 Assert.That(view.ControlSettings.autoAttackEnabled, Is.False);
                 Assert.That(
                     MobileControlSettingsStore.Load().joystickScale,
                     Is.EqualTo(1f).Within(0.001f));
 
-                controlButton.onClick.Invoke();
+                view.ShowPauseSettings();
                 Assert.That(settingsPage.gameObject.activeSelf, Is.True);
                 Assert.That(
                     controlSettingsPanel.gameObject.activeSelf,
@@ -1631,7 +1700,7 @@ namespace SimpleGame.Tests
                 Assert.That(
                     view.AimJoystick.transform.localScale.x,
                     Is.EqualTo(1f).Within(0.001f));
-                Assert.That(attackButtonLabel.text, Is.EqualTo("공격"));
+                Assert.That(attackButtonLabel.text, Is.EqualTo("자동 조준"));
 
                 controlButton.onClick.Invoke();
                 Assert.That(
@@ -1650,7 +1719,7 @@ namespace SimpleGame.Tests
                 Assert.That(
                     view.AttackButton.gameObject.activeSelf,
                     Is.False);
-                controlButton.onClick.Invoke();
+                view.ShowPauseSettings();
                 Assert.That(
                     view.AimJoystick.gameObject.activeSelf,
                     Is.True);
@@ -1666,6 +1735,14 @@ namespace SimpleGame.Tests
                 controlSettingsPanel.Find("ControlApplyButton")
                     .GetComponent<Button>()
                     .onClick.Invoke();
+                Assert.That(
+                    pauseRoot.Find(HudButtonId.Retry.ToString())
+                        .gameObject.activeSelf,
+                    Is.True);
+                Assert.That(
+                    pauseRoot.Find(HudButtonId.ReturnToLobby.ToString())
+                        .gameObject.activeSelf,
+                    Is.True);
                 Assert.That(view.CommandControlsEnabled, Is.False);
                 Assert.That(view.ControlSettings.controlsEnabled, Is.False);
                 Assert.That(view.ControlSettings.autoAttackEnabled, Is.True);
@@ -1685,12 +1762,16 @@ namespace SimpleGame.Tests
                 controlButton.onClick.Invoke();
                 modeTwo.onClick.Invoke();
                 joystickSize.value = 0.7f;
-                controlButton.onClick.Invoke();
+                view.ShowPauseSettings();
                 view.ShowPauseDetails(false);
+                Assert.That(
+                    controlSettingsButton.gameObject.activeSelf,
+                    Is.True);
                 view.ShowPauseDetails(true);
-                controlButton = hud.transform.Find(
-                        "ModalRoot/PauseDetailsPanel/" +
-                        "ControlSettingsButton")
+                Assert.That(
+                    controlSettingsButton.gameObject.activeSelf,
+                    Is.True);
+                controlButton = hud.transform.Find("ControlSettingsButton")
                     .GetComponent<Button>();
                 controlButton.onClick.Invoke();
                 Assert.That(
@@ -1711,10 +1792,10 @@ namespace SimpleGame.Tests
                     autoAttackKnob.anchoredPosition.x,
                     Is.LessThan(0f));
                 Assert.That(
-                    modeTwo.GetComponent<Image>().color.b,
+                    modeOne.GetComponent<Image>().color.b,
                     Is.GreaterThan(
                         hidden.GetComponent<Image>().color.b));
-                controlButton.onClick.Invoke();
+                view.ShowPauseSettings();
 
                 Transform panel = hud.transform.Find(
                     "ModalRoot/CardSelectionPanel");
@@ -1759,6 +1840,92 @@ namespace SimpleGame.Tests
                 UnityEngine.Object.DestroyImmediate(hud);
                 MobileControlSettingsStore.Save(
                     originalControlSettings);
+            }
+        }
+
+        [Test]
+        public void PrototypeHudPresenter_TogglesPausePagesWithBothButtonsActive()
+        {
+            GameObject hudPrefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    PrototypeSceneBuilder.PrototypeHudPrefabPath);
+            GameObject hud = UnityEngine.Object.Instantiate(hudPrefab);
+            var sessionObject = new GameObject("TestSession");
+            try
+            {
+                PrototypeHUDView view =
+                    hud.GetComponent<PrototypeHUDView>();
+                PrototypeHUDPresenter presenter =
+                    hud.GetComponent<PrototypeHUDPresenter>();
+                PrototypeGameSession session =
+                    sessionObject.AddComponent<PrototypeGameSession>();
+                view.Initialize();
+                session.PauseVisibilityChanged += view.ShowPauseDetails;
+
+                const System.Reflection.BindingFlags flags =
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var sessionField = typeof(PrototypeHUDPresenter)
+                    .GetField("session", flags);
+                var stateField = typeof(PrototypeGameSession)
+                    .GetField("state", flags);
+                var stateBeforePauseField = typeof(PrototypeGameSession)
+                    .GetField("stateBeforePause", flags);
+                var controlRequest = typeof(PrototypeHUDPresenter)
+                    .GetMethod("OnControlSettingsRequested", flags);
+                var settingsRequest = typeof(PrototypeHUDPresenter)
+                    .GetMethod("OnSettingsRequested", flags);
+                Assert.That(sessionField, Is.Not.Null);
+                Assert.That(stateField, Is.Not.Null);
+                Assert.That(stateBeforePauseField, Is.Not.Null);
+                Assert.That(controlRequest, Is.Not.Null);
+                Assert.That(settingsRequest, Is.Not.Null);
+
+                sessionField.SetValue(presenter, session);
+                stateField.SetValue(session, GameRunState.Paused);
+                stateBeforePauseField.SetValue(
+                    session,
+                    GameRunState.Playing);
+                view.ShowPauseDetails(true);
+
+                Transform pauseRoot = hud.transform.Find(
+                    "ModalRoot/PauseDetailsPanel");
+                Transform settingsPage =
+                    pauseRoot.Find("SettingsPage");
+                Transform controlPage =
+                    pauseRoot.Find("ControlSettingsPanel");
+
+                controlRequest.Invoke(presenter, null);
+                Assert.That(session.IsPaused, Is.True);
+                Assert.That(settingsPage.gameObject.activeSelf, Is.False);
+                Assert.That(controlPage.gameObject.activeSelf, Is.True);
+                Assert.That(view.SettingsButton.interactable, Is.True);
+                Assert.That(view.ControlSettingsButton.interactable, Is.True);
+
+                settingsRequest.Invoke(presenter, null);
+                Assert.That(session.IsPaused, Is.True);
+                Assert.That(settingsPage.gameObject.activeSelf, Is.True);
+                Assert.That(controlPage.gameObject.activeSelf, Is.False);
+
+                settingsRequest.Invoke(presenter, null);
+                Assert.That(session.IsPaused, Is.False);
+                Assert.That(pauseRoot.gameObject.activeSelf, Is.False);
+
+                stateField.SetValue(session, GameRunState.Paused);
+                stateBeforePauseField.SetValue(
+                    session,
+                    GameRunState.Playing);
+                view.ShowPauseDetails(true);
+                controlRequest.Invoke(presenter, null);
+                controlRequest.Invoke(presenter, null);
+                Assert.That(session.IsPaused, Is.False);
+                Assert.That(pauseRoot.gameObject.activeSelf, Is.False);
+            }
+            finally
+            {
+                Time.timeScale = 1f;
+                UnityEngine.Object.DestroyImmediate(sessionObject);
+                UnityEngine.Object.DestroyImmediate(hud);
             }
         }
 

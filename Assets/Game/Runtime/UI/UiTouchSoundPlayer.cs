@@ -8,8 +8,6 @@ namespace SimpleGame
 {
     public sealed class UiTouchSoundPlayer : MonoBehaviour
     {
-        private static AudioSource sharedSource;
-
         [SerializeField] private AudioClip touchClip;
 
         private readonly List<RaycastResult> raycastResults = new();
@@ -55,29 +53,14 @@ namespace SimpleGame
             return selectable.GetComponent<AttackCommandButton>() == null;
         }
 
-        [RuntimeInitializeOnLoadMethod(
-            RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetSharedSource()
-        {
-            sharedSource = null;
-        }
-
         private void Awake()
         {
-            if (sharedSource == null)
+            if (!Application.isPlaying)
             {
-                var audioObject = new GameObject("UiTouchAudio");
-                sharedSource = audioObject.AddComponent<AudioSource>();
-                sharedSource.playOnAwake = false;
-                sharedSource.loop = false;
-                sharedSource.spatialBlend = 0f;
-                if (Application.isPlaying)
-                {
-                    DontDestroyOnLoad(audioObject);
-                }
+                return;
             }
 
-            source = sharedSource;
+            source = GameManager.Instance.UiAudioSource;
         }
 
         private void Update()

@@ -1,25 +1,22 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace SimpleGame
 {
     public sealed partial class PrototypeGameSession
     {
-        public const string LobbySceneName = "Lobby";
+        public const string LobbySceneName = GameManager.LobbySceneName;
         public const float ClearSlowMotionScale = 0.2f;
         public const float ClearZoomMultiplier = 0.65f;
 
         public void RestartRun()
         {
-            Time.timeScale = 1f;
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            GameManager.Instance.RestartBattle();
         }
 
         public void ReturnToLobby()
         {
-            Time.timeScale = 1f;
-            SceneManager.LoadScene(LobbySceneName);
+            GameManager.Instance.LoadLobby();
         }
 
         private void BeginClear(Vector2 defeatedBossPosition)

@@ -1,5 +1,4 @@
 using System;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,29 +8,7 @@ namespace SimpleGame
     {
         private void ApplyPauseDetails()
         {
-            if (playerOverviewLabel != null)
-            {
-                playerOverviewLabel.text = pauseDetails.PlayerOverview;
-            }
-
-            if (accountOverviewLabel != null)
-            {
-                accountOverviewLabel.text = pauseDetails.AccountOverview;
-            }
-
-            if (playerStatsLabel != null)
-            {
-                playerStatsLabel.text = pauseDetails.Stats;
-            }
-
-            if (acquiredSkillsLabel != null)
-            {
-                acquiredSkillsLabel.text = pauseDetails.Skills;
-                RectTransform rect = acquiredSkillsLabel.rectTransform;
-                rect.sizeDelta = new Vector2(
-                    rect.sizeDelta.x,
-                    Mathf.Max(0f, acquiredSkillsLabel.preferredHeight));
-            }
+            pauseDetailsPanel?.SetDetails(pauseDetails);
         }
 
         private void EnsureCardSelectionPanel()
@@ -42,28 +19,28 @@ namespace SimpleGame
                 return;
             }
 
-            cardSelectionPanel = InstantiatePopup(
-                cardSelectionPanelPrefab);
+            GameObject instance = InstantiatePopup(cardSelectionPanelPrefab);
+            cardSelectionPanel =
+                instance.GetComponent<CardSelectionPanelView>();
+            if (cardSelectionPanel == null ||
+                !cardSelectionPanel.IsConfigured)
+            {
+                Debug.LogError(
+                    "Card selection prefab requires a configured " +
+                    "CardSelectionPanelView.",
+                    instance);
+                return;
+            }
+
             for (int index = 0;
                  index < cardChoiceButtons.Length;
                  index++)
             {
-                string objectName =
-                    ((HudButtonId)index).ToString();
-                Transform choice =
-                    cardSelectionPanel.transform.Find(objectName);
-                if (choice == null)
-                {
-                    Debug.LogError(
-                        $"Card selection prefab is missing {objectName}.",
-                        cardSelectionPanel);
-                    continue;
-                }
-
+                CardSelectionSlot slot = (CardSelectionSlot)index;
                 cardChoiceButtons[index] =
-                    choice.GetComponent<Button>();
+                    cardSelectionPanel.GetChoiceButton(slot);
                 cardChoiceViews[index] =
-                    choice.GetComponent<LevelUpCardView>();
+                    cardSelectionPanel.GetChoice(slot);
                 cardChoiceViews[index]?.ConfigureStrings(gameStrings);
                 cardRerollButtons[index] =
                     cardChoiceViews[index] != null
@@ -74,9 +51,9 @@ namespace SimpleGame
                     cardRerollButtons[index] == null)
                 {
                     Debug.LogError(
-                        $"{objectName} requires a root Button, " +
+                        $"Card slot {slot} requires a root Button, " +
                         "LevelUpCardView, and RerollButton.",
-                        choice);
+                        instance);
                 }
 
                 BindButton(
@@ -88,11 +65,9 @@ namespace SimpleGame
                         (int)HudButtonId.CardReroll0 + index]);
             }
 
-            SetTextAtPath(
-                cardSelectionPanel.transform,
-                "CardTitle",
+            cardSelectionPanel.SetTitle(Text(
                 GameStringIds.UiCardSelectionTitle,
-                "레벨 업\n카드를 선택하세요");
+                "레벨 업\n카드를 선택하세요"));
             ApplyCardRerollState();
         }
 
@@ -104,44 +79,38 @@ namespace SimpleGame
                 return;
             }
 
-            difficultySelectionPanel = InstantiatePopup(
+            GameObject instance = InstantiatePopup(
                 difficultySelectionPanelPrefab);
-            Transform easy = difficultySelectionPanel.transform.Find(
-                HudButtonId.DifficultyEasy.ToString());
-            Transform normal = difficultySelectionPanel.transform.Find(
-                HudButtonId.DifficultyNormal.ToString());
-            Transform hard = difficultySelectionPanel.transform.Find(
-                HudButtonId.DifficultyHard.ToString());
-            difficultyEasyButton = easy != null
-                ? easy.GetComponent<Button>()
-                : null;
-            difficultyNormalButton = normal != null
-                ? normal.GetComponent<Button>()
-                : null;
-            difficultyHardButton = hard != null
-                ? hard.GetComponent<Button>()
-                : null;
-            if (difficultyEasyButton == null ||
-                difficultyNormalButton == null ||
-                difficultyHardButton == null)
+            difficultySelectionPanel =
+                instance.GetComponent<DifficultySelectionPanelView>();
+            if (difficultySelectionPanel == null ||
+                !difficultySelectionPanel.IsConfigured)
             {
                 Debug.LogError(
-                    "Difficulty selection prefab requires Easy and " +
-                    "Normal, and Hard buttons.",
-                    difficultySelectionPanel);
+                    "Difficulty selection prefab requires a configured " +
+                    "DifficultySelectionPanelView.",
+                    instance);
                 return;
             }
 
-            BindButton(
-                difficultyEasyButton,
-                buttonCallbacks[(int)HudButtonId.DifficultyEasy]);
-            BindButton(
-                difficultyNormalButton,
-                buttonCallbacks[(int)HudButtonId.DifficultyNormal]);
-            BindButton(
-                difficultyHardButton,
-                buttonCallbacks[(int)HudButtonId.DifficultyHard]);
+            difficultySelectionPanel.DifficultyRequested +=
+                OnDifficultyRequested;
             ApplyDifficultyStrings();
+        }
+
+        private void OnDifficultyRequested(GameDifficulty difficulty)
+        {
+            HudButtonId id = difficulty switch
+            {
+                GameDifficulty.Easy => HudButtonId.DifficultyEasy,
+                GameDifficulty.Normal => HudButtonId.DifficultyNormal,
+                GameDifficulty.Hard => HudButtonId.DifficultyHard,
+                _ => HudButtonId.Count
+            };
+            if (id != HudButtonId.Count)
+            {
+                buttonCallbacks[(int)id]?.Invoke();
+            }
         }
 
         private void EnsurePauseDetailsPanel()
@@ -152,143 +121,35 @@ namespace SimpleGame
                 return;
             }
 
-            pauseDetailsPanel = InstantiatePopup(
-                pauseDetailsPanelPrefab);
-            Transform root = pauseDetailsPanel.transform;
-            Transform settingsPageTransform = root.Find("SettingsPage");
-            settingsPage = settingsPageTransform != null
-                ? settingsPageTransform.gameObject
-                : null;
-            playerOverviewLabel = FindText(
-                settingsPageTransform,
-                "PlayerOverview");
-            accountOverviewLabel = FindText(
-                settingsPageTransform,
-                "AccountOverview");
-            playerStatsLabel = FindText(
-                settingsPageTransform,
-                "PlayerStats");
-            acquiredSkillsLabel = FindText(
-                settingsPageTransform,
-                "SkillsPanel/Viewport/SkillsList");
-
-            Transform settingsButtonTransform =
-                root.Find("ControlSettingsButton");
-            controlSettingsButton = settingsButtonTransform != null
-                ? settingsButtonTransform.GetComponent<Button>()
-                : null;
-            Transform settingsPanelTransform =
-                root.Find("ControlSettingsPanel");
-            controlSettingsPanel = settingsPanelTransform != null
-                ? settingsPanelTransform.gameObject
-                : null;
-            Transform autoAttackToggleTransform =
-                settingsPanelTransform != null
-                    ? settingsPanelTransform.Find("AutoAttackToggle")
-                    : null;
-            autoAttackToggle = autoAttackToggleTransform != null
-                ? autoAttackToggleTransform.GetComponent<Toggle>()
-                : null;
-            autoAttackTrack = FindImage(
-                autoAttackToggleTransform,
-                "Track");
-            autoAttackKnobImage = FindImage(
-                autoAttackToggleTransform,
-                "Track/Knob");
-            autoAttackKnob = autoAttackKnobImage != null
-                ? autoAttackKnobImage.rectTransform
-                : null;
-            autoAttackValueLabel = FindText(
-                autoAttackToggleTransform,
-                "Value");
-
-            joystickSizeSlider = FindControlSlider(
-                settingsPanelTransform,
-                "JoystickSizeSlider");
-            attackSizeSlider = FindControlSlider(
-                settingsPanelTransform,
-                "AttackSizeSlider");
-            modeOneButton = FindControlButton(
-                settingsPanelTransform,
-                "ControlModeButtons/Mode1Button");
-            modeTwoButton = FindControlButton(
-                settingsPanelTransform,
-                "ControlModeButtons/Mode2Button");
-            hiddenModeButton = FindControlButton(
-                settingsPanelTransform,
-                "ControlModeButtons/HiddenButton");
-            Button defaultsButton = FindControlButton(
-                settingsPanelTransform,
-                "ControlDefaultsButton");
-            Button applyButton = FindControlButton(
-                settingsPanelTransform,
-                "ControlApplyButton");
-            Transform dragSurfaceTransform = settingsPanelTransform != null
-                ? settingsPanelTransform.Find("ControlDragSurface")
-                : null;
-            controlDragSurface = dragSurfaceTransform != null
-                ? dragSurfaceTransform.GetComponent<ControlLayoutDragSurface>()
-                : null;
-            pauseRetryButton = FindControlButton(root, "Retry");
-            pauseLobbyButton = FindControlButton(root, "ReturnToLobby");
-
-            BindControlSettingsNavigation();
-
-            if (settingsPage == null ||
-                playerOverviewLabel == null ||
-                accountOverviewLabel == null ||
-                playerStatsLabel == null ||
-                acquiredSkillsLabel == null ||
-                controlSettingsButton == null ||
-                controlSettingsPanel == null ||
-                autoAttackToggle == null ||
-                autoAttackTrack == null ||
-                autoAttackKnob == null ||
-                autoAttackValueLabel == null ||
-                joystickSizeSlider == null ||
-                attackSizeSlider == null ||
-                modeOneButton == null ||
-                modeTwoButton == null ||
-                hiddenModeButton == null ||
-                defaultsButton == null ||
-                applyButton == null ||
-                controlDragSurface == null)
+            GameObject instance = InstantiatePopup(pauseDetailsPanelPrefab);
+            pauseDetailsPanel =
+                instance.GetComponent<PauseDetailsPanelView>();
+            if (pauseDetailsPanel == null ||
+                !pauseDetailsPanel.IsConfigured ||
+                !pauseDetailsPanel.ControlSettings.IsConfigured)
             {
                 Debug.LogError(
-                    "Pause prefab settings references are incomplete.",
-                    pauseDetailsPanel);
+                    "Pause prefab requires configured " +
+                    "PauseDetailsPanelView and ControlSettingsPanelView " +
+                    "components.",
+                    instance);
                 return;
             }
 
-            settingsButtonGroup = settingsButton.GetComponent<CanvasGroup>();
-            if (settingsButtonGroup == null)
-            {
-                settingsButtonGroup =
-                    settingsButton.gameObject.AddComponent<CanvasGroup>();
-            }
+            controlSettingsPanel = pauseDetailsPanel.ControlSettings;
+            controlSettingsPanel.Initialize();
+            pauseDetailsPanel.ActionRequested +=
+                OnPauseDetailsActionRequested;
+            controlSettingsPanel.ActionRequested +=
+                OnControlSettingsActionRequested;
+            controlSettingsPanel.AutoAttackChanged +=
+                OnAutoAttackDraftChanged;
+            controlSettingsPanel.JoystickSizeChanged +=
+                OnJoystickSizeChanged;
+            controlSettingsPanel.AttackSizeChanged +=
+                OnAttackSizeChanged;
 
-            BindButton(defaultsButton, RestoreDefaultControlSettings);
-            BindButton(applyButton, ApplyPendingControlSettings);
-            BindButton(
-                modeOneButton,
-                () => SelectControlMode(
-                    MobileControlMode.DirectMoveAutoAim));
-            BindButton(
-                modeTwoButton,
-                () => SelectControlMode(MobileControlMode.AimCommand));
-            BindButton(hiddenModeButton, SelectHiddenControlMode);
-            BindButton(
-                pauseRetryButton,
-                () => RequestNavigationConfirmation(HudButtonId.Retry));
-            BindButton(
-                pauseLobbyButton,
-                () => RequestNavigationConfirmation(
-                    HudButtonId.ReturnToLobby));
-            autoAttackToggle.onValueChanged.RemoveAllListeners();
-            autoAttackToggle.onValueChanged.AddListener(
-                OnAutoAttackDraftChanged);
-            BindControlSettingSliders();
-            controlDragSurface.Configure(
+            controlSettingsPanel.ConfigureDragSurface(
                 aimJoystick != null ? aimJoystick.TouchArea : null,
                 attackButton != null
                     ? attackButton.GetComponent<RectTransform>()
@@ -299,44 +160,19 @@ namespace SimpleGame
             SetControlSettingsPageVisible(false);
         }
 
-        private void BindControlSettingsNavigation()
+        private void OnPauseDetailsActionRequested(
+            PauseDetailsAction action)
         {
-            if (controlSettingsButton == null)
+            switch (action)
             {
-                return;
+                case PauseDetailsAction.Retry:
+                    RequestNavigationConfirmation(HudButtonId.Retry);
+                    break;
+                case PauseDetailsAction.ReturnToLobby:
+                    RequestNavigationConfirmation(
+                        HudButtonId.ReturnToLobby);
+                    break;
             }
-
-            controlSettingsButton.interactable = true;
-            controlSettingsButton.transform.SetAsLastSibling();
-            BindButton(controlSettingsButton, ToggleControlSettingsPage);
-        }
-
-        private static TMP_Text FindText(Transform parent, string path)
-        {
-            Transform child = parent != null ? parent.Find(path) : null;
-            return child != null ? child.GetComponent<TMP_Text>() : null;
-        }
-
-        private static Image FindImage(Transform parent, string path)
-        {
-            Transform child = parent != null ? parent.Find(path) : null;
-            return child != null ? child.GetComponent<Image>() : null;
-        }
-
-        private static Slider FindControlSlider(
-            Transform parent,
-            string name)
-        {
-            Transform child = parent != null ? parent.Find(name) : null;
-            return child != null ? child.GetComponent<Slider>() : null;
-        }
-
-        private static Button FindControlButton(
-            Transform parent,
-            string name)
-        {
-            Transform child = parent != null ? parent.Find(name) : null;
-            return child != null ? child.GetComponent<Button>() : null;
         }
 
         private void EnsureGameOverPanel()
@@ -347,64 +183,51 @@ namespace SimpleGame
                 return;
             }
 
-            gameOverPanel = InstantiatePopup(gameOverPanelPrefab);
-            Transform title =
-                gameOverPanel.transform.Find("GameOverTitle");
-            gameOverTitle =
-                title != null ? title.GetComponent<TMP_Text>() : null;
-            Transform continueTransform =
-                gameOverPanel.transform.Find(
-                    HudButtonId.ContinueAd.ToString());
-            continueButton = continueTransform != null
-                ? continueTransform.GetComponent<Button>()
-                : null;
-            resultRetryButton = FindControlButton(
-                gameOverPanel.transform,
-                HudButtonId.Retry.ToString());
-            resultLobbyButton = FindControlButton(
-                gameOverPanel.transform,
-                HudButtonId.ReturnToLobby.ToString());
-            if (gameOverTitle == null ||
-                continueButton == null ||
-                resultRetryButton == null ||
-                resultLobbyButton == null)
+            GameObject instance = InstantiatePopup(gameOverPanelPrefab);
+            gameOverPanel = instance.GetComponent<ResultPanelView>();
+            if (gameOverPanel == null || !gameOverPanel.IsConfigured)
             {
                 Debug.LogError(
-                    "Game-over prefab requires GameOverTitle and " +
-                    "ContinueAd, Retry, and ReturnToLobby.",
-                    gameOverPanel);
+                    "Game-over prefab requires a configured " +
+                    "ResultPanelView.",
+                    instance);
+                return;
             }
 
-            if (gameOverTitle != null &&
-                string.IsNullOrWhiteSpace(gameOverDetails))
+            gameOverPanel.ActionRequested += OnResultActionRequested;
+            if (string.IsNullOrWhiteSpace(gameOverDetails))
             {
-                gameOverTitle.text = Text(
+                gameOverPanel.SetSummary(Text(
                     GameStringIds.UiGameOverTitle,
-                    "게임 종료");
+                    "게임 종료"));
             }
 
-            BindButton(
-                continueButton,
-                buttonCallbacks[(int)HudButtonId.ContinueAd]);
-            BindButton(
-                resultRetryButton,
-                () => RequestNavigationConfirmation(HudButtonId.Retry));
-            BindButton(
-                resultLobbyButton,
-                () => RequestNavigationConfirmation(
-                    HudButtonId.ReturnToLobby));
-            SetButtonText(
-                continueButton,
-                GameStringIds.UiContinueButton,
-                "이어하기");
-            SetButtonText(
-                resultRetryButton,
-                GameStringIds.UiRetryButton,
-                "다시하기");
-            SetButtonText(
-                resultLobbyButton,
-                GameStringIds.UiReturnLobbyButton,
-                "로비로 이동");
+            gameOverPanel.SetButtonText(
+                ResultPanelAction.Continue,
+                Text(GameStringIds.UiContinueButton, "이어하기"));
+            gameOverPanel.SetButtonText(
+                ResultPanelAction.Retry,
+                Text(GameStringIds.UiRetryButton, "다시하기"));
+            gameOverPanel.SetButtonText(
+                ResultPanelAction.ReturnToLobby,
+                Text(GameStringIds.UiReturnLobbyButton, "로비로 이동"));
+        }
+
+        private void OnResultActionRequested(ResultPanelAction action)
+        {
+            switch (action)
+            {
+                case ResultPanelAction.Continue:
+                    buttonCallbacks[(int)HudButtonId.ContinueAd]?.Invoke();
+                    break;
+                case ResultPanelAction.Retry:
+                    RequestNavigationConfirmation(HudButtonId.Retry);
+                    break;
+                case ResultPanelAction.ReturnToLobby:
+                    RequestNavigationConfirmation(
+                        HudButtonId.ReturnToLobby);
+                    break;
+            }
         }
 
         private void RequestNavigationConfirmation(HudButtonId action)
@@ -422,14 +245,14 @@ namespace SimpleGame
             }
 
             pendingConfirmationAction = action;
-            confirmationMessage.text = action == HudButtonId.Retry
+            confirmationDialog.SetMessage(action == HudButtonId.Retry
                 ? Text(
                     GameStringIds.UiConfirmRestartMessage,
                     "다시 하시겠습니까?")
                 : Text(
                     GameStringIds.UiConfirmLobbyMessage,
-                    "로비로 나가시겠습니까?");
-            confirmationDialog.SetActive(true);
+                    "로비로 나가시겠습니까?"));
+            confirmationDialog.gameObject.SetActive(true);
             confirmationDialog.transform.SetAsLastSibling();
         }
 
@@ -441,27 +264,25 @@ namespace SimpleGame
                 return;
             }
 
-            confirmationDialog = InstantiatePopup(
+            GameObject instance = InstantiatePopup(
                 confirmationDialogPrefab);
-            confirmationMessage = FindText(
-                confirmationDialog.transform,
-                "Message");
-            confirmationConfirmButton = FindControlButton(
-                confirmationDialog.transform,
-                "ConfirmButton");
-            confirmationCancelButton = FindControlButton(
-                confirmationDialog.transform,
-                "CancelButton");
-            BindButton(confirmationConfirmButton, ConfirmNavigation);
-            BindButton(confirmationCancelButton, CancelNavigation);
-            SetButtonText(
-                confirmationConfirmButton,
-                GameStringIds.UiConfirmButton,
-                "확인");
-            SetButtonText(
-                confirmationCancelButton,
-                GameStringIds.UiCancel,
-                "취소");
+            confirmationDialog =
+                instance.GetComponent<ConfirmationDialogView>();
+            if (confirmationDialog == null ||
+                !confirmationDialog.IsConfigured)
+            {
+                Debug.LogError(
+                    "Confirmation prefab requires a configured " +
+                    "ConfirmationDialogView.",
+                    instance);
+                return;
+            }
+
+            confirmationDialog.Confirmed += ConfirmNavigation;
+            confirmationDialog.Cancelled += CancelNavigation;
+            confirmationDialog.SetButtonTexts(
+                Text(GameStringIds.UiConfirmButton, "확인"),
+                Text(GameStringIds.UiCancel, "취소"));
         }
 
         private void ConfirmNavigation()
@@ -477,7 +298,7 @@ namespace SimpleGame
         private void CancelNavigation()
         {
             pendingConfirmationAction = HudButtonId.Count;
-            confirmationDialog?.SetActive(false);
+            confirmationDialog?.gameObject.SetActive(false);
         }
 
         private GameObject InstantiatePopup(GameObject prefab)
@@ -520,6 +341,12 @@ namespace SimpleGame
                 return;
             }
 
+            if (id == HudButtonId.ControlSettings)
+            {
+                BindButton(controlSettingsButton, buttonCallbacks[index]);
+                return;
+            }
+
             if (id == HudButtonId.Attack)
             {
                 AttackCommandButton commandButton =
@@ -531,28 +358,6 @@ namespace SimpleGame
                 return;
             }
 
-            if (id == HudButtonId.DifficultyEasy)
-            {
-                BindButton(difficultyEasyButton, buttonCallbacks[index]);
-                return;
-            }
-
-            if (id == HudButtonId.DifficultyNormal)
-            {
-                BindButton(difficultyNormalButton, buttonCallbacks[index]);
-                return;
-            }
-
-            if (id == HudButtonId.DifficultyHard)
-            {
-                BindButton(difficultyHardButton, buttonCallbacks[index]);
-                return;
-            }
-
-            if (id == HudButtonId.ContinueAd)
-            {
-                BindButton(continueButton, buttonCallbacks[index]);
-            }
         }
 
         private void ApplyCardRerollState()

@@ -184,13 +184,6 @@ namespace SimpleGame
             nextStaticFilthThrowAt = float.PositiveInfinity;
             DestroyFusionController(ref flyingSwordPiercingFusion);
             DestroyFusionController(ref flyingSwordStaticFusion);
-            if (severTrailVisual == null)
-            {
-                severTrailVisual =
-                    transform.Find("cutting")
-                        ?.GetComponent<SpriteRenderer>();
-            }
-
             if (severTrailVisual != null)
             {
                 severTrailVisual.gameObject.SetActive(false);

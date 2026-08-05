@@ -1,6 +1,5 @@
 using System;
 using TMPro;
-using UnityEngine;
 using UnityEngine.UI;
 
 namespace SimpleGame
@@ -13,6 +12,12 @@ namespace SimpleGame
                 settingsButton,
                 GameStringIds.UiSettingsButton,
                 "설정");
+            if (controlSettingsButtonLabel != null)
+            {
+                controlSettingsButtonLabel.text = Text(
+                    GameStringIds.UiControlButton,
+                    "조작");
+            }
             ApplyControlModePresentation(controlSettings.controlMode);
         }
 
@@ -23,62 +28,44 @@ namespace SimpleGame
                 return;
             }
 
-            Transform root = difficultySelectionPanel.transform;
-            SetTextAtPath(
-                root,
-                "DifficultyTitle",
+            difficultySelectionPanel.SetTitle(Text(
                 GameStringIds.UiDifficultyTitle,
-                "난이도 선택");
-
-            Transform descriptionTransform = root.Find(
-                "DifficultyDescription");
-            TMP_Text description = descriptionTransform != null
-                ? descriptionTransform.GetComponent<TMP_Text>()
-                : null;
-            if (description != null)
-            {
-                description.text = Format(
-                    GameStringIds.UiDifficultyStageFormat,
-                    "{0}\n{1}\n난이도는 이번 게임의 적 수와 " +
-                    "적 레벨에 적용됩니다.",
-                    difficultyStageName,
-                    difficultyStageDescription);
-            }
+                "난이도 선택"));
+            difficultySelectionPanel.SetDescription(Format(
+                GameStringIds.UiDifficultyStageFormat,
+                "{0}\n{1}\n난이도는 이번 게임에서만 유지되며 " +
+                "적 레벨에 적용됩니다.",
+                difficultyStageName,
+                difficultyStageDescription));
 
             string optionFallback = "{0}\n{1}";
-            SetButtonText(
-                difficultyEasyButton,
+            difficultySelectionPanel.SetButtonText(
+                GameDifficulty.Easy,
                 Format(
                     GameStringIds.UiDifficultyOptionFormat,
                     optionFallback,
-                    Text(
-                        GameStringIds.DifficultyEasyName,
-                        "쉬움"),
+                    Text(GameStringIds.DifficultyEasyName, "쉬움"),
                     Text(
                         GameStringIds.DifficultyEasyDescription,
-                        "적 수 75% · 적 레벨 80%")));
-            SetButtonText(
-                difficultyNormalButton,
+                        "체력 2배 · 자동 공격 1.5배")));
+            difficultySelectionPanel.SetButtonText(
+                GameDifficulty.Normal,
                 Format(
                     GameStringIds.UiDifficultyOptionFormat,
                     optionFallback,
-                    Text(
-                        GameStringIds.DifficultyNormalName,
-                        "보통"),
+                    Text(GameStringIds.DifficultyNormalName, "보통"),
                     Text(
                         GameStringIds.DifficultyNormalDescription,
-                        "현재 밸런스")));
-            SetButtonText(
-                difficultyHardButton,
+                        "기존 쉬움 밸런스")));
+            difficultySelectionPanel.SetButtonText(
+                GameDifficulty.Hard,
                 Format(
                     GameStringIds.UiDifficultyOptionFormat,
                     optionFallback,
-                    Text(
-                        GameStringIds.DifficultyHardName,
-                        "어려움"),
+                    Text(GameStringIds.DifficultyHardName, "어려움"),
                     Text(
                         GameStringIds.DifficultyHardDescription,
-                        "강한 적이 더 많이 등장")));
+                        "기존 보통 밸런스")));
         }
 
         private void ApplyPauseStrings()
@@ -88,101 +75,55 @@ namespace SimpleGame
                 return;
             }
 
-            Transform root = pauseDetailsPanel.transform;
-            SetTextAtPath(
-                root,
-                "SettingsPage/PlayerStatsTitle",
-                GameStringIds.PauseStatsTitle,
-                "현재 스탯");
-            SetTextAtPath(
-                root,
-                "SettingsPage/SkillsTitle",
-                GameStringIds.PauseSkillsTitle,
-                "획득한 스킬");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/AutoAttackToggle/Label",
-                GameStringIds.UiAutoAttack,
-                "자동 공격");
-            SetTextAtPath(
-                root,
-                "ControlSettingsButton/Label",
-                GameStringIds.UiControlButton,
-                "조작");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/ControlSettingsTitle",
-                GameStringIds.UiControlTitle,
-                "조작 패널 설정");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/JoystickSizeSlider/Label",
-                GameStringIds.UiJoystickSize,
-                "왼쪽 조이스틱 크기");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/AttackSizeSlider/Label",
-                GameStringIds.UiAttackSize,
-                "오른쪽 공격 버튼 크기");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/ControlModeLabel",
-                GameStringIds.UiControlMode,
-                "조작 모드");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/ControlModeButtons/Mode1Button/Label",
-                GameStringIds.ControlModeOneName,
+            pauseDetailsPanel.SetText(
+                PauseDetailsTextId.PlayerStatsTitle,
+                Text(GameStringIds.PauseStatsTitle, "현재 스탯"));
+            pauseDetailsPanel.SetText(
+                PauseDetailsTextId.SkillsTitle,
+                Text(GameStringIds.PauseSkillsTitle, "획득한 스킬"));
+            pauseDetailsPanel.SetText(
+                PauseDetailsTextId.RetryButton,
+                Text(GameStringIds.UiRetryButton, "다시하기"));
+            pauseDetailsPanel.SetText(
+                PauseDetailsTextId.ReturnToLobbyButton,
+                Text(GameStringIds.UiReturnLobbyButton, "로비로 이동"));
+
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.Title,
+                Text(GameStringIds.UiControlTitle, "조작 패널 설정"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.AutoAttack,
+                Text(GameStringIds.UiAutoAttack, "자동 공격"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.ControlMode,
+                Text(GameStringIds.UiControlMode, "조작 모드"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.JoystickSize,
+                Text(GameStringIds.UiJoystickSize, "왼쪽 조이스틱 크기"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.AttackSize,
+                Text(GameStringIds.UiAttackSize, "오른쪽 공격 버튼 크기"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.ModeOne,
                 controlSettingsProfile != null
                     ? controlSettingsProfile.ModeOneText
-                    : "모드 1");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/ControlModeButtons/Mode2Button/Label",
-                GameStringIds.ControlModeTwoName,
+                    : Text(GameStringIds.ControlModeOneName, "모드 1"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.ModeTwo,
                 controlSettingsProfile != null
                     ? controlSettingsProfile.ModeTwoText
-                    : "모드 2");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/ControlModeButtons/HiddenButton/Label",
-                GameStringIds.ControlModeHiddenName,
+                    : Text(GameStringIds.ControlModeTwoName, "모드 2"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.Hidden,
                 controlSettingsProfile != null
                     ? controlSettingsProfile.HiddenText
-                    : "숨기기");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/ControlDefaultsButton/Label",
-                GameStringIds.UiDefaults,
-                "기본값");
-            SetTextAtPath(
-                root,
-                "ControlSettingsPanel/ControlApplyButton/Label",
-                GameStringIds.UiApply,
-                "적용");
-            SetButtonText(
-                pauseRetryButton,
-                GameStringIds.UiRetryButton,
-                "다시하기");
-            SetButtonText(
-                pauseLobbyButton,
-                GameStringIds.UiReturnLobbyButton,
-                "로비로 이동");
-            if (controlSettingsProfile != null)
-            {
-                SetTextAtPathDirect(
-                    root,
-                    "ControlSettingsPanel/ControlModeButtons/Mode1Button/Label",
-                    controlSettingsProfile.ModeOneText);
-                SetTextAtPathDirect(
-                    root,
-                    "ControlSettingsPanel/ControlModeButtons/Mode2Button/Label",
-                    controlSettingsProfile.ModeTwoText);
-                SetTextAtPathDirect(
-                    root,
-                    "ControlSettingsPanel/ControlModeButtons/HiddenButton/Label",
-                    controlSettingsProfile.HiddenText);
-            }
+                    : Text(GameStringIds.ControlModeHiddenName, "숨기기"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.Defaults,
+                Text(GameStringIds.UiDefaults, "기본값"));
+            controlSettingsPanel?.SetText(
+                ControlSettingsTextId.Apply,
+                Text(GameStringIds.UiApply, "적용"));
             RefreshControlSettingLabels();
         }
 
@@ -215,37 +156,6 @@ namespace SimpleGame
             catch (FormatException)
             {
                 return fallbackTemplate;
-            }
-        }
-
-        private void SetTextAtPath(
-            Transform root,
-            string path,
-            string stringId,
-            string fallback)
-        {
-            Transform child = root != null ? root.Find(path) : null;
-            TMP_Text label = child != null
-                ? child.GetComponent<TMP_Text>()
-                : null;
-            if (label != null)
-            {
-                label.text = Text(stringId, fallback);
-            }
-        }
-
-        private static void SetTextAtPathDirect(
-            Transform root,
-            string path,
-            string value)
-        {
-            Transform child = root != null ? root.Find(path) : null;
-            TMP_Text label = child != null
-                ? child.GetComponent<TMP_Text>()
-                : null;
-            if (label != null)
-            {
-                label.text = value ?? string.Empty;
             }
         }
 

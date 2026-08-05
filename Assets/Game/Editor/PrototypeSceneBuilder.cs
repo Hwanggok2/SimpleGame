@@ -61,7 +61,7 @@ namespace SimpleGameEditor
             Camera camera = CreateCamera();
             CreateMainLight();
 
-            var systems = new GameObject("PrototypeSystems");
+            var systems = new GameObject("BattleManager");
             PrototypeGameSession session =
                 systems.AddComponent<PrototypeGameSession>();
 
@@ -529,40 +529,101 @@ namespace SimpleGameEditor
                 LoadOrCreatePrefab(
                     CardSelectionPanelPrefabPath,
                     CreateCardSelectionPanelPrefab);
+            CardSelectionPanelView cardSelectionView =
+                cardSelectionPrefab.GetComponent<CardSelectionPanelView>();
+            if (cardSelectionView == null ||
+                !cardSelectionView.IsConfigured)
+            {
+                cardSelectionPrefab = UpgradeUiPrefabInPlace(
+                    CardSelectionPanelPrefabPath,
+                    ConfigureCardSelectionPanelView,
+                    root => root.GetComponent<CardSelectionPanelView>()
+                        ?.IsConfigured == true);
+            }
+
+            EnsureControlSettingsPanelPrefab();
+
             GameObject pausePrefab =
                 LoadOrCreatePrefab(
                     PauseDetailsPanelPrefabPath,
                     CreatePauseDetailsPanelPrefab);
-            if (pausePrefab.transform.Find("Retry") == null ||
-                pausePrefab.transform.Find("ReturnToLobby") == null)
+            Transform legacyControlSettingsButton =
+                pausePrefab.transform.Find("ControlSettingsButton");
+            if (legacyControlSettingsButton != null)
             {
-                pausePrefab = CreatePauseDetailsPanelPrefab();
+                RestoreHudControlSettingsButton(
+                    legacyControlSettingsButton.gameObject);
             }
-            EnsureControlSettingsPanelPrefab();
+
+            PauseDetailsPanelView pauseView =
+                pausePrefab.GetComponent<PauseDetailsPanelView>();
+            if (pauseView == null ||
+                !pauseView.IsConfigured ||
+                pauseView.ControlSettings == null ||
+                !pauseView.ControlSettings.IsConfigured ||
+                pausePrefab.transform.Find("Retry") == null ||
+                pausePrefab.transform.Find("ReturnToLobby") == null ||
+                pausePrefab.transform.Find("ControlSettingsButton") != null)
+            {
+                pausePrefab = CanRepairPauseDetailsPanel(pausePrefab)
+                    ? RepairPauseDetailsPanelPrefab()
+                    : throw new InvalidOperationException(
+                        "PauseDetailsPanel structure is incomplete. " +
+                        "The existing prefab was preserved.");
+            }
 
             GameObject gameOverPrefab =
                 LoadOrCreatePrefab(
                     GameOverPanelPrefabPath,
                     CreateGameOverPanelPrefab);
-            if (gameOverPrefab.transform.Find("Retry") == null ||
+            ResultPanelView resultView =
+                gameOverPrefab.GetComponent<ResultPanelView>();
+            if (resultView == null ||
+                !resultView.IsConfigured ||
+                gameOverPrefab.transform.Find("Retry") == null ||
                 gameOverPrefab.transform.Find("ReturnToLobby") == null)
             {
-                gameOverPrefab = CreateGameOverPanelPrefab();
+                gameOverPrefab = UpgradeUiPrefabInPlace(
+                    GameOverPanelPrefabPath,
+                    ConfigureResultPanelView,
+                    root => root.GetComponent<ResultPanelView>()
+                        ?.IsConfigured == true);
             }
             GameObject difficultySelectionPrefab =
                 LoadOrCreatePrefab(
                     DifficultySelectionPanelPrefabPath,
                     CreateDifficultySelectionPanelPrefab);
-            if (difficultySelectionPrefab.transform.Find(
+            DifficultySelectionPanelView difficultyView =
+                difficultySelectionPrefab.GetComponent<
+                    DifficultySelectionPanelView>();
+            if (difficultyView == null ||
+                !difficultyView.IsConfigured ||
+                difficultySelectionPrefab.transform.Find(
                     HudButtonId.DifficultyHard.ToString()) == null)
             {
-                difficultySelectionPrefab =
-                    CreateDifficultySelectionPanelPrefab();
+                difficultySelectionPrefab = UpgradeUiPrefabInPlace(
+                    DifficultySelectionPanelPrefabPath,
+                    ConfigureDifficultySelectionPanelView,
+                    root => root.GetComponent<
+                        DifficultySelectionPanelView>()
+                        ?.IsConfigured == true);
             }
             GameObject confirmationDialogPrefab =
                 LoadOrCreatePrefab(
                     ConfirmationDialogPrefabPath,
                     CreateConfirmationDialogPrefab);
+            ConfirmationDialogView confirmationView =
+                confirmationDialogPrefab.GetComponent<
+                    ConfirmationDialogView>();
+            if (confirmationView == null ||
+                !confirmationView.IsConfigured)
+            {
+                confirmationDialogPrefab = UpgradeUiPrefabInPlace(
+                    ConfirmationDialogPrefabPath,
+                    ConfigureConfirmationDialogView,
+                    root => root.GetComponent<ConfirmationDialogView>()
+                        ?.IsConfigured == true);
+            }
 
             GameObject hudPrefab =
                 AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -571,25 +632,155 @@ namespace SimpleGameEditor
                 hudPrefab != null
                     ? hudPrefab.GetComponent<PrototypeHUDView>()
                     : null;
-            if (existingHudView == null ||
-                existingHudView.SettingsButton == null ||
-                existingHudView.AttackButton == null ||
+            bool hudIsConfigured = hudPrefab != null &&
+                existingHudView != null &&
+                existingHudView.SettingsButton != null &&
+                existingHudView.ControlSettingsButton != null &&
+                existingHudView.AttackButton != null &&
                 existingHudView.AttackButton.GetComponent<
-                    AttackCommandButton>() == null ||
-                existingHudView.AimJoystick == null ||
-                existingHudView.DifficultySelectionPanelPrefab == null ||
-                existingHudView.ConfirmationDialogPrefab == null ||
-                hudPrefab.transform.Find("TopPanel/PlayerHp") != null)
+                    AttackCommandButton>() != null &&
+                existingHudView.AimJoystick != null &&
+                existingHudView.DifficultySelectionPanelPrefab != null &&
+                existingHudView.ConfirmationDialogPrefab != null &&
+                hudPrefab.transform.Find("TopPanel/PlayerHp") == null;
+            if (hudPrefab == null)
             {
                 CreatePrototypeHudPrefab(
                     cardSelectionPrefab,
                     pausePrefab,
                     gameOverPrefab,
                     difficultySelectionPrefab,
-                    confirmationDialogPrefab);
+                    confirmationDialogPrefab,
+                    null);
+            }
+            else if (!hudIsConfigured)
+            {
+                throw new InvalidOperationException(
+                    "PrototypeHUD references are incomplete. " +
+                    "The existing prefab was preserved.");
             }
 
             AssetDatabase.SaveAssets();
+        }
+
+        private static bool CanRepairPauseDetailsPanel(GameObject prefab)
+        {
+            return prefab != null &&
+                   prefab.transform.Find("SettingsPage") != null &&
+                   prefab.GetComponentInChildren<
+                       ControlSettingsPanelView>(true) != null &&
+                   prefab.transform.Find("Retry") != null &&
+                   prefab.transform.Find("ReturnToLobby") != null;
+        }
+
+        private static GameObject RepairPauseDetailsPanelPrefab()
+        {
+            GameObject root = PrefabUtility.LoadPrefabContents(
+                PauseDetailsPanelPrefabPath);
+            try
+            {
+                Transform legacyButton =
+                    root.transform.Find("ControlSettingsButton");
+                if (legacyButton != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(
+                        legacyButton.gameObject);
+                }
+
+                ConfigurePauseDetailsPanelView(root);
+                PrefabUtility.SaveAsPrefabAsset(
+                    root,
+                    PauseDetailsPanelPrefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+
+            return AssetDatabase.LoadAssetAtPath<GameObject>(
+                PauseDetailsPanelPrefabPath);
+        }
+
+        private static void RestoreHudControlSettingsButton(
+            GameObject legacyButton)
+        {
+            GameObject hudAsset =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    PrototypeHudPrefabPath);
+            if (legacyButton == null || hudAsset == null)
+            {
+                return;
+            }
+
+            GameObject root = PrefabUtility.LoadPrefabContents(
+                PrototypeHudPrefabPath);
+            try
+            {
+                Transform existing =
+                    root.transform.Find("ControlSettingsButton");
+                if (existing != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(
+                        existing.gameObject);
+                }
+
+                GameObject restored =
+                    UnityEngine.Object.Instantiate(legacyButton);
+                restored.name = "ControlSettingsButton";
+                restored.transform.SetParent(root.transform, false);
+                restored.transform.SetAsLastSibling();
+                RectTransform rect =
+                    restored.GetComponent<RectTransform>();
+                rect.anchorMin = Vector2.one;
+                rect.anchorMax = Vector2.one;
+                rect.pivot = Vector2.one;
+                rect.anchoredPosition = new Vector2(-18f, -88f);
+                restored.SetActive(true);
+
+                PrototypeHUDView view =
+                    root.GetComponent<PrototypeHUDView>();
+                var serializedView = new SerializedObject(view);
+                serializedView.FindProperty("controlSettingsButton")
+                    .objectReferenceValue =
+                    restored.GetComponent<Button>();
+                serializedView.FindProperty("controlSettingsButtonLabel")
+                    .objectReferenceValue =
+                    restored.GetComponentInChildren<TMP_Text>(true);
+                serializedView.ApplyModifiedPropertiesWithoutUndo();
+                PrefabUtility.SaveAsPrefabAsset(
+                    root,
+                    PrototypeHudPrefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        private static GameObject UpgradeUiPrefabInPlace(
+            string path,
+            Action<GameObject> configure,
+            Func<GameObject, bool> isConfigured)
+        {
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                configure(root);
+                if (!isConfigured(root))
+                {
+                    throw new InvalidOperationException(
+                        $"{path} does not contain the required UI " +
+                        "structure. The existing prefab was preserved.");
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+
+            return AssetDatabase.LoadAssetAtPath<GameObject>(path);
         }
 
         public static GameObject EnsureControlSettingsPanelPrefab()
@@ -598,9 +789,22 @@ namespace SimpleGameEditor
                 CharacterAssetBuilder.PrefabRootPath + "/UI/Shared");
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                 ControlSettingsPanelPrefabPath);
-            if (prefab != null)
+            ControlSettingsPanelView view = prefab != null
+                ? prefab.GetComponent<ControlSettingsPanelView>()
+                : null;
+            if (view != null && view.IsConfigured)
             {
                 return prefab;
+            }
+
+            if (prefab != null)
+            {
+                return UpgradeUiPrefabInPlace(
+                    ControlSettingsPanelPrefabPath,
+                    ConfigureControlSettingsPanelView,
+                    root => root.GetComponent<
+                        ControlSettingsPanelView>()
+                        ?.IsConfigured == true);
             }
 
             GameObject pausePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -668,7 +872,8 @@ namespace SimpleGameEditor
             GameObject pausePrefab,
             GameObject gameOverPrefab,
             GameObject difficultySelectionPrefab,
-            GameObject confirmationDialogPrefab)
+            GameObject confirmationDialogPrefab,
+            GameObject controlSettingsButtonTemplate)
         {
             var canvasObject = new GameObject(
                 "PrototypeHUD",
@@ -758,6 +963,10 @@ namespace SimpleGameEditor
             settingsRect.anchoredPosition =
                 new Vector2(-18f, -16f);
             settingsRect.sizeDelta = new Vector2(112f, 64f);
+            Button controlSettingsButton = CreateControlSettingsButton(
+                canvasObject.transform,
+                controlSettingsButtonTemplate,
+                out TMP_Text controlSettingsButtonLabel);
 
             var hudView =
                 canvasObject.AddComponent<PrototypeHUDView>();
@@ -767,6 +976,8 @@ namespace SimpleGameEditor
                 experienceSlider,
                 experienceLabel,
                 settingsButton,
+                controlSettingsButton,
+                controlSettingsButtonLabel,
                 attackButton,
                 aimJoystick,
                 modalRootObject.transform,
@@ -799,6 +1010,7 @@ namespace SimpleGameEditor
                 "레벨 업\n카드를 선택하세요",
                 46f);
             CreateCardChoiceButtons(panel.transform);
+            ConfigureCardSelectionPanelView(panel);
             return SaveTemporaryPrefab(
                 panel,
                 CardSelectionPanelPrefabPath);
@@ -818,8 +1030,8 @@ namespace SimpleGameEditor
             InstantiateControlSettingsPanel(
                 panel.transform,
                 false);
-            CreateControlSettingsButton(panel.transform);
             CreateNavigationFooter(panel.transform);
+            ConfigurePauseDetailsPanelView(panel);
             return SaveTemporaryPrefab(
                 panel,
                 PauseDetailsPanelPrefabPath);
@@ -1100,18 +1312,27 @@ namespace SimpleGameEditor
             return toggle;
         }
 
-        private static void CreateControlSettingsButton(Transform parent)
+        private static Button CreateControlSettingsButton(
+            Transform parent,
+            GameObject template,
+            out TMP_Text label)
         {
-            Button button = CreateButtonVisual(
-                "ControlSettingsButton",
-                "조작");
-            button.transform.SetParent(parent, false);
+            GameObject buttonObject = template != null
+                ? UnityEngine.Object.Instantiate(template)
+                : CreateButtonVisual(
+                    "ControlSettingsButton",
+                    "조작").gameObject;
+            buttonObject.name = "ControlSettingsButton";
+            buttonObject.transform.SetParent(parent, false);
+            Button button = buttonObject.GetComponent<Button>();
+            label = button.GetComponentInChildren<TMP_Text>(true);
             RectTransform rect = button.GetComponent<RectTransform>();
             rect.anchorMin = Vector2.one;
             rect.anchorMax = Vector2.one;
             rect.pivot = Vector2.one;
-            rect.anchoredPosition = new Vector2(-18f, -150f);
+            rect.anchoredPosition = new Vector2(-18f, -88f);
             rect.sizeDelta = new Vector2(112f, 64f);
+            return button;
         }
 
         private static GameObject CreateControlSettingsPanelPrefab()
@@ -1207,6 +1428,7 @@ namespace SimpleGameEditor
                 Vector2.zero);
             dragSurface.GetComponent<Image>().raycastTarget = true;
             dragSurface.AddComponent<ControlLayoutDragSurface>();
+            ConfigureControlSettingsPanelView(panel);
             panel.SetActive(false);
             return panel;
         }
@@ -1635,6 +1857,7 @@ namespace SimpleGameEditor
                 HudButtonId.ReturnToLobby,
                 "로비로 이동",
                 260f);
+            ConfigureResultPanelView(panel);
             return SaveTemporaryPrefab(
                 panel,
                 GameOverPanelPrefabPath);
@@ -1685,6 +1908,7 @@ namespace SimpleGameEditor
             Button confirm = CreateButtonVisual("ConfirmButton", "확인");
             confirm.transform.SetParent(panel.transform, false);
             ConfigureConfirmationButton(confirm, 150f);
+            ConfigureConfirmationDialogView(panel);
             return SaveTemporaryPrefab(
                 panel,
                 ConfirmationDialogPrefabPath);
@@ -1756,6 +1980,7 @@ namespace SimpleGameEditor
                 "어려움\n기존 보통 밸런스",
                 -165f,
                 new Color(0.58f, 0.2f, 0.2f, 0.98f));
+            ConfigureDifficultySelectionPanelView(panel);
             return SaveTemporaryPrefab(
                 panel,
                 DifficultySelectionPanelPrefabPath);
@@ -1780,6 +2005,193 @@ namespace SimpleGameEditor
             TMP_Text label = button.GetComponentInChildren<TMP_Text>();
             label.fontSize = 30f;
             label.fontStyle = FontStyles.Bold;
+        }
+
+        private static void ConfigureCardSelectionPanelView(
+            GameObject panel)
+        {
+            CardSelectionPanelView view =
+                panel.GetComponent<CardSelectionPanelView>() ??
+                panel.AddComponent<CardSelectionPanelView>();
+            view.ConfigureReferences(
+                FindText(panel.transform, "CardTitle"),
+                FindComponent<LevelUpCardView>(
+                    panel.transform,
+                    HudButtonId.CardChoice0.ToString()),
+                FindComponent<LevelUpCardView>(
+                    panel.transform,
+                    HudButtonId.CardChoice1.ToString()),
+                FindComponent<LevelUpCardView>(
+                    panel.transform,
+                    HudButtonId.CardChoice2.ToString()),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.CardChoice0.ToString()),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.CardChoice1.ToString()),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.CardChoice2.ToString()));
+        }
+
+        private static void ConfigurePauseDetailsPanelView(GameObject panel)
+        {
+            Transform settingsPage = panel.transform.Find("SettingsPage");
+            PauseDetailsPanelView view =
+                panel.GetComponent<PauseDetailsPanelView>() ??
+                panel.AddComponent<PauseDetailsPanelView>();
+            view.ConfigureReferences(
+                settingsPage != null ? settingsPage.gameObject : null,
+                FindComponent<ControlSettingsPanelView>(
+                    panel.transform,
+                    "ControlSettingsPanel"),
+                FindText(settingsPage, "PlayerOverview"),
+                FindText(settingsPage, "AccountOverview"),
+                FindText(settingsPage, "PlayerStats"),
+                FindText(settingsPage, "SkillsPanel/Viewport/SkillsList"),
+                FindText(settingsPage, "PlayerStatsTitle"),
+                FindText(settingsPage, "SkillsTitle"),
+                FindText(panel.transform, HudButtonId.Retry + "/Label"),
+                FindText(
+                    panel.transform,
+                    HudButtonId.ReturnToLobby + "/Label"),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.Retry.ToString()),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.ReturnToLobby.ToString()));
+        }
+
+        private static void ConfigureControlSettingsPanelView(
+            GameObject panel)
+        {
+            Transform root = panel.transform;
+            Transform toggleTransform = root.Find("AutoAttackToggle");
+            Image knobImage = FindComponent<Image>(
+                toggleTransform,
+                "Track/Knob");
+            ControlSettingsPanelView view =
+                panel.GetComponent<ControlSettingsPanelView>() ??
+                panel.AddComponent<ControlSettingsPanelView>();
+            view.ConfigureReferences(
+                FindText(root, "ControlSettingsTitle"),
+                FindText(toggleTransform, "Label"),
+                FindText(root, "ControlModeLabel"),
+                FindText(root, "JoystickSizeSlider/Label"),
+                FindText(root, "AttackSizeSlider/Label"),
+                FindText(root, "ControlModeButtons/Mode1Button/Label"),
+                FindText(root, "ControlModeButtons/Mode2Button/Label"),
+                FindText(root, "ControlModeButtons/HiddenButton/Label"),
+                FindText(root, "ControlDefaultsButton/Label"),
+                FindText(root, "ControlApplyButton/Label"),
+                FindText(toggleTransform, "Value"),
+                FindText(root, "JoystickSizeSlider/Value"),
+                FindText(root, "AttackSizeSlider/Value"),
+                toggleTransform != null
+                    ? toggleTransform.GetComponent<Toggle>()
+                    : null,
+                FindComponent<Image>(toggleTransform, "Track"),
+                knobImage != null ? knobImage.rectTransform : null,
+                knobImage,
+                FindComponent<Slider>(root, "JoystickSizeSlider"),
+                FindComponent<Slider>(root, "AttackSizeSlider"),
+                FindComponent<Button>(
+                    root,
+                    "ControlModeButtons/Mode1Button"),
+                FindComponent<Button>(
+                    root,
+                    "ControlModeButtons/Mode2Button"),
+                FindComponent<Button>(
+                    root,
+                    "ControlModeButtons/HiddenButton"),
+                FindComponent<Button>(root, "ControlDefaultsButton"),
+                FindComponent<Button>(root, "ControlApplyButton"),
+                FindComponent<ControlLayoutDragSurface>(
+                    root,
+                    "ControlDragSurface"));
+        }
+
+        private static void ConfigureResultPanelView(GameObject panel)
+        {
+            ResultPanelView view = panel.GetComponent<ResultPanelView>() ??
+                panel.AddComponent<ResultPanelView>();
+            view.ConfigureReferences(
+                FindText(panel.transform, "GameOverTitle"),
+                FindText(
+                    panel.transform,
+                    HudButtonId.ContinueAd + "/Label"),
+                FindText(
+                    panel.transform,
+                    HudButtonId.Retry + "/Label"),
+                FindText(
+                    panel.transform,
+                    HudButtonId.ReturnToLobby + "/Label"),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.ContinueAd.ToString()),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.Retry.ToString()),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.ReturnToLobby.ToString()));
+        }
+
+        private static void ConfigureConfirmationDialogView(
+            GameObject panel)
+        {
+            ConfirmationDialogView view =
+                panel.GetComponent<ConfirmationDialogView>() ??
+                panel.AddComponent<ConfirmationDialogView>();
+            view.ConfigureReferences(
+                FindText(panel.transform, "Message"),
+                FindText(panel.transform, "ConfirmButton/Label"),
+                FindText(panel.transform, "CancelButton/Label"),
+                FindComponent<Button>(panel.transform, "ConfirmButton"),
+                FindComponent<Button>(panel.transform, "CancelButton"));
+        }
+
+        private static void ConfigureDifficultySelectionPanelView(
+            GameObject panel)
+        {
+            DifficultySelectionPanelView view =
+                panel.GetComponent<DifficultySelectionPanelView>() ??
+                panel.AddComponent<DifficultySelectionPanelView>();
+            view.ConfigureReferences(
+                FindText(panel.transform, "DifficultyTitle"),
+                FindText(panel.transform, "DifficultyDescription"),
+                FindText(
+                    panel.transform,
+                    HudButtonId.DifficultyEasy + "/Label"),
+                FindText(
+                    panel.transform,
+                    HudButtonId.DifficultyNormal + "/Label"),
+                FindText(
+                    panel.transform,
+                    HudButtonId.DifficultyHard + "/Label"),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.DifficultyEasy.ToString()),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.DifficultyNormal.ToString()),
+                FindComponent<Button>(
+                    panel.transform,
+                    HudButtonId.DifficultyHard.ToString()));
+        }
+
+        private static TMP_Text FindText(Transform root, string path)
+        {
+            return FindComponent<TMP_Text>(root, path);
+        }
+
+        private static T FindComponent<T>(Transform root, string path)
+            where T : Component
+        {
+            Transform child = root != null ? root.Find(path) : null;
+            return child != null ? child.GetComponent<T>() : null;
         }
 
         private static GameObject SaveTemporaryPrefab(

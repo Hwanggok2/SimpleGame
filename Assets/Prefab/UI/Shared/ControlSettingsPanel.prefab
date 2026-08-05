@@ -1997,6 +1997,7 @@ GameObject:
   - component: {fileID: 8882705861396185673}
   - component: {fileID: 7845239858259909886}
   - component: {fileID: 535156302969378300}
+  - component: {fileID: 7158344368199548116}
   m_Layer: 0
   m_Name: ControlSettingsPanel
   m_TagString: Untagged
@@ -2069,6 +2070,43 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &7158344368199548116
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5744194022843627254}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0dec0dec0de4085a002000000000001, type: 3}
+  m_Name: ''
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.ControlSettingsPanelView
+  titleLabel: {fileID: 0}
+  autoAttackLabel: {fileID: 6089367161950337618}
+  controlModeLabel: {fileID: 4663905224385982176}
+  joystickSizeLabel: {fileID: 2465384434466205345}
+  attackSizeLabel: {fileID: 2903103969580852002}
+  modeOneLabel: {fileID: 6222742340930035987}
+  modeTwoLabel: {fileID: 2607614984181138968}
+  hiddenLabel: {fileID: 2879559547428989977}
+  defaultsLabel: {fileID: 5783312955707653355}
+  applyLabel: {fileID: 8785490628522838349}
+  autoAttackValueLabel: {fileID: 3130343150624092037}
+  joystickSizeValueLabel: {fileID: 2939107538403138239}
+  attackSizeValueLabel: {fileID: 894943670717197386}
+  autoAttackToggle: {fileID: 26800045182043877}
+  autoAttackTrack: {fileID: 5256011859037769791}
+  autoAttackKnob: {fileID: 1146294639578964748}
+  autoAttackKnobImage: {fileID: 2480098350103630477}
+  joystickSizeSlider: {fileID: 1139121280335760557}
+  attackSizeSlider: {fileID: 5741307163532110845}
+  modeOneButton: {fileID: 6857337113636667951}
+  modeTwoButton: {fileID: 1484069534910732114}
+  hiddenButton: {fileID: 6356354047850062445}
+  defaultsButton: {fileID: 8109577726183627481}
+  applyButton: {fileID: 3988636225314824903}
+  dragSurface: {fileID: 8415251867004681995}
 --- !u!1 &5821016516677140189
 GameObject:
   m_ObjectHideFlags: 0

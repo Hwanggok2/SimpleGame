@@ -69,6 +69,7 @@ namespace SimpleGame
                 : 0;
         public float ElapsedTime { get; private set; }
         public bool IsPlaying => state == GameRunState.Playing;
+        public bool IsPaused => state == GameRunState.Paused;
         public int RemainingCardRerolls => remainingCardRerolls;
         public GameDifficulty Difficulty { get; private set; } =
             GameDifficulty.Normal;
@@ -168,6 +169,11 @@ namespace SimpleGame
             poisonCloudSpawner = configuredPoisonCloudSpawner;
         }
 
+        private void Awake()
+        {
+            GameManager.RegisterBattle(this);
+        }
+
         private void Start()
         {
             Time.timeScale = 0f;
@@ -259,6 +265,7 @@ namespace SimpleGame
 
         private void OnDestroy()
         {
+            GameManager.UnregisterBattle(this);
             Time.timeScale = 1f;
             if (player != null && player.Health != null)
             {

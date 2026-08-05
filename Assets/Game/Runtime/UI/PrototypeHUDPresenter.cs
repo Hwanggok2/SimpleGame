@@ -30,7 +30,10 @@ namespace SimpleGame
             view.Bind(HudButtonId.CardReroll0, () => session.RerollCard(0));
             view.Bind(HudButtonId.CardReroll1, () => session.RerollCard(1));
             view.Bind(HudButtonId.CardReroll2, () => session.RerollCard(2));
-            view.Bind(HudButtonId.Settings, session.TogglePause);
+            view.Bind(HudButtonId.Settings, OnSettingsRequested);
+            view.Bind(
+                HudButtonId.ControlSettings,
+                OnControlSettingsRequested);
             view.Bind(HudButtonId.ContinueAd, session.SimulateRewardedContinue);
             view.Bind(
                 HudButtonId.Attack,
@@ -104,6 +107,44 @@ namespace SimpleGame
         private void OnHintChanged(string message)
         {
             view.SetText(HudTextId.Hint, message);
+        }
+
+        private void OnControlSettingsRequested()
+        {
+            if (!session.IsPaused)
+            {
+                session.TogglePause();
+            }
+
+            if (!session.IsPaused)
+            {
+                return;
+            }
+
+            if (view.IsControlSettingsVisible)
+            {
+                session.TogglePause();
+                return;
+            }
+
+            view.ShowControlSettings();
+        }
+
+        private void OnSettingsRequested()
+        {
+            if (!session.IsPaused)
+            {
+                session.TogglePause();
+                return;
+            }
+
+            if (view.IsControlSettingsVisible)
+            {
+                view.ShowPauseSettings();
+                return;
+            }
+
+            session.TogglePause();
         }
 
         private void OnClearVisibilityChanged(bool visible)
