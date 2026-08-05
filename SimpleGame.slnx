@@ -1,0 +1,6 @@
+﻿<Solution>
+  <Project Path="SimpleGame.Runtime.csproj" />
+  <Project Path="SimpleGame.Tests.EditMode.csproj" />
+  <Project Path="SimpleGame.Editor.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
+</Solution>

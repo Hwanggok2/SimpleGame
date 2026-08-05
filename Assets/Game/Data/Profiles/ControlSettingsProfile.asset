@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: ControlSettingsProfile
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.ControlSettingsProfile
   initialPresentation: 0
-  modeOneText: "\uBAA8\uB4DC 1"
-  modeTwoText: "\uBAA8\uB4DC 2"
-  hiddenText: "\uC228\uAE30\uAE30"
+  modeOneText: "\uC774\uB3D9 \uBAA8\uB4DC"
+  modeTwoText: "\uC870\uC900 \uBAA8\uB4DC"
+  hiddenText: "\uD130\uCE58 \uBAA8\uB4DC"

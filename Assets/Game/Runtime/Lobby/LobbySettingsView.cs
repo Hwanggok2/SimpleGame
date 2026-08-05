@@ -128,7 +128,7 @@ namespace SimpleGame
         private void SetControlSettingsPageVisible(bool visible)
         {
             editingControlSettings = visible;
-            SetActive(settingsPage, !visible);
+            // SetActive(settingsPage, !visible);
             SetActive(controlSettingsPanel, visible);
         }
 
