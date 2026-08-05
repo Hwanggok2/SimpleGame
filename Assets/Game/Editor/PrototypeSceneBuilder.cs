@@ -36,6 +36,9 @@ namespace SimpleGameEditor
         public const string DifficultySelectionPanelPrefabPath =
             CharacterAssetBuilder.PrefabRootPath +
             "/DifficultySelectionPanel.prefab";
+        public const string ConfirmationDialogPrefabPath =
+            CharacterAssetBuilder.PrefabRootPath +
+            "/ConfirmationDialog.prefab";
         public const string BattleScenePath = "Assets/Scenes/Battle.unity";
         public const string TouchEffectClipPath =
             "Assets/Music/Effect/Touch.mp3";
@@ -150,6 +153,21 @@ namespace SimpleGameEditor
             EditorSceneManager.SaveScene(scene, BattleScenePath);
             Selection.activeGameObject = systems;
             Debug.Log($"Battle scene created: {BattleScenePath}");
+        }
+
+        [MenuItem("SimpleGame/UI/Upgrade Runtime UI Assets")]
+        public static void UpgradeRuntimeUiAssets()
+        {
+            EnsureUiPrefabAssets();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+
+        public static void ApplyRequestedBalanceUpgrade()
+        {
+            GameDataExcelImporter.ImportFromPath(
+                GameDataExcelImporter.DefaultWorkbookPath);
+            UpgradeRuntimeUiAssets();
         }
 
         internal static GameObject GetOrCreateSystemGroup(
@@ -515,16 +533,36 @@ namespace SimpleGameEditor
                 LoadOrCreatePrefab(
                     PauseDetailsPanelPrefabPath,
                     CreatePauseDetailsPanelPrefab);
+            if (pausePrefab.transform.Find("Retry") == null ||
+                pausePrefab.transform.Find("ReturnToLobby") == null)
+            {
+                pausePrefab = CreatePauseDetailsPanelPrefab();
+            }
             EnsureControlSettingsPanelPrefab();
 
             GameObject gameOverPrefab =
                 LoadOrCreatePrefab(
                     GameOverPanelPrefabPath,
                     CreateGameOverPanelPrefab);
+            if (gameOverPrefab.transform.Find("Retry") == null ||
+                gameOverPrefab.transform.Find("ReturnToLobby") == null)
+            {
+                gameOverPrefab = CreateGameOverPanelPrefab();
+            }
             GameObject difficultySelectionPrefab =
                 LoadOrCreatePrefab(
                     DifficultySelectionPanelPrefabPath,
                     CreateDifficultySelectionPanelPrefab);
+            if (difficultySelectionPrefab.transform.Find(
+                    HudButtonId.DifficultyHard.ToString()) == null)
+            {
+                difficultySelectionPrefab =
+                    CreateDifficultySelectionPanelPrefab();
+            }
+            GameObject confirmationDialogPrefab =
+                LoadOrCreatePrefab(
+                    ConfirmationDialogPrefabPath,
+                    CreateConfirmationDialogPrefab);
 
             GameObject hudPrefab =
                 AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -540,13 +578,15 @@ namespace SimpleGameEditor
                     AttackCommandButton>() == null ||
                 existingHudView.AimJoystick == null ||
                 existingHudView.DifficultySelectionPanelPrefab == null ||
+                existingHudView.ConfirmationDialogPrefab == null ||
                 hudPrefab.transform.Find("TopPanel/PlayerHp") != null)
             {
                 CreatePrototypeHudPrefab(
                     cardSelectionPrefab,
                     pausePrefab,
                     gameOverPrefab,
-                    difficultySelectionPrefab);
+                    difficultySelectionPrefab,
+                    confirmationDialogPrefab);
             }
 
             AssetDatabase.SaveAssets();
@@ -627,7 +667,8 @@ namespace SimpleGameEditor
             GameObject cardSelectionPrefab,
             GameObject pausePrefab,
             GameObject gameOverPrefab,
-            GameObject difficultySelectionPrefab)
+            GameObject difficultySelectionPrefab,
+            GameObject confirmationDialogPrefab)
         {
             var canvasObject = new GameObject(
                 "PrototypeHUD",
@@ -732,7 +773,8 @@ namespace SimpleGameEditor
                 cardSelectionPrefab,
                 pausePrefab,
                 gameOverPrefab,
-                difficultySelectionPrefab);
+                difficultySelectionPrefab,
+                confirmationDialogPrefab);
             var presenter =
                 canvasObject.AddComponent<PrototypeHUDPresenter>();
             presenter.Configure(hudView);
@@ -777,9 +819,35 @@ namespace SimpleGameEditor
                 panel.transform,
                 false);
             CreateControlSettingsButton(panel.transform);
+            CreateNavigationFooter(panel.transform);
             return SaveTemporaryPrefab(
                 panel,
                 PauseDetailsPanelPrefabPath);
+        }
+
+        private static void CreateNavigationFooter(Transform parent)
+        {
+            Button retry = CreateButtonVisual(
+                HudButtonId.Retry.ToString(),
+                "다시하기");
+            retry.transform.SetParent(parent, false);
+            ConfigureFooterButton(retry, -360f);
+
+            Button lobby = CreateButtonVisual(
+                HudButtonId.ReturnToLobby.ToString(),
+                "로비로 이동");
+            lobby.transform.SetParent(parent, false);
+            ConfigureFooterButton(lobby, 360f);
+        }
+
+        private static void ConfigureFooterButton(Button button, float x)
+        {
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(x, 24f);
+            rect.sizeDelta = new Vector2(230f, 72f);
         }
 
         private static void CreateSettingsPage(Transform parent)
@@ -1530,8 +1598,8 @@ namespace SimpleGameEditor
                 null,
                 "GameOverPanel",
                 new Color(0.12f, 0.01f, 0.01f, 0.94f),
-                new Vector2(0.12f, 0.38f),
-                new Vector2(0.88f, 0.62f),
+                new Vector2(0.08f, 0.32f),
+                new Vector2(0.92f, 0.68f),
                 Vector2.zero,
                 Vector2.zero);
             TMP_Text title = CreateTextObject(
@@ -1540,7 +1608,7 @@ namespace SimpleGameEditor
                 "게임 종료",
                 48f);
             RectTransform titleRect = title.rectTransform;
-            titleRect.anchorMin = new Vector2(0f, 0.28f);
+            titleRect.anchorMin = new Vector2(0f, 0.32f);
             titleRect.anchorMax = Vector2.one;
             titleRect.offsetMin = new Vector2(30f, 15f);
             titleRect.offsetMax = new Vector2(-30f, -20f);
@@ -1555,11 +1623,83 @@ namespace SimpleGameEditor
             buttonRect.anchorMin = new Vector2(0.5f, 0f);
             buttonRect.anchorMax = new Vector2(0.5f, 0f);
             buttonRect.pivot = new Vector2(0.5f, 0f);
-            buttonRect.anchoredPosition = new Vector2(0f, 28f);
-            buttonRect.sizeDelta = new Vector2(400f, 100f);
+            buttonRect.anchoredPosition = new Vector2(-260f, 34f);
+            buttonRect.sizeDelta = new Vector2(230f, 96f);
+            CreateResultButton(
+                panel.transform,
+                HudButtonId.Retry,
+                "다시하기",
+                0f);
+            CreateResultButton(
+                panel.transform,
+                HudButtonId.ReturnToLobby,
+                "로비로 이동",
+                260f);
             return SaveTemporaryPrefab(
                 panel,
                 GameOverPanelPrefabPath);
+        }
+
+        private static void CreateResultButton(
+            Transform parent,
+            HudButtonId id,
+            string text,
+            float x)
+        {
+            Button button = CreateButtonVisual(id.ToString(), text);
+            button.transform.SetParent(parent, false);
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(x, 34f);
+            rect.sizeDelta = new Vector2(230f, 96f);
+        }
+
+        private static GameObject CreateConfirmationDialogPrefab()
+        {
+            GameObject panel = CreatePanel(
+                null,
+                "ConfirmationDialog",
+                new Color(0f, 0f, 0f, 0.86f),
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            TMP_Text message = CreateTextObject(
+                panel.transform,
+                "Message",
+                "계속하시겠습니까?",
+                42f);
+            RectTransform messageRect = message.rectTransform;
+            messageRect.anchorMin = new Vector2(0.12f, 0.48f);
+            messageRect.anchorMax = new Vector2(0.88f, 0.64f);
+            messageRect.offsetMin = Vector2.zero;
+            messageRect.offsetMax = Vector2.zero;
+            message.alignment = TextAlignmentOptions.Center;
+            message.fontStyle = FontStyles.Bold;
+
+            Button cancel = CreateButtonVisual("CancelButton", "취소");
+            cancel.transform.SetParent(panel.transform, false);
+            ConfigureConfirmationButton(cancel, -150f);
+            Button confirm = CreateButtonVisual("ConfirmButton", "확인");
+            confirm.transform.SetParent(panel.transform, false);
+            ConfigureConfirmationButton(confirm, 150f);
+            return SaveTemporaryPrefab(
+                panel,
+                ConfirmationDialogPrefabPath);
+        }
+
+        private static void ConfigureConfirmationButton(
+            Button button,
+            float x)
+        {
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.42f);
+            rect.anchorMax = new Vector2(0.5f, 0.42f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(x, 0f);
+            rect.sizeDelta = new Vector2(250f, 96f);
         }
 
         private static GameObject CreateDifficultySelectionPanelPrefab()
@@ -1601,15 +1741,21 @@ namespace SimpleGameEditor
             CreateDifficultyButton(
                 panel.transform,
                 HudButtonId.DifficultyEasy,
-                "쉬움\n적 수 75% · 적 레벨 80%",
-                90f,
+                "쉬움\n체력 2배 · 자동 공격 1.5배",
+                145f,
                 new Color(0.12f, 0.5f, 0.32f, 0.98f));
             CreateDifficultyButton(
                 panel.transform,
                 HudButtonId.DifficultyNormal,
-                "보통\n현재 밸런스",
-                -90f,
+                "보통\n기존 쉬움 밸런스",
+                -10f,
                 new Color(0.18f, 0.38f, 0.68f, 0.98f));
+            CreateDifficultyButton(
+                panel.transform,
+                HudButtonId.DifficultyHard,
+                "어려움\n기존 보통 밸런스",
+                -165f,
+                new Color(0.58f, 0.2f, 0.2f, 0.98f));
             return SaveTemporaryPrefab(
                 panel,
                 DifficultySelectionPanelPrefabPath);
@@ -1629,7 +1775,7 @@ namespace SimpleGameEditor
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = new Vector2(0f, y);
-            rect.sizeDelta = new Vector2(620f, 138f);
+            rect.sizeDelta = new Vector2(620f, 126f);
             button.GetComponent<Image>().color = color;
             TMP_Text label = button.GetComponentInChildren<TMP_Text>();
             label.fontSize = 30f;

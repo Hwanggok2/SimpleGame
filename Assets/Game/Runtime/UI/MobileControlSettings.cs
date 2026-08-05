@@ -26,7 +26,7 @@ namespace SimpleGame
             version = MobileControlSettingsStore.CurrentVersion,
             controlsEnabled = true,
             autoAttackEnabled = false,
-            controlMode = MobileControlMode.AimCommand,
+            controlMode = MobileControlMode.DirectMoveAutoAim,
             joystickScale = 1f,
             joystickPosition = new Vector2(0.05f, 0.11f),
             attackScale = 1f,
@@ -43,11 +43,15 @@ namespace SimpleGame
         private const string PreferencesKey =
             "SimpleGame.MobileControls.v1";
 
-        public static MobileControlSettings Load()
+        public static MobileControlSettings Load(
+            ControlSettingsProfile profile = null)
         {
+            MobileControlSettings defaultSettings = profile != null
+                ? profile.CreateDefaultSettings()
+                : MobileControlSettings.Default;
             if (!PlayerPrefs.HasKey(PreferencesKey))
             {
-                return MobileControlSettings.Default;
+                return defaultSettings;
             }
 
             try
@@ -64,11 +68,11 @@ namespace SimpleGame
 
                 return settings.version == CurrentVersion
                     ? Clamp(settings)
-                    : MobileControlSettings.Default;
+                    : defaultSettings;
             }
             catch (ArgumentException)
             {
-                return MobileControlSettings.Default;
+                return defaultSettings;
             }
         }
 
@@ -92,7 +96,7 @@ namespace SimpleGame
                     MobileControlMode.AimCommand)
             {
                 settings.controlMode =
-                    MobileControlMode.AimCommand;
+                    MobileControlMode.DirectMoveAutoAim;
             }
 
             settings.joystickScale = Mathf.Clamp(

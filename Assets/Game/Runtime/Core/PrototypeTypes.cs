@@ -30,7 +30,8 @@ namespace SimpleGame
     public enum GameDifficulty
     {
         Easy,
-        Normal
+        Normal,
+        Hard
     }
 
     public enum PlayerAttackReaction
@@ -133,10 +134,10 @@ namespace SimpleGame
     public static class ProgressionCurve
     {
         public const float LinearLevelWeight = 0.18f;
-        public const float EnemyAttackGrowthRate = 0.45f;
+        public const float EnemyAttackGrowthRate = 4.5f;
         public const float EnemyMoveSpeedGrowthPerLevel = 0.0125f;
         public const float MaximumEnemyMoveSpeedMultiplier = 1.6f;
-        public const int MaximumEnemyAttackDamage = 8;
+        public const int MaximumEnemyAttackDamage = 80;
         public const int MaximumPlayerLevel = 50;
         public const float ExperienceQuadraticWeight = 0.025f;
 
@@ -441,7 +442,7 @@ namespace SimpleGame
                     archetype,
                     0.85f,
                     0.85f,
-                    2,
+                    20,
                     0.55f,
                     0f,
                     1.5f,
@@ -451,8 +452,8 @@ namespace SimpleGame
                     0f,
                     1,
                     5,
-                    3f,
-                    0.85f,
+                    30f,
+                    8.5f,
                     0,
                     "StandardMelee",
                     true),
@@ -461,7 +462,7 @@ namespace SimpleGame
                     archetype,
                     0.6f,
                     2.25f,
-                    2,
+                    20,
                     0.8f,
                     0f,
                     2f,
@@ -471,8 +472,8 @@ namespace SimpleGame
                     1f,
                     1,
                     7,
-                    3f,
-                    0.85f,
+                    30f,
+                    8.5f,
                     1,
                     "StandardRanged",
                     true),
@@ -491,8 +492,8 @@ namespace SimpleGame
                     0f,
                     2,
                     8,
-                    3f,
-                    0.85f,
+                    30f,
+                    8.5f,
                     0,
                     "Shield",
                     true),
@@ -501,7 +502,7 @@ namespace SimpleGame
                     archetype,
                     0.75f,
                     2.6f,
-                    4,
+                    40,
                     1f,
                     0.33f,
                     2f,
@@ -511,8 +512,8 @@ namespace SimpleGame
                     0f,
                     8,
                     50,
-                    38f,
-                    8.5f,
+                    380f,
+                    85f,
                     0,
                     "Boss",
                     true),
@@ -527,7 +528,7 @@ namespace SimpleGame
                 EnemyArchetype.Boss,
                 0.72f,
                 2.6f,
-                4,
+                40,
                 0.87f,
                 0.33f,
                 1.87f,
@@ -537,8 +538,8 @@ namespace SimpleGame
                 0f,
                 10,
                 70,
-                45f,
-                9.5f,
+                450f,
+                95f,
                 0,
                 "BossMushroom",
                 true);
@@ -551,7 +552,7 @@ namespace SimpleGame
                 EnemyArchetype.Melee,
                 1.28f,
                 0.95f,
-                1,
+                10,
                 0.65f,
                 0f,
                 1.8f,
@@ -561,8 +562,8 @@ namespace SimpleGame
                 0f,
                 2,
                 8,
-                3f,
-                0.75f,
+                30f,
+                7.5f,
                 0,
                 "FlyingMelee",
                 true);
@@ -575,7 +576,7 @@ namespace SimpleGame
                 EnemyArchetype.Boss,
                 0.88f,
                 3.6f,
-                4,
+                40,
                 0.6f,
                 0.33f,
                 1.67f,
@@ -585,8 +586,8 @@ namespace SimpleGame
                 0f,
                 12,
                 90,
-                50f,
-                10f,
+                500f,
+                100f,
                 0,
                 "BossFlyingEye",
                 true);
@@ -599,7 +600,7 @@ namespace SimpleGame
                 EnemyArchetype.Boss,
                 0.8f,
                 3f,
-                4,
+                40,
                 0.8f,
                 0.33f,
                 2f,
@@ -609,8 +610,8 @@ namespace SimpleGame
                 0f,
                 15,
                 120,
-                55f,
-                10.5f,
+                550f,
+                105f,
                 0,
                 "BossSkeleton",
                 true);

@@ -17,7 +17,7 @@ MonoBehaviour:
     archetype: 0
     moveSpeed: 0.85
     attackRange: 0.85
-    attackDamage: 2
+    attackDamage: 20
     attackWindup: 0.55
     attackActiveDuration: 0
     attackCooldown: 1.5
@@ -27,8 +27,8 @@ MonoBehaviour:
     postAttackFacingLock: 0
     killExperience: 1
     score: 5
-    baseMaxHp: 3
-    hpGrowthRate: 0.85
+    baseMaxHp: 30
+    hpGrowthRate: 8.5
     levelDifficultyOffset: 0
     combatProfileId: StandardMelee
     showHpBar: 1
@@ -36,7 +36,7 @@ MonoBehaviour:
     archetype: 1
     moveSpeed: 0.6
     attackRange: 2.25
-    attackDamage: 2
+    attackDamage: 20
     attackWindup: 0.8
     attackActiveDuration: 0
     attackCooldown: 2
@@ -46,8 +46,8 @@ MonoBehaviour:
     postAttackFacingLock: 1
     killExperience: 1
     score: 7
-    baseMaxHp: 3
-    hpGrowthRate: 0.85
+    baseMaxHp: 30
+    hpGrowthRate: 8.5
     levelDifficultyOffset: 1
     combatProfileId: StandardRanged
     showHpBar: 1
@@ -65,8 +65,8 @@ MonoBehaviour:
     postAttackFacingLock: 0
     killExperience: 2
     score: 8
-    baseMaxHp: 3
-    hpGrowthRate: 0.85
+    baseMaxHp: 30
+    hpGrowthRate: 8.5
     levelDifficultyOffset: 0
     combatProfileId: Shield
     showHpBar: 1
@@ -74,7 +74,7 @@ MonoBehaviour:
     archetype: 3
     moveSpeed: 1
     attackRange: 2.6
-    attackDamage: 4
+    attackDamage: 40
     attackWindup: 0.7
     attackActiveDuration: 0.2
     attackCooldown: 2
@@ -84,8 +84,8 @@ MonoBehaviour:
     postAttackFacingLock: 0
     killExperience: 8
     score: 50
-    baseMaxHp: 38
-    hpGrowthRate: 8.5
+    baseMaxHp: 380
+    hpGrowthRate: 85
     levelDifficultyOffset: 0
     combatProfileId: Boss
     showHpBar: 1
@@ -93,7 +93,7 @@ MonoBehaviour:
     archetype: 3
     moveSpeed: 1
     attackRange: 2.6
-    attackDamage: 4
+    attackDamage: 40
     attackWindup: 0.87
     attackActiveDuration: 0.2
     attackCooldown: 1
@@ -103,8 +103,8 @@ MonoBehaviour:
     postAttackFacingLock: 0
     killExperience: 10
     score: 70
-    baseMaxHp: 45
-    hpGrowthRate: 9.5
+    baseMaxHp: 450
+    hpGrowthRate: 95
     levelDifficultyOffset: 0
     combatProfileId: BossMushroom
     showHpBar: 1
@@ -112,7 +112,7 @@ MonoBehaviour:
     archetype: 0
     moveSpeed: 1.28
     attackRange: 0.95
-    attackDamage: 1
+    attackDamage: 10
     attackWindup: 0.65
     attackActiveDuration: 0
     attackCooldown: 1.8
@@ -122,8 +122,8 @@ MonoBehaviour:
     postAttackFacingLock: 0
     killExperience: 2
     score: 8
-    baseMaxHp: 3
-    hpGrowthRate: 0.75
+    baseMaxHp: 30
+    hpGrowthRate: 7.5
     levelDifficultyOffset: 0
     combatProfileId: FlyingMelee
     showHpBar: 1
@@ -131,7 +131,7 @@ MonoBehaviour:
     archetype: 3
     moveSpeed: 1.4
     attackRange: 3.6
-    attackDamage: 4
+    attackDamage: 40
     attackWindup: 0.6
     attackActiveDuration: 0.2
     attackCooldown: 1
@@ -141,8 +141,8 @@ MonoBehaviour:
     postAttackFacingLock: 0
     killExperience: 12
     score: 90
-    baseMaxHp: 50
-    hpGrowthRate: 10
+    baseMaxHp: 500
+    hpGrowthRate: 100
     levelDifficultyOffset: 0
     combatProfileId: BossFlyingEye
     showHpBar: 1
@@ -150,7 +150,7 @@ MonoBehaviour:
     archetype: 3
     moveSpeed: 1.5
     attackRange: 3
-    attackDamage: 4
+    attackDamage: 40
     attackWindup: 0.8
     attackActiveDuration: 0.2
     attackCooldown: 1
@@ -160,8 +160,8 @@ MonoBehaviour:
     postAttackFacingLock: 0
     killExperience: 15
     score: 120
-    baseMaxHp: 55
-    hpGrowthRate: 10.5
+    baseMaxHp: 550
+    hpGrowthRate: 105
     levelDifficultyOffset: 0
     combatProfileId: BossSkeleton
     showHpBar: 1

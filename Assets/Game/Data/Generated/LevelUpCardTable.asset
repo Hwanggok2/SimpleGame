@@ -38,7 +38,7 @@ MonoBehaviour:
     effectType: 0
     targetStat: 1
     operation: 0
-    value: 5
+    value: 50
     maxStack: 5
     selectionWeight: 100
     minPlayerLevel: 1
@@ -55,7 +55,7 @@ MonoBehaviour:
     effectType: 0
     targetStat: 2
     operation: 0
-    value: 1
+    value: 0.5
     maxStack: 5
     selectionWeight: 80
     minPlayerLevel: 2
@@ -123,7 +123,7 @@ MonoBehaviour:
     effectType: 1
     targetStat: 6
     operation: 0
-    value: 2
+    value: 20
     maxStack: 3
     selectionWeight: 55
     minPlayerLevel: 4

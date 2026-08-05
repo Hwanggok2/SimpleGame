@@ -139,7 +139,7 @@ namespace SimpleGame
 
         public static int CalculateHitHealAmount(
             int level,
-            int amountPerLevel = 2)
+            int amountPerLevel = 20)
         {
             return Mathf.Max(0, level) *
                 Mathf.Max(0, amountPerLevel);

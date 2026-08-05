@@ -20,17 +20,11 @@ namespace SimpleGame
                 PreferencesKey,
                 string.Empty);
             return Enum.TryParse(savedValue, false, out difficultyId) &&
-                Enum.IsDefined(typeof(LobbyDifficultyId), difficultyId) &&
-                difficultyId != LobbyDifficultyId.Hard;
+                Enum.IsDefined(typeof(LobbyDifficultyId), difficultyId);
         }
 
         public static void Save(LobbyDifficultyId difficultyId)
         {
-            if (difficultyId == LobbyDifficultyId.Hard)
-            {
-                return;
-            }
-
             PlayerPrefs.SetString(
                 PreferencesKey,
                 difficultyId.ToString());

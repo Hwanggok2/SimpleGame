@@ -16,7 +16,9 @@ namespace SimpleGame
         public void Initialize(PrototypeGameSession gameSession)
         {
             session = gameSession;
-            view.Initialize(session.GameStrings);
+            view.Initialize(
+                session.GameStrings,
+                session.ControlSettingsProfile);
             view.SetDifficultyContext(
                 session.StageDisplayName,
                 session.StageDescription);
@@ -39,6 +41,11 @@ namespace SimpleGame
             view.Bind(
                 HudButtonId.DifficultyNormal,
                 () => session.SelectDifficulty(GameDifficulty.Normal));
+            view.Bind(
+                HudButtonId.DifficultyHard,
+                () => session.SelectDifficulty(GameDifficulty.Hard));
+            view.Bind(HudButtonId.Retry, session.RestartRun);
+            view.Bind(HudButtonId.ReturnToLobby, session.ReturnToLobby);
 
             session.HintChanged += OnHintChanged;
             session.CardSelectionVisibilityChanged += view.ShowCardSelection;
@@ -51,6 +58,7 @@ namespace SimpleGame
             session.PauseVisibilityChanged += view.ShowPauseDetails;
             session.PauseDetailsChanged += view.SetPauseDetails;
             session.GameOverVisibilityChanged += view.ShowGameOver;
+            session.ClearVisibilityChanged += OnClearVisibilityChanged;
             view.SetCardRerollState(
                 session.RemainingCardRerolls,
                 false);
@@ -89,12 +97,23 @@ namespace SimpleGame
             session.PauseVisibilityChanged -= view.ShowPauseDetails;
             session.PauseDetailsChanged -= view.SetPauseDetails;
             session.GameOverVisibilityChanged -= view.ShowGameOver;
+            session.ClearVisibilityChanged -= OnClearVisibilityChanged;
             view.InitializeAimControls(null);
         }
 
         private void OnHintChanged(string message)
         {
             view.SetText(HudTextId.Hint, message);
+        }
+
+        private void OnClearVisibilityChanged(bool visible)
+        {
+            if (visible)
+            {
+                RefreshResultSummary(true);
+            }
+
+            view.ShowClear(visible);
         }
 
         private void Refresh()
@@ -117,9 +136,18 @@ namespace SimpleGame
 
             RefreshBossHealth();
 
+            RefreshResultSummary(session.IsClear);
+        }
+
+        private void RefreshResultSummary(bool clear)
+        {
             view.SetGameOverDetails(session.FormatString(
-                GameStringIds.HudGameOverSummaryFormat,
-                "게임 종료\n점수 {0} / 계정 경험치 {1}",
+                clear
+                    ? GameStringIds.HudClearSummaryFormat
+                    : GameStringIds.HudGameOverSummaryFormat,
+                clear
+                    ? "클리어!\n점수 {0} / 계정 경험치 {1}"
+                    : "게임 종료\n점수 {0} / 계정 경험치 {1}",
                 session.Score,
                 session.AccountExperience));
         }

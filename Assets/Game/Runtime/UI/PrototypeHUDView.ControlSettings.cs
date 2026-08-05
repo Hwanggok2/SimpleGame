@@ -82,7 +82,9 @@ namespace SimpleGame
 
         private void RestoreDefaultControlSettings()
         {
-            pendingControlSettings = MobileControlSettings.Default;
+            pendingControlSettings = controlSettingsProfile != null
+                ? controlSettingsProfile.CreateDefaultSettings()
+                : MobileControlSettings.Default;
             SynchronizeControlSettingsUi();
             PreviewPendingControlSettings();
         }

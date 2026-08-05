@@ -18,10 +18,10 @@ MonoBehaviour:
     isAvailable: 1
     hasRuntimeDifficulty: 1
     runtimeDifficulty: 0
-    durationMinutes: 10
+    durationMinutes: 8
     stageId: Stage01
-    enemyCountReductionPercent: 25
-    enemyLevelReductionPercent: 20
+    enemyCountReductionPercent: 40
+    enemyLevelReductionPercent: 0
     imageId: LOBBY_DIFFICULTY_EASY
     selectedDifficultyImageId: LOBBY_SELECTED_DIFFICULTY_EASY
     selectedDifficultyImageScale: 0.9
@@ -29,6 +29,11 @@ MonoBehaviour:
     buttonDescriptionKey: LOBBY_DIFFICULTY_EASY_BUTTON_DESCRIPTION
     objectiveKey: LOBBY_DIFFICULTY_EASY_OBJECTIVE
     effectDescriptionKey: LOBBY_DIFFICULTY_EASY_EFFECT
+    playerMaxHealthMultiplier: 2
+    autoAttackSpeedMultiplier: 1.5
+    enemyExperienceMultiplier: 1.6
+    bossHealthMultiplier: 0.5
+    finalBossId: FlyingEyeBoss
   - id: 1
     sortOrder: 2
     isAvailable: 1
@@ -45,13 +50,18 @@ MonoBehaviour:
     buttonDescriptionKey: LOBBY_DIFFICULTY_NORMAL_BUTTON_DESCRIPTION
     objectiveKey: LOBBY_DIFFICULTY_NORMAL_OBJECTIVE
     effectDescriptionKey: LOBBY_DIFFICULTY_NORMAL_EFFECT
+    playerMaxHealthMultiplier: 1
+    autoAttackSpeedMultiplier: 1
+    enemyExperienceMultiplier: 1
+    bossHealthMultiplier: 1
+    finalBossId: SkeletonBoss
   - id: 2
     sortOrder: 3
-    isAvailable: 0
-    hasRuntimeDifficulty: 0
-    runtimeDifficulty: 1
-    durationMinutes: 20
-    stageId: 
+    isAvailable: 1
+    hasRuntimeDifficulty: 1
+    runtimeDifficulty: 2
+    durationMinutes: 10
+    stageId: Stage01
     enemyCountReductionPercent: 0
     enemyLevelReductionPercent: 0
     imageId: LOBBY_DIFFICULTY_HARD
@@ -61,3 +71,8 @@ MonoBehaviour:
     buttonDescriptionKey: LOBBY_DIFFICULTY_HARD_BUTTON_DESCRIPTION
     objectiveKey: LOBBY_DIFFICULTY_HARD_OBJECTIVE
     effectDescriptionKey: LOBBY_DIFFICULTY_HARD_EFFECT
+    playerMaxHealthMultiplier: 1
+    autoAttackSpeedMultiplier: 1
+    enemyExperienceMultiplier: 1
+    bossHealthMultiplier: 1
+    finalBossId: SkeletonBoss

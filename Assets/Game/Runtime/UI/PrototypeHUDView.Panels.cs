@@ -110,18 +110,24 @@ namespace SimpleGame
                 HudButtonId.DifficultyEasy.ToString());
             Transform normal = difficultySelectionPanel.transform.Find(
                 HudButtonId.DifficultyNormal.ToString());
+            Transform hard = difficultySelectionPanel.transform.Find(
+                HudButtonId.DifficultyHard.ToString());
             difficultyEasyButton = easy != null
                 ? easy.GetComponent<Button>()
                 : null;
             difficultyNormalButton = normal != null
                 ? normal.GetComponent<Button>()
                 : null;
+            difficultyHardButton = hard != null
+                ? hard.GetComponent<Button>()
+                : null;
             if (difficultyEasyButton == null ||
-                difficultyNormalButton == null)
+                difficultyNormalButton == null ||
+                difficultyHardButton == null)
             {
                 Debug.LogError(
                     "Difficulty selection prefab requires Easy and " +
-                    "Normal buttons.",
+                    "Normal, and Hard buttons.",
                     difficultySelectionPanel);
                 return;
             }
@@ -132,6 +138,9 @@ namespace SimpleGame
             BindButton(
                 difficultyNormalButton,
                 buttonCallbacks[(int)HudButtonId.DifficultyNormal]);
+            BindButton(
+                difficultyHardButton,
+                buttonCallbacks[(int)HudButtonId.DifficultyHard]);
             ApplyDifficultyStrings();
         }
 
@@ -220,6 +229,8 @@ namespace SimpleGame
             controlDragSurface = dragSurfaceTransform != null
                 ? dragSurfaceTransform.GetComponent<ControlLayoutDragSurface>()
                 : null;
+            pauseRetryButton = FindControlButton(root, "Retry");
+            pauseLobbyButton = FindControlButton(root, "ReturnToLobby");
 
             BindControlSettingsNavigation();
 
@@ -266,6 +277,13 @@ namespace SimpleGame
                 modeTwoButton,
                 () => SelectControlMode(MobileControlMode.AimCommand));
             BindButton(hiddenModeButton, SelectHiddenControlMode);
+            BindButton(
+                pauseRetryButton,
+                () => RequestNavigationConfirmation(HudButtonId.Retry));
+            BindButton(
+                pauseLobbyButton,
+                () => RequestNavigationConfirmation(
+                    HudButtonId.ReturnToLobby));
             autoAttackToggle.onValueChanged.RemoveAllListeners();
             autoAttackToggle.onValueChanged.AddListener(
                 OnAutoAttackDraftChanged);
@@ -340,11 +358,20 @@ namespace SimpleGame
             continueButton = continueTransform != null
                 ? continueTransform.GetComponent<Button>()
                 : null;
-            if (gameOverTitle == null || continueButton == null)
+            resultRetryButton = FindControlButton(
+                gameOverPanel.transform,
+                HudButtonId.Retry.ToString());
+            resultLobbyButton = FindControlButton(
+                gameOverPanel.transform,
+                HudButtonId.ReturnToLobby.ToString());
+            if (gameOverTitle == null ||
+                continueButton == null ||
+                resultRetryButton == null ||
+                resultLobbyButton == null)
             {
                 Debug.LogError(
                     "Game-over prefab requires GameOverTitle and " +
-                    "ContinueAd.",
+                    "ContinueAd, Retry, and ReturnToLobby.",
                     gameOverPanel);
             }
 
@@ -359,10 +386,98 @@ namespace SimpleGame
             BindButton(
                 continueButton,
                 buttonCallbacks[(int)HudButtonId.ContinueAd]);
+            BindButton(
+                resultRetryButton,
+                () => RequestNavigationConfirmation(HudButtonId.Retry));
+            BindButton(
+                resultLobbyButton,
+                () => RequestNavigationConfirmation(
+                    HudButtonId.ReturnToLobby));
             SetButtonText(
                 continueButton,
                 GameStringIds.UiContinueButton,
                 "이어하기");
+            SetButtonText(
+                resultRetryButton,
+                GameStringIds.UiRetryButton,
+                "다시하기");
+            SetButtonText(
+                resultLobbyButton,
+                GameStringIds.UiReturnLobbyButton,
+                "로비로 이동");
+        }
+
+        private void RequestNavigationConfirmation(HudButtonId action)
+        {
+            if (action != HudButtonId.Retry &&
+                action != HudButtonId.ReturnToLobby)
+            {
+                return;
+            }
+
+            EnsureConfirmationDialog();
+            if (confirmationDialog == null)
+            {
+                return;
+            }
+
+            pendingConfirmationAction = action;
+            confirmationMessage.text = action == HudButtonId.Retry
+                ? Text(
+                    GameStringIds.UiConfirmRestartMessage,
+                    "다시 하시겠습니까?")
+                : Text(
+                    GameStringIds.UiConfirmLobbyMessage,
+                    "로비로 나가시겠습니까?");
+            confirmationDialog.SetActive(true);
+            confirmationDialog.transform.SetAsLastSibling();
+        }
+
+        private void EnsureConfirmationDialog()
+        {
+            if (confirmationDialog != null ||
+                confirmationDialogPrefab == null)
+            {
+                return;
+            }
+
+            confirmationDialog = InstantiatePopup(
+                confirmationDialogPrefab);
+            confirmationMessage = FindText(
+                confirmationDialog.transform,
+                "Message");
+            confirmationConfirmButton = FindControlButton(
+                confirmationDialog.transform,
+                "ConfirmButton");
+            confirmationCancelButton = FindControlButton(
+                confirmationDialog.transform,
+                "CancelButton");
+            BindButton(confirmationConfirmButton, ConfirmNavigation);
+            BindButton(confirmationCancelButton, CancelNavigation);
+            SetButtonText(
+                confirmationConfirmButton,
+                GameStringIds.UiConfirmButton,
+                "확인");
+            SetButtonText(
+                confirmationCancelButton,
+                GameStringIds.UiCancel,
+                "취소");
+        }
+
+        private void ConfirmNavigation()
+        {
+            HudButtonId action = pendingConfirmationAction;
+            CancelNavigation();
+            if (action != HudButtonId.Count)
+            {
+                buttonCallbacks[(int)action]?.Invoke();
+            }
+        }
+
+        private void CancelNavigation()
+        {
+            pendingConfirmationAction = HudButtonId.Count;
+            confirmationDialog?.SetActive(false);
         }
 
         private GameObject InstantiatePopup(GameObject prefab)
@@ -425,6 +540,12 @@ namespace SimpleGame
             if (id == HudButtonId.DifficultyNormal)
             {
                 BindButton(difficultyNormalButton, buttonCallbacks[index]);
+                return;
+            }
+
+            if (id == HudButtonId.DifficultyHard)
+            {
+                BindButton(difficultyHardButton, buttonCallbacks[index]);
                 return;
             }
 

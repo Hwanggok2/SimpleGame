@@ -48,14 +48,16 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void SelectionStore_IgnoresCorruptAndHardValues()
+        public void SelectionStore_IgnoresCorruptAndAcceptsHardValues()
         {
             PlayerPrefs.SetString(
                 LobbyDifficultySelectionStore.PreferencesKey,
                 "Broken");
             Assert.That(
-                LobbyDifficultySelectionStore.TryLoad(out _),
-                Is.False);
+                LobbyDifficultySelectionStore.TryLoad(
+                    out LobbyDifficultyId hard),
+                Is.True);
+            Assert.That(hard, Is.EqualTo(LobbyDifficultyId.Hard));
 
             PlayerPrefs.SetString(
                 LobbyDifficultySelectionStore.PreferencesKey,
@@ -66,7 +68,7 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void GeneratedLobbyData_UsesImportedSpritesAndUiOnlyHard()
+        public void GeneratedLobbyData_UsesImportedSpritesAndPlayableHard()
         {
             GameDataManifest manifest =
                 AssetDatabase.LoadAssetAtPath<GameDataManifest>(
@@ -87,8 +89,12 @@ namespace SimpleGame.Tests
                     LobbyDifficultyId.Hard,
                     out LobbyDifficultyDefinition hard),
                 Is.True);
-            Assert.That(hard.IsAvailable, Is.False);
-            Assert.That(hard.TryGetRuntimeDifficulty(out _), Is.False);
+            Assert.That(hard.IsAvailable, Is.True);
+            Assert.That(
+                hard.TryGetRuntimeDifficulty(
+                    out GameDifficulty runtimeDifficulty),
+                Is.True);
+            Assert.That(runtimeDifficulty, Is.EqualTo(GameDifficulty.Hard));
         }
 
         [Test]

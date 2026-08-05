@@ -58,7 +58,7 @@ namespace SimpleGame.Tests.EditMode
             Assert.That(
                 BossAttackModule.DefaultDashSpeedMultiplier,
                 Is.EqualTo(5f));
-            Assert.That(BossAttackModule.DashDamage, Is.EqualTo(10));
+            Assert.That(BossAttackModule.DashDamage, Is.EqualTo(100));
             Assert.That(BossAttackModule.DashStunDuration, Is.EqualTo(0.6f));
 
             string[] bossPrefabPaths =

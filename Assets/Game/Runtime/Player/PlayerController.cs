@@ -78,6 +78,7 @@ namespace SimpleGame
         private bool modeOneAttackPending;
         private bool commandMarkerVisible;
         private bool isAiming;
+        private float autoAttackSpeedMultiplier = 1f;
         private readonly List<RaycastResult> uiRaycastResults = new();
         private readonly Dictionary<EnemyBase, uint>
             movementPiercedEnemyGenerations = new();
@@ -124,6 +125,14 @@ namespace SimpleGame
         {
             attackRange = Mathf.Max(0.1f, value);
         }
+
+        public void SetAutoAttackSpeedMultiplier(float value)
+        {
+            autoAttackSpeedMultiplier = Mathf.Max(0.1f, value);
+        }
+
+        private float ResolvedAutoAttackInterval =>
+            AutoAttackInterval / autoAttackSpeedMultiplier;
 
         private void Update()
         {
@@ -484,14 +493,14 @@ namespace SimpleGame
                 if (targetEnemy == ResolveAutoAttackEnemy())
                 {
                     nextAutoAttackAt =
-                        Time.time + AutoAttackInterval;
+                        Time.time + ResolvedAutoAttackInterval;
                 }
 
                 if (targetEnemy == ResolveLockedEnemy())
                 {
                     modeOneAttackPending = false;
                     nextModeOneAttackAt =
-                        Time.time + AutoAttackInterval;
+                        Time.time + ResolvedAutoAttackInterval;
                 }
 
                 if (ExecuteSingleAttack(

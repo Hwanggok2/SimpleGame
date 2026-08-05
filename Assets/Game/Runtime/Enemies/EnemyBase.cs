@@ -141,10 +141,18 @@ namespace SimpleGame
                 deathRoutine = null;
             }
 
-            health.Configure(
-                Definition.CalculateMaxHealth(
-                    level,
-                    WaveNumber));
+            int maximumHealth = Definition.CalculateMaxHealth(
+                level,
+                WaveNumber);
+            if (Archetype == EnemyArchetype.Boss && Session != null)
+            {
+                maximumHealth = Mathf.Max(
+                    1,
+                    Mathf.RoundToInt(
+                        maximumHealth * Session.BossHealthMultiplier));
+            }
+
+            health.Configure(maximumHealth);
             healthBar?.Bind(health, Definition.ShowHpBar);
             facing.Configure(Definition.FacingTurnDelay);
             characterAnimation.Revive();

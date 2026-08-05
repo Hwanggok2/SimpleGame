@@ -7,7 +7,7 @@ namespace SimpleGame
         public const float SpawnDelay = 1f;
         public const float Duration = 5f;
         public const float TickInterval = 0.5f;
-        public const int DamagePerTick = 1;
+        public const int DamagePerTick = 10;
         public const float DamageRadius = 1.6f;
 
         private PlayerRoot player;

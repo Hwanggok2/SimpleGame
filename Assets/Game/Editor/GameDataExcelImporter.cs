@@ -95,6 +95,10 @@ namespace SimpleGameEditor
             ParseStageSpawn(
                 workbook.ReadSheet("StageSpawn"),
                 model,
+                GameDifficulty.Hard);
+            ParseStageSpawn(
+                workbook.ReadSheet("StageSpawnNormal"),
+                model,
                 GameDifficulty.Normal);
             if (workbook.SheetNames.Any(name =>
                     string.Equals(
@@ -574,6 +578,11 @@ namespace SimpleGameEditor
                 "ButtonDescriptionKey",
                 "ObjectiveKey",
                 "EffectDescriptionKey",
+                "PlayerMaxHealthMultiplier",
+                "AutoAttackSpeedMultiplier",
+                "EnemyExperienceMultiplier",
+                "BossHealthMultiplier",
+                "FinalBossId",
                 "IsAvailable");
             var ids = new HashSet<LobbyDifficultyId>();
             var sortOrders = new HashSet<int>();
@@ -684,7 +693,20 @@ namespace SimpleGameEditor
                         table.RequiredText(row, "ObjectiveKey"),
                         table.RequiredText(
                             row,
-                            "EffectDescriptionKey")));
+                            "EffectDescriptionKey"),
+                        table.PositiveFloat(
+                            row,
+                            "PlayerMaxHealthMultiplier"),
+                        table.PositiveFloat(
+                            row,
+                            "AutoAttackSpeedMultiplier"),
+                        table.PositiveFloat(
+                            row,
+                            "EnemyExperienceMultiplier"),
+                        table.PositiveFloat(
+                            row,
+                            "BossHealthMultiplier"),
+                        table.RequiredText(row, "FinalBossId")));
             }
 
             RequireDataRows(table);
@@ -924,6 +946,30 @@ namespace SimpleGameEditor
                     difficulty.Id.ToString(),
                     "EffectDescriptionKey",
                     difficulty.EffectDescriptionKey);
+                if (!model.EnemyDefinitions.Any(enemy =>
+                        string.Equals(
+                            enemy.EnemyId,
+                            difficulty.FinalBossId,
+                            StringComparison.Ordinal)))
+                {
+                    throw new InvalidDataException(
+                        $"LobbyDifficulty '{difficulty.Id}' references " +
+                        $"unknown FinalBossId '{difficulty.FinalBossId}'.");
+                }
+
+                if (difficulty.TryGetRuntimeDifficulty(
+                        out GameDifficulty runtimeDifficulty) &&
+                    !model.SpawnEntries.Any(entry =>
+                        entry.Difficulty == runtimeDifficulty &&
+                        string.Equals(
+                            entry.EnemyId,
+                            difficulty.FinalBossId,
+                            StringComparison.Ordinal)))
+                {
+                    throw new InvalidDataException(
+                        $"LobbyDifficulty '{difficulty.Id}' has no " +
+                        $"'{difficulty.FinalBossId}' spawn row.");
+                }
             }
 
             foreach (LobbyDifficultyId id in

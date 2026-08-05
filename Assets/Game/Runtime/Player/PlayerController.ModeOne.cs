@@ -121,7 +121,7 @@ namespace SimpleGame
             }
 
             nextModeOneAttackAt =
-                Time.time + AutoAttackInterval;
+                Time.time + ResolvedAutoAttackInterval;
             if (target == lockedTarget)
             {
                 modeOneAttackPending = false;
@@ -330,7 +330,7 @@ namespace SimpleGame
                 ? autoAttackEnemy.SpawnGeneration
                 : 0u;
             nextAutoAttackAt = autoAttackEnemy != null
-                ? Time.time + AutoAttackInterval
+                ? Time.time + ResolvedAutoAttackInterval
                 : 0f;
         }
 

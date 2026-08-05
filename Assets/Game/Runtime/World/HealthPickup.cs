@@ -4,7 +4,7 @@ namespace SimpleGame
 {
     public sealed class HealthPickup : MonoBehaviour
     {
-        public const int HealAmount = 5;
+        public const int HealAmount = 50;
         public const float Lifetime = 45f;
 
         private HealthPickupSpawner owner;

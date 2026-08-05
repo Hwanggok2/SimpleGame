@@ -12,50 +12,50 @@ namespace SimpleGame.Tests
             1,
             1,
             AttackSide.Front,
-            1,
-            3)]
+            10,
+            30)]
         [TestCase(
             EnemyArchetype.Melee,
             1,
             1,
             AttackSide.Rear,
-            3,
-            3)]
+            30,
+            30)]
         [TestCase(
             EnemyArchetype.Melee,
             1,
             2,
             AttackSide.Front,
-            1,
-            4)]
+            10,
+            40)]
         [TestCase(
             EnemyArchetype.Melee,
             1,
             2,
             AttackSide.Rear,
-            3,
-            4)]
+            30,
+            40)]
         [TestCase(
             EnemyArchetype.Ranged,
             1,
             1,
             AttackSide.Front,
-            1,
-            3)]
+            10,
+            30)]
         [TestCase(
             EnemyArchetype.Ranged,
             1,
             2,
             AttackSide.Front,
-            1,
-            3)]
+            10,
+            40)]
         [TestCase(
             EnemyArchetype.Ranged,
             1,
             3,
             AttackSide.Rear,
-            3,
-            4)]
+            30,
+            45)]
         public void Resolve_UsesAttackPowerAndScaledHealth(
             EnemyArchetype archetype,
             int playerLevel,
@@ -319,11 +319,11 @@ namespace SimpleGame.Tests
                 Is.EqualTo(2.25f));
         }
 
-        [TestCase(1, 2)]
-        [TestCase(10, 4)]
-        [TestCase(50, 6)]
-        [TestCase(200, 8)]
-        public void EnemyAttackDamage_UsesCurveAndCapsAtEight(
+        [TestCase(1, 20)]
+        [TestCase(10, 34)]
+        [TestCase(50, 52)]
+        [TestCase(200, 80)]
+        public void EnemyAttackDamage_UsesScaledCurveAndCapsAtEighty(
             int level,
             int expectedDamage)
         {
@@ -429,10 +429,10 @@ namespace SimpleGame.Tests
             int waveSeven = definition.CalculateMaxHealth(5, 7);
             int waveEight = definition.CalculateMaxHealth(6, 8);
 
-            Assert.That(waveFour, Is.EqualTo(5));
-            Assert.That(waveFive, Is.EqualTo(6));
-            Assert.That(waveSeven, Is.EqualTo(7));
-            Assert.That(waveEight, Is.EqualTo(9));
+            Assert.That(waveFour, Is.EqualTo(49));
+            Assert.That(waveFive, Is.EqualTo(59));
+            Assert.That(waveSeven, Is.EqualTo(64));
+            Assert.That(waveEight, Is.EqualTo(85));
         }
 
         [TestCase(0, 1f)]
@@ -465,8 +465,8 @@ namespace SimpleGame.Tests
         {
             Assert.That(
                 ProgressionCurve.CalculateAdditiveStat(
-                    1f,
-                    0.65f,
+                    10f,
+                    6.5f,
                     level),
                 Is.EqualTo(expected).Within(0.001f));
         }

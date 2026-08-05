@@ -8,7 +8,7 @@ namespace SimpleGame
         public const float DefaultDashSpeedMultiplier = 5f;
         public const float DashWindup = 0.35f;
         public const float DashCooldown = 3f;
-        public const int DashDamage = 10;
+        public const int DashDamage = 100;
         public const float DashStunDuration = 0.6f;
 
         private enum DashPhase

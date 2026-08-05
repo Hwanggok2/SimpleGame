@@ -21,13 +21,12 @@ MonoBehaviour:
   - stringId: CARD_HP_NAME
     text: "\uCCB4\uB825 \uAC15\uD654"
   - stringId: CARD_HP_DESCRIPTION
-    text: "\uCD5C\uB300 \uCCB4\uB825\uACFC \uD604\uC7AC \uCCB4\uB825\uC774 5 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+    text: "\uCD5C\uB300 \uCCB4\uB825\uC774 50 \uC99D\uAC00\uD569\uB2C8\uB2E4."
   - stringId: CARD_SPEED_NAME
     text: "\uC774\uB3D9 \uC18D\uB3C4 \uAC15\uD654"
   - stringId: CARD_SPEED_DESCRIPTION
-    text: "\uC774\uB3D9 \uC18D\uB3C4\uAC00 1 \uC99D\uAC00\uD569\uB2C8\uB2E4. \uCD5C\uB300
-      \uB808\uBCA8\uC5D0\uC11C\uB294 \uBAA9\uC801\uC9C0\uAE4C\uC9C0 \uC57D 0.15\uCD08\uC5D0
-      \uC774\uB3D9\uD569\uB2C8\uB2E4."
+    text: "\uC774\uB3D9 \uC18D\uB3C4\uAC00 \uB808\uBCA8\uB9C8\uB2E4 0.5 \uC99D\uAC00\uD569\uB2C8\uB2E4.
+      (\uCD5C\uB300 12.5)"
   - stringId: CARD_RANGE_NAME
     text: "\uACF5\uACA9 \uBC94\uC704 \uAC15\uD654"
   - stringId: CARD_RANGE_DESCRIPTION
@@ -54,9 +53,8 @@ MonoBehaviour:
   - stringId: CARD_HIT_HEAL_NAME
     text: "\uD761\uD608"
   - stringId: CARD_HIT_HEAL_DESCRIPTION
-    text: "\uC801\uC744 \uCC98\uCE58\uD560 \uB54C\uB9C8\uB2E4 5% \uD655\uB960\uB85C
-      \uCCB4\uB825\uC744 \uCE74\uB4DC \uB808\uBCA8\uB2F9 2 \uD68C\uBCF5\uD569\uB2C8\uB2E4.
-      1/2/3\uB808\uBCA8 \uD68C\uBCF5\uB7C9\uC740 2/4/6\uC785\uB2C8\uB2E4."
+    text: "\uC801 \uCC98\uCE58 \uC2DC 5% \uD655\uB960\uB85C \uCCB4\uB825\uC744 \uD68C\uBCF5\uD569\uB2C8\uB2E4.
+      (20/40/60)"
   - stringId: CARD_STATIC_NAME
     text: "\uC815\uC804\uAE30"
   - stringId: CARD_STATIC_DESCRIPTION
@@ -138,11 +136,12 @@ MonoBehaviour:
   - stringId: DIFFICULTY_EASY_NAME
     text: "\uC26C\uC6C0"
   - stringId: DIFFICULTY_EASY_DESCRIPTION
-    text: "\uC801 \uC218 75% \xB7 \uC801 \uB808\uBCA8 80%"
+    text: "\uCCB4\uB825 2\uBC30 \xB7 \uC790\uB3D9 \uACF5\uACA9 1.5\uBC30 \xB7 \uC801
+      \uAC10\uC18C"
   - stringId: DIFFICULTY_NORMAL_NAME
     text: "\uBCF4\uD1B5"
   - stringId: DIFFICULTY_NORMAL_DESCRIPTION
-    text: "\uD604\uC7AC \uBC38\uB7F0\uC2A4"
+    text: "\uAE30\uC874 \uC26C\uC6C0 \uB09C\uC774\uB3C4"
   - stringId: UI_DIFFICULTY_TITLE
     text: "\uB09C\uC774\uB3C4 \uC120\uD0DD"
   - stringId: UI_DIFFICULTY_STAGE_FORMAT
@@ -236,7 +235,7 @@ MonoBehaviour:
       \uBAA8\uB450 \uD68C\uBCF5\uD588\uC2B5\uB2C8\uB2E4."
   - stringId: HINT_DEBUG_DAMAGE
     text: "\uC2DC\uD5D8 \uAE30\uB2A5: \uD50C\uB808\uC774\uC5B4\uAC00 \uD53C\uD574
-      10\uC744 \uBC1B\uC558\uC2B5\uB2C8\uB2E4."
+      100\uC744 \uBC1B\uC558\uC2B5\uB2C8\uB2E4."
   - stringId: HINT_DEBUG_EXP
     text: "\uC2DC\uD5D8 \uAE30\uB2A5: \uD50C\uB808\uC774\uC5B4 \uACBD\uD5D8\uCE58\uAC00
       5 \uC99D\uAC00\uD588\uC2B5\uB2C8\uB2E4."
@@ -442,3 +441,20 @@ MonoBehaviour:
       \uC815\uBA74 \uACF5\uACA9\uC744 \uBC29\uC5B4\uD558\uBA70 \uD2B9\uC218 \uACF5\uACA9
       \uD328\uD134\uC744 \uC0AC\uC6A9\uD558\uBBC0\uB85C \uCE21\uBA74\uACFC \uD6C4\uBA74\uC744
       \uB178\uB824\uC57C \uD569\uB2C8\uB2E4."
+  - stringId: DIFFICULTY_HARD_DESCRIPTION
+    text: "\uAE30\uC874 \uBCF4\uD1B5 \uB09C\uC774\uB3C4"
+  - stringId: UI_CLEAR_TITLE
+    text: "\uD074\uB9AC\uC5B4"
+  - stringId: UI_RETRY_BUTTON
+    text: "\uB2E4\uC2DC\uD558\uAE30"
+  - stringId: UI_RETURN_LOBBY_BUTTON
+    text: "\uB85C\uBE44\uB85C \uC774\uB3D9"
+  - stringId: UI_CONFIRM_BUTTON
+    text: "\uD655\uC778"
+  - stringId: UI_CONFIRM_RESTART_MESSAGE
+    text: "\uB2E4\uC2DC \uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"
+  - stringId: UI_CONFIRM_LOBBY_MESSAGE
+    text: "\uB85C\uBE44\uB85C \uB098\uAC00\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?"
+  - stringId: HUD_CLEAR_SUMMARY_FORMAT
+    text: "\uD074\uB9AC\uC5B4!\\n\uC810\uC218 {0} / \uACC4\uC815 \uACBD\uD5D8\uCE58
+      {1}"

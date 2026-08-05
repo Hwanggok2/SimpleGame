@@ -8,7 +8,9 @@ namespace SimpleGame
     {
         public void TogglePause()
         {
-            if (state == GameRunState.DifficultySelection)
+            if (state == GameRunState.DifficultySelection ||
+                state == GameRunState.GameOver ||
+                state == GameRunState.Clear)
             {
                 return;
             }

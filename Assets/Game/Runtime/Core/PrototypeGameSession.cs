@@ -11,7 +11,7 @@ namespace SimpleGame
         public const int DefaultInitialCardRerolls = 5;
         public const int DefaultMaximumStoredCardRerolls = 9;
         public const int DefaultBossRerollReward = 1;
-        public const int LevelUpHealAmount = 2;
+        public const int LevelUpHealAmount = 20;
 
         [Header("Scene References")]
         [SerializeField] private PlayerRoot player;
@@ -46,6 +46,7 @@ namespace SimpleGame
         private GameRunState stateBeforePause = GameRunState.Playing;
         private bool cardChoicesInteractable;
         private float cardChoiceUnlockAt;
+        private LobbyDifficultyDefinition activeDifficulty;
 
         public event Action<string> HintChanged;
         public event Action<bool> CardSelectionVisibilityChanged;
@@ -57,6 +58,7 @@ namespace SimpleGame
         public event Action<bool> PauseVisibilityChanged;
         public event Action<PauseDetailsData> PauseDetailsChanged;
         public event Action<bool> GameOverVisibilityChanged;
+        public event Action<bool> ClearVisibilityChanged;
 
         public PlayerRoot Player => player;
         public EnemyWorldService EnemyWorld => enemyWorld;
@@ -70,6 +72,13 @@ namespace SimpleGame
         public int RemainingCardRerolls => remainingCardRerolls;
         public GameDifficulty Difficulty { get; private set; } =
             GameDifficulty.Normal;
+        public bool IsClear => state == GameRunState.Clear;
+        public float BossHealthMultiplier =>
+            activeDifficulty != null
+                ? activeDifficulty.BossHealthMultiplier
+                : 1f;
+        public ControlSettingsProfile ControlSettingsProfile =>
+            gameData != null ? gameData.ControlSettings : null;
         public GameStringTable GameStrings =>
             gameData != null ? gameData.GameStrings : null;
         public string StageDisplayName => GetString(
@@ -234,6 +243,7 @@ namespace SimpleGame
             }
 
             if (state != GameRunState.GameOver &&
+                state != GameRunState.Clear &&
                 player != null &&
                 !player.IsAlive)
             {

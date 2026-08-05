@@ -33,6 +33,7 @@ namespace SimpleGame
         private Button hiddenModeButton;
         private ControlLayoutDragSurface dragSurface;
         private GameStringTable strings;
+        private ControlSettingsProfile controlSettingsProfile;
         private MobileControlSettings pendingSettings;
         private Vector2 joystickBaseSize;
         private Vector2 attackBaseSize;
@@ -55,6 +56,13 @@ namespace SimpleGame
 
         public void Initialize(GameStringTable configuredStrings)
         {
+            Initialize(configuredStrings, null);
+        }
+
+        public void Initialize(
+            GameStringTable configuredStrings,
+            ControlSettingsProfile configuredControlSettingsProfile)
+        {
             if (initialized)
             {
                 return;
@@ -62,6 +70,7 @@ namespace SimpleGame
 
             initialized = true;
             strings = configuredStrings;
+            controlSettingsProfile = configuredControlSettingsProfile;
             ResolveReferences();
             Localize();
             BindControls();
@@ -72,13 +81,15 @@ namespace SimpleGame
 
         public void BeginEditing()
         {
-            pendingSettings = MobileControlSettingsStore.Load();
+            pendingSettings = MobileControlSettingsStore.Load(
+                controlSettingsProfile);
             SynchronizeUi();
         }
 
         public void DiscardDraft()
         {
-            pendingSettings = MobileControlSettingsStore.Load();
+            pendingSettings = MobileControlSettingsStore.Load(
+                controlSettingsProfile);
             SynchronizeUi();
         }
 
@@ -206,17 +217,23 @@ namespace SimpleGame
                 root,
                 "ControlModeButtons/Mode1Button/Label",
                 GameStringIds.ControlModeOneName,
-                "모드 1");
+                controlSettingsProfile != null
+                    ? controlSettingsProfile.ModeOneText
+                    : "모드 1");
             SetText(
                 root,
                 "ControlModeButtons/Mode2Button/Label",
                 GameStringIds.ControlModeTwoName,
-                "모드 2");
+                controlSettingsProfile != null
+                    ? controlSettingsProfile.ModeTwoText
+                    : "모드 2");
             SetText(
                 root,
                 "ControlModeButtons/HiddenButton/Label",
                 GameStringIds.ControlModeHiddenName,
-                "숨기기");
+                controlSettingsProfile != null
+                    ? controlSettingsProfile.HiddenText
+                    : "숨기기");
             SetText(
                 root,
                 "JoystickSizeSlider/Label",
@@ -237,6 +254,22 @@ namespace SimpleGame
                 "ControlApplyButton/Label",
                 GameStringIds.UiApply,
                 "적용");
+
+            if (controlSettingsProfile != null)
+            {
+                SetDirectText(
+                    root,
+                    "ControlModeButtons/Mode1Button/Label",
+                    controlSettingsProfile.ModeOneText);
+                SetDirectText(
+                    root,
+                    "ControlModeButtons/Mode2Button/Label",
+                    controlSettingsProfile.ModeTwoText);
+                SetDirectText(
+                    root,
+                    "ControlModeButtons/HiddenButton/Label",
+                    controlSettingsProfile.HiddenText);
+            }
         }
 
         private void SynchronizeUi()
@@ -297,7 +330,9 @@ namespace SimpleGame
 
         private void RestoreDefaults()
         {
-            pendingSettings = MobileControlSettings.Default;
+            pendingSettings = controlSettingsProfile != null
+                ? controlSettingsProfile.CreateDefaultSettings()
+                : MobileControlSettings.Default;
             SynchronizeUi();
         }
 
@@ -543,6 +578,18 @@ namespace SimpleGame
             if (label != null)
             {
                 label.text = GetText(stringId, fallback);
+            }
+        }
+
+        private static void SetDirectText(
+            Transform root,
+            string path,
+            string value)
+        {
+            TMP_Text label = FindText(root, path);
+            if (label != null)
+            {
+                label.text = value ?? string.Empty;
             }
         }
 

@@ -34,6 +34,7 @@ namespace SimpleGame
         private Coroutine inputLockRoutine;
         private int moveSpeedCardLevel;
         private PrototypeGameSession session;
+        private int baseMaximumHealth;
 
         public HealthComponent Health => health;
         public PlayerMovement Movement => movement;
@@ -127,7 +128,8 @@ namespace SimpleGame
             }
 
             stats.Configure(definition);
-            health.Configure(definition.BaseMaxHp);
+            baseMaximumHealth = definition.BaseMaxHp;
+            health.Configure(baseMaximumHealth);
             healthBar?.Bind(health);
             progression.Configure(experienceTable);
             critical.Configure(
@@ -176,8 +178,6 @@ namespace SimpleGame
                     moveSpeedCardLevel = Mathf.Min(
                         card.MaxStack,
                         moveSpeedCardLevel + 1);
-                    movement.SetMaximumSpeedActive(
-                        moveSpeedCardLevel >= card.MaxStack);
                     break;
                 case PlayerStatId.AttackRange:
                     stats.AddAttackRange(card.Value);
@@ -289,6 +289,19 @@ namespace SimpleGame
         public void SetAutoAttackEnabled(bool enabled)
         {
             controller?.SetAutoAttackEnabled(enabled);
+        }
+
+        public void ApplyDifficultyModifiers(
+            float maximumHealthMultiplier,
+            float autoAttackSpeedMultiplier)
+        {
+            health.Configure(Mathf.Max(
+                1,
+                Mathf.RoundToInt(
+                    baseMaximumHealth * maximumHealthMultiplier)));
+            healthBar?.Bind(health);
+            controller?.SetAutoAttackSpeedMultiplier(
+                autoAttackSpeedMultiplier);
         }
 
         public void ReceiveDamage(int amount)

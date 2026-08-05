@@ -16,10 +16,27 @@ namespace SimpleGame
             Vector2 defeatedPosition = enemy.transform.position;
             enemyWorld.Unregister(enemy);
             Score += enemy.Definition.Score;
-            player.Progression.AddExperience(enemy.Definition.KillExperience);
+            int experience = Mathf.Max(
+                0,
+                Mathf.RoundToInt(
+                    enemy.Definition.KillExperience *
+                    (activeDifficulty != null
+                        ? activeDifficulty.EnemyExperienceMultiplier
+                        : 1f)));
+            player.Progression.AddExperience(experience);
             if (isMushroomBoss)
             {
                 poisonCloudSpawner?.Schedule(defeatedPosition);
+            }
+
+            if (activeDifficulty != null &&
+                string.Equals(
+                    enemy.Definition.EnemyId,
+                    activeDifficulty.FinalBossId,
+                    System.StringComparison.Ordinal))
+            {
+                BeginClear(defeatedPosition);
+                return;
             }
 
             if (isBoss)
@@ -70,10 +87,20 @@ namespace SimpleGame
             }
 
             Difficulty = difficulty;
+            gameData.LobbyDifficulties.TryGet(
+                difficulty,
+                out activeDifficulty);
             ElapsedTime = 0f;
             state = GameRunState.Playing;
             Time.timeScale = 1f;
             stageSpawner.Begin(stageId, difficulty);
+            player.ApplyDifficultyModifiers(
+                activeDifficulty != null
+                    ? activeDifficulty.PlayerMaxHealthMultiplier
+                    : 1f,
+                activeDifficulty != null
+                    ? activeDifficulty.AutoAttackSpeedMultiplier
+                    : 1f);
             DifficultySelectionVisibilityChanged?.Invoke(false);
             ShowHint(FormatString(
                 GameStringIds.HintGameStartedFormat,
@@ -88,9 +115,13 @@ namespace SimpleGame
         public static string GetDifficultyDisplayName(
             GameDifficulty difficulty)
         {
-            return difficulty == GameDifficulty.Easy
-                ? "쉬움"
-                : "보통";
+            return difficulty switch
+            {
+                GameDifficulty.Easy => "쉬움",
+                GameDifficulty.Normal => "보통",
+                GameDifficulty.Hard => "어려움",
+                _ => difficulty.ToString()
+            };
         }
 
         public string ResolveDifficultyDisplayName(
@@ -128,10 +159,10 @@ namespace SimpleGame
         {
             if (IsPlaying)
             {
-                player.ReceiveDamage(10);
+                player.ReceiveDamage(100);
                 ShowHint(GetString(
                     GameStringIds.HintDebugDamage,
-                    "시험 기능: 플레이어가 피해 10을 받았습니다."));
+                    "시험 기능: 플레이어가 피해 100을 받았습니다."));
             }
         }
 
@@ -150,7 +181,8 @@ namespace SimpleGame
 
         private void OnPlayerDepleted()
         {
-            if (state == GameRunState.GameOver)
+            if (state == GameRunState.GameOver ||
+                state == GameRunState.Clear)
             {
                 return;
             }
@@ -173,7 +205,8 @@ namespace SimpleGame
 
         private void OnPlayerLevelUp()
         {
-            if (state == GameRunState.GameOver)
+            if (state == GameRunState.GameOver ||
+                state == GameRunState.Clear)
             {
                 return;
             }

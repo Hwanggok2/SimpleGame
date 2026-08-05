@@ -40,7 +40,7 @@ namespace SimpleGame
         [SerializeField] private int flyingSwordHitCountLevel;
         [SerializeField] private int filthThrowLevel;
         [SerializeField] private float severDamageMultiplier = 2f;
-        [SerializeField] private int hitHealAmount = 2;
+        [SerializeField] private int hitHealAmount = 20;
         [SerializeField] private float staticDamageMultiplier = 0.75f;
         [SerializeField] private float movingSlashDamageMultiplier =
             MovingSlashBaseDamageMultiplier;
@@ -157,7 +157,7 @@ namespace SimpleGame
             flyingSwordHitCountLevel = 0;
             filthThrowLevel = 0;
             severDamageMultiplier = 2f;
-            hitHealAmount = 2;
+            hitHealAmount = 20;
             staticDamageMultiplier = 0.75f;
             movingSlashDamageMultiplier =
                 MovingSlashBaseDamageMultiplier;

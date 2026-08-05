@@ -30,16 +30,24 @@ namespace SimpleGame.Tests
                 .Where(entry =>
                     entry.Difficulty == GameDifficulty.Easy)
                 .ToArray();
+            StageSpawnEntry[] hardSpawns = model.SpawnEntries
+                .Where(entry =>
+                    entry.Difficulty == GameDifficulty.Hard)
+                .ToArray();
 
             Assert.That(model.EnemyDefinitions, Has.Count.EqualTo(8));
-            Assert.That(normalSpawns, Has.Length.EqualTo(3283));
-            Assert.That(easySpawns, Has.Length.EqualTo(2487));
+            Assert.That(normalSpawns, Has.Length.EqualTo(2487));
+            Assert.That(easySpawns, Has.Length.EqualTo(876));
+            Assert.That(hardSpawns, Has.Length.EqualTo(3283));
             Assert.That(
                 normalSpawns.Max(entry => entry.EnemyLevel),
-                Is.EqualTo(52));
+                Is.EqualTo(42));
             Assert.That(
                 easySpawns.Max(entry => entry.EnemyLevel),
-                Is.EqualTo(42));
+                Is.EqualTo(34));
+            Assert.That(
+                hardSpawns.Max(entry => entry.EnemyLevel),
+                Is.EqualTo(52));
             Assert.That(
                 normalSpawns.Max(entry => entry.WaveNumber),
                 Is.EqualTo(60));
@@ -62,12 +70,12 @@ namespace SimpleGame.Tests
             Assert.That(
                 normalSpawns
                     .Count(entry => entry.SpawnTimeSec < 60f),
-                Is.EqualTo(43));
+                Is.EqualTo(35));
             Assert.That(
                 normalSpawns.Count(entry =>
                     entry.SpawnTimeSec >= 540f &&
                     entry.SpawnTimeSec < 600f),
-                Is.EqualTo(699));
+                Is.EqualTo(527));
             Assert.That(model.PlayerLevels, Has.Count.EqualTo(50));
             Assert.That(model.AccountLevels, Has.Count.EqualTo(4));
             Assert.That(model.PlayerDefinitions, Has.Count.EqualTo(1));
@@ -84,13 +92,21 @@ namespace SimpleGame.Tests
             LobbyDifficultyDefinition hardLobby =
                 model.LobbyDifficulties.Single(value =>
                     value.Id == LobbyDifficultyId.Hard);
-            Assert.That(easyLobby.DurationMinutes, Is.EqualTo(5));
+            Assert.That(easyLobby.DurationMinutes, Is.EqualTo(8));
             Assert.That(normalLobby.DurationMinutes, Is.EqualTo(10));
-            Assert.That(hardLobby.DurationMinutes, Is.EqualTo(20));
-            Assert.That(hardLobby.IsAvailable, Is.False);
+            Assert.That(hardLobby.DurationMinutes, Is.EqualTo(10));
+            Assert.That(hardLobby.IsAvailable, Is.True);
             Assert.That(
-                hardLobby.TryGetRuntimeDifficulty(out _),
-                Is.False);
+                hardLobby.TryGetRuntimeDifficulty(
+                    out GameDifficulty hardRuntime),
+                Is.True);
+            Assert.That(hardRuntime, Is.EqualTo(GameDifficulty.Hard));
+            Assert.That(easyLobby.PlayerMaxHealthMultiplier, Is.EqualTo(2f));
+            Assert.That(easyLobby.AutoAttackSpeedMultiplier, Is.EqualTo(1.5f));
+            Assert.That(easyLobby.EnemyExperienceMultiplier, Is.EqualTo(1.6f));
+            Assert.That(easyLobby.BossHealthMultiplier, Is.EqualTo(0.5f));
+            Assert.That(easyLobby.FinalBossId, Is.EqualTo(
+                PrototypeEnemyDefinitions.FlyingEyeBossId));
             Assert.That(
                 model.Images.Single(value =>
                     value.Id == "LOBBY_DIFFICULTY_EASY").FileName,
@@ -187,7 +203,7 @@ namespace SimpleGame.Tests
             Assert.That(flyingEyeBoss.AllowsEnemyOverlap, Is.True);
             Assert.That(skeletonBoss.BlocksFrontAttacks, Is.True);
             Assert.That(
-                normalSpawns.Count(entry =>
+                hardSpawns.Count(entry =>
                     entry.EnemyId ==
                         PrototypeEnemyDefinitions.FlyingEyeId),
                 Is.EqualTo(186));
@@ -197,7 +213,7 @@ namespace SimpleGame.Tests
                     entry.EnemyId ==
                         PrototypeEnemyDefinitions.MushroomBossId),
                 Is.Not.Null);
-            string[] bossOrder = normalSpawns
+            string[] bossOrder = hardSpawns
                 .Where(entry =>
                     entry.EnemyId ==
                         PrototypeEnemyDefinitions.GoblinBossId ||
@@ -226,13 +242,13 @@ namespace SimpleGame.Tests
             Assert.That(
                 speedCard.TargetStat,
                 Is.EqualTo(PlayerStatId.MoveSpeed));
-            Assert.That(speedCard.Value, Is.EqualTo(1f));
+            Assert.That(speedCard.Value, Is.EqualTo(0.5f));
             Assert.That(speedCard.MaxStack, Is.EqualTo(5));
             Assert.That(
                 speedCard.DescriptionKey,
                 Is.EqualTo("CARD_SPEED_DESCRIPTION"));
             StringAssert.Contains(
-                "약 0.15초",
+                "최대 12.5",
                 GetGameString(speedCard.DescriptionKey));
 
             LevelUpCardDefinition movingSlashCard =
@@ -273,7 +289,7 @@ namespace SimpleGame.Tests
             Assert.That(
                 GetGameString(hitHealCard.NameKey),
                 Is.EqualTo("흡혈"));
-            Assert.That(hitHealCard.Value, Is.EqualTo(2f));
+            Assert.That(hitHealCard.Value, Is.EqualTo(20f));
             Assert.That(hitHealCard.MaxStack, Is.EqualTo(3));
             StringAssert.Contains(
                 "적을 처치할 때마다",
@@ -1195,12 +1211,16 @@ namespace SimpleGame.Tests
                 AssetDatabase.LoadAssetAtPath<GameObject>(
                     PrototypeSceneBuilder
                         .DifficultySelectionPanelPrefabPath);
+            GameObject confirmation =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    PrototypeSceneBuilder.ConfirmationDialogPrefabPath);
 
             Assert.That(hud, Is.Not.Null);
             Assert.That(cardSelection, Is.Not.Null);
             Assert.That(pause, Is.Not.Null);
             Assert.That(gameOver, Is.Not.Null);
             Assert.That(difficulty, Is.Not.Null);
+            Assert.That(confirmation, Is.Not.Null);
             Assert.That(hud.transform.Find("TopPanel"), Is.Not.Null);
             Assert.That(
                 hud.transform.Find("TopPanel/PlayerHp"),
@@ -1295,6 +1315,12 @@ namespace SimpleGame.Tests
                 Is.EqualTo(
                     PrototypeSceneBuilder
                         .DifficultySelectionPanelPrefabPath));
+            Assert.That(
+                AssetDatabase.GetAssetPath(
+                    view.ConfirmationDialogPrefab),
+                Is.EqualTo(
+                    PrototypeSceneBuilder
+                        .ConfirmationDialogPrefabPath));
 
             Assert.That(
                 cardSelection.GetComponentsInChildren<
@@ -1437,6 +1463,35 @@ namespace SimpleGame.Tests
                 gameOver.transform.Find("ContinueAd")
                     .GetComponent<Button>(),
                 Is.Not.Null);
+            foreach (string navigationButton in new[]
+                     {
+                         HudButtonId.Retry.ToString(),
+                         HudButtonId.ReturnToLobby.ToString()
+                     })
+            {
+                Assert.That(
+                    pause.transform.Find(navigationButton)
+                        ?.GetComponent<Button>(),
+                    Is.Not.Null,
+                    navigationButton);
+                Assert.That(
+                    gameOver.transform.Find(navigationButton)
+                        ?.GetComponent<Button>(),
+                    Is.Not.Null,
+                    navigationButton);
+            }
+            Assert.That(
+                confirmation.transform.Find("Message")
+                    ?.GetComponent<TMP_Text>(),
+                Is.Not.Null);
+            Assert.That(
+                confirmation.transform.Find("ConfirmButton")
+                    ?.GetComponent<Button>(),
+                Is.Not.Null);
+            Assert.That(
+                confirmation.transform.Find("CancelButton")
+                    ?.GetComponent<Button>(),
+                Is.Not.Null);
             Assert.That(
                 difficulty.transform.Find(
                     HudButtonId.DifficultyEasy.ToString())
@@ -1445,6 +1500,11 @@ namespace SimpleGame.Tests
             Assert.That(
                 difficulty.transform.Find(
                     HudButtonId.DifficultyNormal.ToString())
+                    ?.GetComponent<Button>(),
+                Is.Not.Null);
+            Assert.That(
+                difficulty.transform.Find(
+                    HudButtonId.DifficultyHard.ToString())
                     ?.GetComponent<Button>(),
                 Is.Not.Null);
         }

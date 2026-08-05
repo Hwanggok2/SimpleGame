@@ -700,7 +700,7 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void MobileControlSettings_InvalidModeFallsBackToModeTwo()
+        public void MobileControlSettings_InvalidModeFallsBackToModeOne()
         {
             MobileControlSettings settings =
                 MobileControlSettings.Default;
@@ -710,7 +710,7 @@ namespace SimpleGame.Tests
 
             Assert.That(
                 settings.controlMode,
-                Is.EqualTo(MobileControlMode.AimCommand));
+                Is.EqualTo(MobileControlMode.DirectMoveAutoAim));
         }
 
         [Test]
@@ -762,7 +762,7 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void AutoAttack_UsesPointThreeSecondIntervalAndDefaultsOff()
+        public void AutoAttack_UsesPointThreeSecondBaseIntervalAndModeOneDefault()
         {
             Assert.That(
                 PlayerController.AutoAttackInterval,
@@ -772,7 +772,7 @@ namespace SimpleGame.Tests
                 Is.False);
             Assert.That(
                 MobileControlSettings.Default.controlMode,
-                Is.EqualTo(MobileControlMode.AimCommand));
+                Is.EqualTo(MobileControlMode.DirectMoveAutoAim));
         }
     }
 

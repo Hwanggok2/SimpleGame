@@ -21,6 +21,8 @@ namespace SimpleGameEditor
             CatalogPath + "/EnemyAssetCatalog.asset";
         private const string FeedbackProfilePath =
             ProfilePath + "/CombatFeedbackProfile.asset";
+        private const string ControlSettingsProfilePath =
+            ProfilePath + "/ControlSettingsProfile.asset";
         private const string EnemyBalancePath =
             GeneratedPath + "/EnemyBalanceTable.asset";
         private const string SpawnSchedulePath =
@@ -252,6 +254,10 @@ namespace SimpleGameEditor
                 CreateOrLoad<LobbyDifficultyTable>(
                     LobbyDifficultyPath,
                     out _);
+            ControlSettingsProfile controlSettings =
+                CreateOrLoad<ControlSettingsProfile>(
+                    ControlSettingsProfilePath,
+                    out _);
 
             EnemyAssetCatalog enemyCatalog =
                 CreateOrLoad<EnemyAssetCatalog>(
@@ -311,7 +317,8 @@ namespace SimpleGameEditor
                 feedback,
                 gameStrings,
                 imageData,
-                lobbyDifficulties);
+                lobbyDifficulties,
+                controlSettings);
 
             MarkDirty(
                 enemyBalance,
@@ -324,6 +331,7 @@ namespace SimpleGameEditor
                 gameStrings,
                 imageData,
                 lobbyDifficulties,
+                controlSettings,
                 enemyCatalog,
                 feedback,
                 manifest);
@@ -550,9 +558,9 @@ namespace SimpleGameEditor
             return new PlayerDefinition(
                 "LightBandit",
                 1,
-                10,
-                1f,
-                0.65f,
+                100,
+                10f,
+                6.5f,
                 3f,
                 10f,
                 1.1f,
@@ -588,11 +596,11 @@ namespace SimpleGameEditor
                     "MAX_HP_UP",
                     "CARD_HP_NAME",
                     "체력 강화",
-                    "최대 체력과 현재 체력이 5 증가합니다.",
+                    "최대 체력과 현재 체력이 50 증가합니다.",
                     LevelUpCardEffectType.StatModifier,
                     PlayerStatId.MaxHp,
                     StatOperation.Add,
-                    5f,
+                    50f,
                     5,
                     100,
                     1,
@@ -604,11 +612,11 @@ namespace SimpleGameEditor
                     "MOVE_SPEED_UP",
                     "CARD_SPEED_NAME",
                     "이동 속도 강화",
-                    "이동 속도가 1 증가합니다. 최대 레벨에서는 목적지까지 약 0.15초에 이동합니다.",
+                    "이동 속도가 레벨마다 0.5 증가합니다. 최대 12.5까지 적용됩니다.",
                     LevelUpCardEffectType.StatModifier,
                     PlayerStatId.MoveSpeed,
                     StatOperation.Add,
-                    1f,
+                    0.5f,
                     5,
                     80,
                     2,
@@ -668,11 +676,11 @@ namespace SimpleGameEditor
                     "HIT_HEAL",
                     "CARD_HIT_HEAL_NAME",
                     "흡혈",
-                    "적을 처치할 때마다 5% 확률로 체력을 카드 레벨당 2 회복합니다. 1/2/3레벨 회복량은 2/4/6입니다.",
+                    "적을 처치할 때마다 5% 확률로 체력을 카드 레벨당 20 회복합니다. 1/2/3레벨 회복량은 20/40/60입니다.",
                     LevelUpCardEffectType.UpgradeRank,
                     PlayerStatId.HitHeal,
                     StatOperation.Add,
-                    2f,
+                    20f,
                     3,
                     55,
                     4,

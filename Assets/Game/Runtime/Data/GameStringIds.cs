@@ -18,6 +18,8 @@ namespace SimpleGame
             "DIFFICULTY_NORMAL_DESCRIPTION";
         public const string DifficultyHardName =
             "DIFFICULTY_HARD_NAME";
+        public const string DifficultyHardDescription =
+            "DIFFICULTY_HARD_DESCRIPTION";
         public const string UiLobbyTraitsButton =
             "UI_LOBBY_TRAITS_BUTTON";
         public const string UiLobbyCollectionButton =
@@ -102,6 +104,15 @@ namespace SimpleGame
         public const string UiAttackButton = "UI_ATTACK_BUTTON";
         public const string UiGameOverTitle = "UI_GAME_OVER_TITLE";
         public const string UiContinueButton = "UI_CONTINUE_BUTTON";
+        public const string UiClearTitle = "UI_CLEAR_TITLE";
+        public const string UiRetryButton = "UI_RETRY_BUTTON";
+        public const string UiReturnLobbyButton =
+            "UI_RETURN_LOBBY_BUTTON";
+        public const string UiConfirmButton = "UI_CONFIRM_BUTTON";
+        public const string UiConfirmRestartMessage =
+            "UI_CONFIRM_RESTART_MESSAGE";
+        public const string UiConfirmLobbyMessage =
+            "UI_CONFIRM_LOBBY_MESSAGE";
         public const string UiDifficultyTitle = "UI_DIFFICULTY_TITLE";
         public const string UiDifficultyStageFormat =
             "UI_DIFFICULTY_STAGE_FORMAT";
@@ -111,6 +122,8 @@ namespace SimpleGame
         public const string HudHpFormat = "HUD_HP_FORMAT";
         public const string HudGameOverSummaryFormat =
             "HUD_GAME_OVER_SUMMARY_FORMAT";
+        public const string HudClearSummaryFormat =
+            "HUD_CLEAR_SUMMARY_FORMAT";
         public const string HudMaxLevel = "HUD_MAX_LEVEL";
         public const string HudExperienceRemainingFormat =
             "HUD_EXP_REMAINING_FORMAT";
@@ -219,6 +232,7 @@ namespace SimpleGame
             DifficultyNormalName,
             DifficultyNormalDescription,
             DifficultyHardName,
+            DifficultyHardDescription,
             UiLobbyTraitsButton,
             UiLobbyCollectionButton,
             UiLobbyEnterButton,
@@ -269,11 +283,18 @@ namespace SimpleGame
             UiAttackButton,
             UiGameOverTitle,
             UiContinueButton,
+            UiClearTitle,
+            UiRetryButton,
+            UiReturnLobbyButton,
+            UiConfirmButton,
+            UiConfirmRestartMessage,
+            UiConfirmLobbyMessage,
             UiDifficultyTitle,
             UiDifficultyStageFormat,
             UiDifficultyOptionFormat,
             HudHpFormat,
             HudGameOverSummaryFormat,
+            HudClearSummaryFormat,
             HudMaxLevel,
             HudExperienceRemainingFormat,
             HintSelectDifficulty,
@@ -339,16 +360,24 @@ namespace SimpleGame
 
         public static string DifficultyName(GameDifficulty difficulty)
         {
-            return difficulty == GameDifficulty.Easy
-                ? DifficultyEasyName
-                : DifficultyNormalName;
+            return difficulty switch
+            {
+                GameDifficulty.Easy => DifficultyEasyName,
+                GameDifficulty.Normal => DifficultyNormalName,
+                GameDifficulty.Hard => DifficultyHardName,
+                _ => DifficultyNormalName
+            };
         }
 
         public static string DifficultyDescription(GameDifficulty difficulty)
         {
-            return difficulty == GameDifficulty.Easy
-                ? DifficultyEasyDescription
-                : DifficultyNormalDescription;
+            return difficulty switch
+            {
+                GameDifficulty.Easy => DifficultyEasyDescription,
+                GameDifficulty.Normal => DifficultyNormalDescription,
+                GameDifficulty.Hard => DifficultyHardDescription,
+                _ => DifficultyNormalDescription
+            };
         }
 
         public static string StageName(string stageId)

@@ -436,7 +436,7 @@ namespace SimpleGame.Tests
         }
 
         [Test]
-        public void PlayerMoveSpeed_ReachesFifteenAfterFiveUpgrades()
+        public void PlayerMoveSpeed_IncreasesLinearlyByHalfPerUpgrade()
         {
             var owner = new GameObject("PlayerMoveSpeedTest");
             PlayerStats stats = owner.AddComponent<PlayerStats>();
@@ -458,16 +458,16 @@ namespace SimpleGame.Tests
             Assert.That(stats.MoveSpeed, Is.EqualTo(10f));
             for (int index = 0; index < 5; index++)
             {
-                stats.AddMoveSpeed(1f);
+                stats.AddMoveSpeed(0.5f);
             }
 
-            Assert.That(stats.MoveSpeed, Is.EqualTo(15f));
+            Assert.That(stats.MoveSpeed, Is.EqualTo(12.5f));
             Assert.That(
                 stats.MoveSpeed * stats.PathEnemyApproachSpeedMultiplier,
-                Is.EqualTo(16.5f).Within(0.001f));
+                Is.EqualTo(13.75f).Within(0.001f));
             Assert.That(
                 stats.MoveSpeed * stats.PostKillEscapeSpeedMultiplier,
-                Is.EqualTo(18f).Within(0.001f));
+                Is.EqualTo(15f).Within(0.001f));
             Object.DestroyImmediate(owner);
         }
 
@@ -717,10 +717,10 @@ namespace SimpleGame.Tests
         }
 
         [TestCase(0, 0)]
-        [TestCase(1, 2)]
-        [TestCase(2, 4)]
-        [TestCase(3, 6)]
-        public void HitHeal_AmountIncreasesTwoPerCardLevel(
+        [TestCase(1, 20)]
+        [TestCase(2, 40)]
+        [TestCase(3, 60)]
+        public void HitHeal_AmountIncreasesTwentyPerCardLevel(
             int level,
             int expected)
         {
@@ -1216,8 +1216,8 @@ namespace SimpleGame.Tests
         {
             Assert.That(
                 PrototypeGameSession.LevelUpHealAmount,
-                Is.EqualTo(2));
-            Assert.That(HealthPickup.HealAmount, Is.EqualTo(5));
+                Is.EqualTo(20));
+            Assert.That(HealthPickup.HealAmount, Is.EqualTo(50));
             Assert.That(HealthPickup.Lifetime, Is.EqualTo(45f));
             Assert.That(HealthPickupSpawner.SpawnInterval, Is.EqualTo(20f));
             Assert.That(
@@ -1263,7 +1263,7 @@ namespace SimpleGame.Tests
                 Is.EqualTo(expectedTicks));
             Assert.That(
                 MushroomPoisonCloud.DamagePerTick,
-                Is.EqualTo(1));
+                Is.EqualTo(10));
             Assert.That(
                 MushroomPoisonCloud.Duration,
                 Is.EqualTo(5f));

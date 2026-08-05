@@ -68,6 +68,17 @@ namespace SimpleGame
                     Text(
                         GameStringIds.DifficultyNormalDescription,
                         "현재 밸런스")));
+            SetButtonText(
+                difficultyHardButton,
+                Format(
+                    GameStringIds.UiDifficultyOptionFormat,
+                    optionFallback,
+                    Text(
+                        GameStringIds.DifficultyHardName,
+                        "어려움"),
+                    Text(
+                        GameStringIds.DifficultyHardDescription,
+                        "강한 적이 더 많이 등장")));
         }
 
         private void ApplyPauseStrings()
@@ -122,17 +133,23 @@ namespace SimpleGame
                 root,
                 "ControlSettingsPanel/ControlModeButtons/Mode1Button/Label",
                 GameStringIds.ControlModeOneName,
-                "모드 1");
+                controlSettingsProfile != null
+                    ? controlSettingsProfile.ModeOneText
+                    : "모드 1");
             SetTextAtPath(
                 root,
                 "ControlSettingsPanel/ControlModeButtons/Mode2Button/Label",
                 GameStringIds.ControlModeTwoName,
-                "모드 2");
+                controlSettingsProfile != null
+                    ? controlSettingsProfile.ModeTwoText
+                    : "모드 2");
             SetTextAtPath(
                 root,
                 "ControlSettingsPanel/ControlModeButtons/HiddenButton/Label",
                 GameStringIds.ControlModeHiddenName,
-                "숨기기");
+                controlSettingsProfile != null
+                    ? controlSettingsProfile.HiddenText
+                    : "숨기기");
             SetTextAtPath(
                 root,
                 "ControlSettingsPanel/ControlDefaultsButton/Label",
@@ -143,6 +160,29 @@ namespace SimpleGame
                 "ControlSettingsPanel/ControlApplyButton/Label",
                 GameStringIds.UiApply,
                 "적용");
+            SetButtonText(
+                pauseRetryButton,
+                GameStringIds.UiRetryButton,
+                "다시하기");
+            SetButtonText(
+                pauseLobbyButton,
+                GameStringIds.UiReturnLobbyButton,
+                "로비로 이동");
+            if (controlSettingsProfile != null)
+            {
+                SetTextAtPathDirect(
+                    root,
+                    "ControlSettingsPanel/ControlModeButtons/Mode1Button/Label",
+                    controlSettingsProfile.ModeOneText);
+                SetTextAtPathDirect(
+                    root,
+                    "ControlSettingsPanel/ControlModeButtons/Mode2Button/Label",
+                    controlSettingsProfile.ModeTwoText);
+                SetTextAtPathDirect(
+                    root,
+                    "ControlSettingsPanel/ControlModeButtons/HiddenButton/Label",
+                    controlSettingsProfile.HiddenText);
+            }
             RefreshControlSettingLabels();
         }
 
@@ -191,6 +231,21 @@ namespace SimpleGame
             if (label != null)
             {
                 label.text = Text(stringId, fallback);
+            }
+        }
+
+        private static void SetTextAtPathDirect(
+            Transform root,
+            string path,
+            string value)
+        {
+            Transform child = root != null ? root.Find(path) : null;
+            TMP_Text label = child != null
+                ? child.GetComponent<TMP_Text>()
+                : null;
+            if (label != null)
+            {
+                label.text = value ?? string.Empty;
             }
         }
 

@@ -157,7 +157,9 @@ namespace SimpleGame
         private void ConfigureNavigationButtons()
         {
             codexView?.Initialize();
-            settingsView?.Initialize(gameData?.GameStrings);
+            settingsView?.Initialize(
+                gameData?.GameStrings,
+                gameData?.ControlSettings);
             SetPlaceholderButton(traitsButton);
             ConfigureCodexButton(
                 collectionButton,

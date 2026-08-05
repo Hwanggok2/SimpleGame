@@ -18,10 +18,10 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 91c5327174669d748a373f756e576a8b, type: 3}
   - id: LOBBY_DIFFICULTY_NORMAL
     fileName: Background/LobbyDifficulty_Normal.png
-    sprite: {fileID: 21300000, guid: 04909316b787f6440b25f025cd5e1d9b, type: 3}
+    sprite: {fileID: 21300000, guid: 9df0bca6e7c22f94aa11b208dd5655ca, type: 3}
   - id: LOBBY_DIFFICULTY_HARD
     fileName: Background/LobbyDifficulty_Hard.png
-    sprite: {fileID: 21300000, guid: 6dd97ee6740351c4ca095ebac700dbcd, type: 3}
+    sprite: {fileID: 21300000, guid: dde090f2540e1644f81d484905ceece5, type: 3}
   - id: LOBBY_SELECTED_DIFFICULTY_EASY
     fileName: UI/Easy_Text.png
     sprite: {fileID: 21300000, guid: 4b4ff5c038da9fd46a055025bb63b78c, type: 3}

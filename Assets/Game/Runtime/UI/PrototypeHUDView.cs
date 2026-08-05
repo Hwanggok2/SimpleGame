@@ -19,6 +19,9 @@ namespace SimpleGame
         Attack,
         DifficultyEasy,
         DifficultyNormal,
+        DifficultyHard,
+        Retry,
+        ReturnToLobby,
         Count
     }
 
@@ -45,6 +48,7 @@ namespace SimpleGame
         [SerializeField] private GameObject pauseDetailsPanelPrefab;
         [SerializeField] private GameObject gameOverPanelPrefab;
         [SerializeField] private GameObject difficultySelectionPanelPrefab;
+        [SerializeField] private GameObject confirmationDialogPrefab;
 
         private readonly Action[] buttonCallbacks =
             new Action[(int)HudButtonId.Count];
@@ -77,8 +81,18 @@ namespace SimpleGame
         private GameObject difficultySelectionPanel;
         private Button difficultyEasyButton;
         private Button difficultyNormalButton;
+        private Button difficultyHardButton;
         private TMP_Text gameOverTitle;
         private Button continueButton;
+        private Button resultRetryButton;
+        private Button resultLobbyButton;
+        private Button pauseRetryButton;
+        private Button pauseLobbyButton;
+        private GameObject confirmationDialog;
+        private TMP_Text confirmationMessage;
+        private Button confirmationConfirmButton;
+        private Button confirmationCancelButton;
+        private HudButtonId pendingConfirmationAction = HudButtonId.Count;
         private bool cardChoicesInteractable;
         private bool hasCardRerollAlternative;
         private int remainingCardRerolls;
@@ -92,6 +106,7 @@ namespace SimpleGame
         private Vector2 attackBaseSize;
         private PlayerRoot aimControlsPlayer;
         private GameStringTable gameStrings;
+        private ControlSettingsProfile controlSettingsProfile;
         private string difficultyStageName = string.Empty;
         private string difficultyStageDescription = string.Empty;
         private Slider bossHealthSlider;
@@ -105,6 +120,8 @@ namespace SimpleGame
             gameOverPanelPrefab;
         public GameObject DifficultySelectionPanelPrefab =>
             difficultySelectionPanelPrefab;
+        public GameObject ConfirmationDialogPrefab =>
+            confirmationDialogPrefab;
         public Button SettingsButton => settingsButton;
         public Button AttackButton => attackButton;
         public AimJoystickControl AimJoystick => aimJoystick;
@@ -124,7 +141,8 @@ namespace SimpleGame
             GameObject configuredCardSelectionPanelPrefab,
             GameObject configuredPauseDetailsPanelPrefab,
             GameObject configuredGameOverPanelPrefab,
-            GameObject configuredDifficultySelectionPanelPrefab)
+            GameObject configuredDifficultySelectionPanelPrefab,
+            GameObject configuredConfirmationDialogPrefab = null)
         {
             timeLabel = configuredTimeLabel;
             hintLabel = configuredHintLabel;
@@ -141,6 +159,7 @@ namespace SimpleGame
             gameOverPanelPrefab = configuredGameOverPanelPrefab;
             difficultySelectionPanelPrefab =
                 configuredDifficultySelectionPanelPrefab;
+            confirmationDialogPrefab = configuredConfirmationDialogPrefab;
         }
 
         public void Initialize()
@@ -150,7 +169,15 @@ namespace SimpleGame
 
         public void Initialize(GameStringTable configuredGameStrings)
         {
+            Initialize(configuredGameStrings, null);
+        }
+
+        public void Initialize(
+            GameStringTable configuredGameStrings,
+            ControlSettingsProfile configuredControlSettingsProfile)
+        {
             gameStrings = configuredGameStrings;
+            controlSettingsProfile = configuredControlSettingsProfile;
             ValidateConfiguration();
             EnsureBossHealthBar();
             cardChoicesInteractable = false;
@@ -160,7 +187,8 @@ namespace SimpleGame
             }
 
             CaptureControlBaseSizes();
-            controlSettings = MobileControlSettingsStore.Load();
+            controlSettings = MobileControlSettingsStore.Load(
+                controlSettingsProfile);
             pendingControlSettings = controlSettings;
             commandControlsEnabled = controlSettings.controlsEnabled;
             ApplyControlLayout(controlSettings);
@@ -319,6 +347,8 @@ namespace SimpleGame
             if (visible)
             {
                 EnsureGameOverPanel();
+                continueButton?.gameObject.SetActive(true);
+                SetResultNavigationPositions(0f, 260f);
                 if (gameOverTitle != null)
                 {
                     gameOverTitle.text = gameOverDetails;
@@ -359,6 +389,46 @@ namespace SimpleGame
                 GameStringIds.HudExperienceRemainingFormat,
                 "다음 레벨까지 경험치 {0}",
                 remaining);
+        }
+
+        public void ShowClear(bool visible)
+        {
+            if (visible)
+            {
+                EnsureGameOverPanel();
+                continueButton?.gameObject.SetActive(false);
+                SetResultNavigationPositions(-140f, 140f);
+                if (gameOverTitle != null)
+                {
+                    gameOverTitle.text = gameOverDetails;
+                }
+            }
+
+            if (gameOverPanel != null)
+            {
+                gameOverPanel.SetActive(visible);
+            }
+        }
+
+        private void SetResultNavigationPositions(
+            float retryX,
+            float lobbyX)
+        {
+            if (resultRetryButton != null)
+            {
+                RectTransform rect = resultRetryButton.GetComponent<RectTransform>();
+                rect.anchoredPosition = new Vector2(
+                    retryX,
+                    rect.anchoredPosition.y);
+            }
+
+            if (resultLobbyButton != null)
+            {
+                RectTransform rect = resultLobbyButton.GetComponent<RectTransform>();
+                rect.anchoredPosition = new Vector2(
+                    lobbyX,
+                    rect.anchoredPosition.y);
+            }
         }
 
         public void SetBossHealth(

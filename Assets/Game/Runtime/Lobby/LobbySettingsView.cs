@@ -44,6 +44,13 @@ namespace SimpleGame
 
         public void Initialize(GameStringTable strings)
         {
+            Initialize(strings, null);
+        }
+
+        public void Initialize(
+            GameStringTable strings,
+            ControlSettingsProfile controlSettingsProfile)
+        {
             if (initialized)
             {
                 return;
@@ -69,7 +76,9 @@ namespace SimpleGame
                     "조작");
             }
 
-            controlSettingsView?.Initialize(strings);
+            controlSettingsView?.Initialize(
+                strings,
+                controlSettingsProfile);
             if (controlSettingsView != null)
             {
                 controlSettingsView.Applied += CloseControlSettingsPage;

@@ -18,6 +18,7 @@ namespace SimpleGame
         [SerializeField] private GameStringTable gameStrings;
         [SerializeField] private ImageDataTable imageData;
         [SerializeField] private LobbyDifficultyTable lobbyDifficulties;
+        [SerializeField] private ControlSettingsProfile controlSettings;
 
         [Header("Unity Asset Catalogs")]
         [SerializeField] private EnemyAssetCatalog enemyAssets;
@@ -35,6 +36,7 @@ namespace SimpleGame
         public GameStringTable GameStrings => gameStrings;
         public ImageDataTable ImageData => imageData;
         public LobbyDifficultyTable LobbyDifficulties => lobbyDifficulties;
+        public ControlSettingsProfile ControlSettings => controlSettings;
         public EnemyAssetCatalog EnemyAssets => enemyAssets;
         public CombatFeedbackProfile CombatFeedback => combatFeedback;
 
@@ -64,7 +66,8 @@ namespace SimpleGame
             CombatFeedbackProfile configuredCombatFeedback,
             GameStringTable configuredGameStrings = null,
             ImageDataTable configuredImageData = null,
-            LobbyDifficultyTable configuredLobbyDifficulties = null)
+            LobbyDifficultyTable configuredLobbyDifficulties = null,
+            ControlSettingsProfile configuredControlSettings = null)
         {
             enemyBalance = configuredEnemyBalance;
             stageSpawnSchedule = configuredStageSpawnSchedule;
@@ -76,6 +79,7 @@ namespace SimpleGame
             gameStrings = configuredGameStrings;
             imageData = configuredImageData;
             lobbyDifficulties = configuredLobbyDifficulties;
+            controlSettings = configuredControlSettings;
             enemyAssets = configuredEnemyAssets;
             combatFeedback = configuredCombatFeedback;
         }

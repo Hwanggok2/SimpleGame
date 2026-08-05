@@ -31,6 +31,11 @@ namespace SimpleGame
         [SerializeField] private string buttonDescriptionKey;
         [SerializeField] private string objectiveKey;
         [SerializeField] private string effectDescriptionKey;
+        [SerializeField, Min(0.1f)] private float playerMaxHealthMultiplier = 1f;
+        [SerializeField, Min(0.1f)] private float autoAttackSpeedMultiplier = 1f;
+        [SerializeField, Min(0.1f)] private float enemyExperienceMultiplier = 1f;
+        [SerializeField, Min(0.1f)] private float bossHealthMultiplier = 1f;
+        [SerializeField] private string finalBossId;
 
         public LobbyDifficultyDefinition(
             LobbyDifficultyId id,
@@ -48,7 +53,12 @@ namespace SimpleGame
             string nameKey,
             string buttonDescriptionKey,
             string objectiveKey,
-            string effectDescriptionKey)
+            string effectDescriptionKey,
+            float playerMaxHealthMultiplier = 1f,
+            float autoAttackSpeedMultiplier = 1f,
+            float enemyExperienceMultiplier = 1f,
+            float bossHealthMultiplier = 1f,
+            string finalBossId = "")
         {
             this.id = id;
             this.sortOrder = sortOrder;
@@ -69,6 +79,19 @@ namespace SimpleGame
             this.objectiveKey = objectiveKey ?? string.Empty;
             this.effectDescriptionKey =
                 effectDescriptionKey ?? string.Empty;
+            this.playerMaxHealthMultiplier = Mathf.Max(
+                0.1f,
+                playerMaxHealthMultiplier);
+            this.autoAttackSpeedMultiplier = Mathf.Max(
+                0.1f,
+                autoAttackSpeedMultiplier);
+            this.enemyExperienceMultiplier = Mathf.Max(
+                0.1f,
+                enemyExperienceMultiplier);
+            this.bossHealthMultiplier = Mathf.Max(
+                0.1f,
+                bossHealthMultiplier);
+            this.finalBossId = finalBossId ?? string.Empty;
         }
 
         public LobbyDifficultyId Id => id;
@@ -89,6 +112,14 @@ namespace SimpleGame
         public string ButtonDescriptionKey => buttonDescriptionKey;
         public string ObjectiveKey => objectiveKey;
         public string EffectDescriptionKey => effectDescriptionKey;
+        public float PlayerMaxHealthMultiplier =>
+            playerMaxHealthMultiplier;
+        public float AutoAttackSpeedMultiplier =>
+            autoAttackSpeedMultiplier;
+        public float EnemyExperienceMultiplier =>
+            enemyExperienceMultiplier;
+        public float BossHealthMultiplier => bossHealthMultiplier;
+        public string FinalBossId => finalBossId;
 
         public bool TryGetRuntimeDifficulty(out GameDifficulty difficulty)
         {
@@ -122,6 +153,25 @@ namespace SimpleGame
             foreach (LobbyDifficultyDefinition value in definitions)
             {
                 if (value.Id == id)
+                {
+                    definition = value;
+                    return true;
+                }
+            }
+
+            definition = null;
+            return false;
+        }
+
+        public bool TryGet(
+            GameDifficulty difficulty,
+            out LobbyDifficultyDefinition definition)
+        {
+            foreach (LobbyDifficultyDefinition value in definitions)
+            {
+                if (value.TryGetRuntimeDifficulty(
+                        out GameDifficulty runtimeDifficulty) &&
+                    runtimeDifficulty == difficulty)
                 {
                     definition = value;
                     return true;
