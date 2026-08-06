@@ -60,7 +60,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 0.04, g: 0.02, b: 0.09, a: 0.94}
@@ -90,7 +90,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c0dec0dec0de4085a002000000000006, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.CardSelectionPanelView
   titleLabel: {fileID: 4354459823191895888}
   choices:
@@ -156,7 +156,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -188,7 +188,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -246,13 +246,25 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 22939838370968214}
     m_Modifications:
+    - target: {fileID: 2801226881423123395, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4281740841
+      objectReference: {fileID: 0}
     - target: {fileID: 4603097986879445843, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Name
       value: CardChoice2
       objectReference: {fileID: 0}
+    - target: {fileID: 5668401933522836680, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 5668401933522836680, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Pivot.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Pivot.y
@@ -260,7 +272,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMax.y
@@ -268,7 +280,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMin.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMin.y
@@ -312,11 +324,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 680
+      value: 322
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -70
+      value: -77
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -344,7 +356,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
 --- !u!114 &6770733294977282546 stripped
 MonoBehaviour:
@@ -355,7 +367,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aacc348ed13423949b13487bc393aeba, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.LevelUpCardView
 --- !u!224 &7315410229514629016 stripped
 RectTransform:
@@ -370,13 +382,25 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 22939838370968214}
     m_Modifications:
+    - target: {fileID: 2801226881423123395, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4281740841
+      objectReference: {fileID: 0}
     - target: {fileID: 4603097986879445843, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Name
       value: CardChoice1
       objectReference: {fileID: 0}
+    - target: {fileID: 5668401933522836680, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 5668401933522836680, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Pivot.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Pivot.y
@@ -384,7 +408,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMax.y
@@ -392,7 +416,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMin.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMin.y
@@ -436,11 +460,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 350
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -70
+      value: -77
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -468,7 +492,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
 --- !u!224 &4896368730773465378 stripped
 RectTransform:
@@ -484,7 +508,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aacc348ed13423949b13487bc393aeba, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.LevelUpCardView
 --- !u!1001 &6834391372154811175
 PrefabInstance:
@@ -494,13 +518,25 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 22939838370968214}
     m_Modifications:
+    - target: {fileID: 2801226881423123395, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4281740841
+      objectReference: {fileID: 0}
     - target: {fileID: 4603097986879445843, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Name
       value: CardChoice0
       objectReference: {fileID: 0}
+    - target: {fileID: 5668401933522836680, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 5668401933522836680, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Pivot.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_Pivot.y
@@ -508,7 +544,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMax.y
@@ -516,7 +552,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMin.x
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchorMin.y
@@ -560,11 +596,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 20
+      value: -322
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -70
+      value: -77
       objectReference: {fileID: 0}
     - target: {fileID: 7053715526650294022, guid: 1529d6ba77369e245b61501cf73bdb94, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -592,7 +628,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aacc348ed13423949b13487bc393aeba, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.LevelUpCardView
 --- !u!224 &4556365568645389345 stripped
 RectTransform:
@@ -608,5 +644,5 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
