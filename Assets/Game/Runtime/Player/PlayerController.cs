@@ -553,6 +553,8 @@ namespace SimpleGame
             out PlayerAttackExecution execution)
         {
             bool critical = root.Critical.Roll();
+            GameManager.Instance.PlaySoundEffect(
+                GameAudioIds.PlayerAttack);
             root.PlayAttack(targetEnemy.transform.position);
             execution = root.AttackEnemy(
                 targetEnemy,

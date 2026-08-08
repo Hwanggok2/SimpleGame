@@ -23,6 +23,8 @@ namespace SimpleGameEditor
             ProfilePath + "/CombatFeedbackProfile.asset";
         private const string ControlSettingsProfilePath =
             ProfilePath + "/ControlSettingsProfile.asset";
+        private const string AudioSettingsProfilePath =
+            ProfilePath + "/AudioSettingsProfile.asset";
         private const string EnemyBalancePath =
             GeneratedPath + "/EnemyBalanceTable.asset";
         private const string SpawnSchedulePath =
@@ -50,6 +52,13 @@ namespace SimpleGameEditor
             GameDataManifest manifest = BuildAssets();
             WireActiveScene(manifest, true);
             ValidateActiveData();
+        }
+
+        [MenuItem("SimpleGame/Audio/Create or Update Audio Settings")]
+        public static void BuildAudioSettings()
+        {
+            GameDataManifest manifest = BuildAssets();
+            Selection.activeObject = manifest.AudioSettings;
         }
 
         [MenuItem("SimpleGame/Data/Validate Active Data")]
@@ -258,6 +267,11 @@ namespace SimpleGameEditor
                 CreateOrLoad<ControlSettingsProfile>(
                     ControlSettingsProfilePath,
                     out _);
+            AudioSettingsProfile audioSettings =
+                CreateOrLoad<AudioSettingsProfile>(
+                    AudioSettingsProfilePath,
+                    out _);
+            EnsureRequiredAudioEntries(audioSettings, enemyBalance);
 
             EnemyAssetCatalog enemyCatalog =
                 CreateOrLoad<EnemyAssetCatalog>(
@@ -318,7 +332,8 @@ namespace SimpleGameEditor
                 gameStrings,
                 imageData,
                 lobbyDifficulties,
-                controlSettings);
+                controlSettings,
+                audioSettings);
 
             MarkDirty(
                 enemyBalance,
@@ -332,6 +347,7 @@ namespace SimpleGameEditor
                 imageData,
                 lobbyDifficulties,
                 controlSettings,
+                audioSettings,
                 enemyCatalog,
                 feedback,
                 manifest);
@@ -867,6 +883,71 @@ namespace SimpleGameEditor
             return new EnemyAssetEntry(
                 enemyId,
                 enemy);
+        }
+
+        private static void EnsureRequiredAudioEntries(
+            AudioSettingsProfile profile,
+            EnemyBalanceTable enemyBalance)
+        {
+            var backgroundMusic = new List<AudioClipDefinition>(
+                profile.BackgroundMusic);
+            var soundEffects = new List<AudioClipDefinition>(
+                profile.SoundEffects);
+            bool changed = EnsureAudioEntry(
+                backgroundMusic,
+                GameManager.LobbySceneName,
+                AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    LobbySceneBuilder.LobbyMusicClipPath));
+            changed |= EnsureAudioEntry(
+                backgroundMusic,
+                GameManager.BattleSceneName,
+                null);
+            changed |= EnsureAudioEntry(
+                soundEffects,
+                GameAudioIds.UiTouch,
+                AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    PrototypeSceneBuilder.TouchEffectClipPath));
+            changed |= EnsureAudioEntry(
+                soundEffects,
+                GameAudioIds.PlayerAttack,
+                null);
+            foreach (EnemyDefinition definition in enemyBalance.Definitions)
+            {
+                if (definition == null ||
+                    string.IsNullOrWhiteSpace(definition.EnemyId))
+                {
+                    continue;
+                }
+
+                changed |= EnsureAudioEntry(
+                    soundEffects,
+                    GameAudioIds.EnemyDeath(definition.EnemyId),
+                    null);
+            }
+
+            if (changed)
+            {
+                profile.Configure(backgroundMusic, soundEffects);
+            }
+        }
+
+        private static bool EnsureAudioEntry(
+            ICollection<AudioClipDefinition> definitions,
+            string id,
+            AudioClip defaultClip)
+        {
+            if (definitions.Any(definition =>
+                    definition != null &&
+                    string.Equals(
+                        definition.Id,
+                        id,
+                        StringComparison.Ordinal)))
+            {
+                return false;
+            }
+
+            definitions.Add(new AudioClipDefinition(id, defaultClip));
+            return true;
         }
 
         private static bool IsSpawnPointId(string value)

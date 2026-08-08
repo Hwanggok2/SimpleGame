@@ -8,6 +8,8 @@ namespace SimpleGame
             EnemyBase enemy,
             bool critical = false)
         {
+            GameManager.Instance.PlaySoundEffect(
+                GameAudioIds.EnemyDeath(enemy.Definition.EnemyId));
             combatFeedback?.PlayDefeatingHit(critical);
             bool isBoss = enemy.Archetype == EnemyArchetype.Boss;
             bool isMushroomBoss =

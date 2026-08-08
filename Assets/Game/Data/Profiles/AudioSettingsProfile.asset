@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 000031d51a964addabdac58c1965d748, type: 3}
+  m_Name: AudioSettingsProfile
+  m_EditorClassIdentifier: SimpleGame.Runtime::SimpleGame.AudioSettingsProfile
+  backgroundMusic:
+  - id: Lobby
+    clip: {fileID: 8300000, guid: 10b77c1abc6164f4d8286a9373dba504, type: 3}
+    volume: 1
+  - id: Battle
+    clip: {fileID: 8300000, guid: cff01b85c35548c4195a5e7e6d421086, type: 3}
+    volume: 0.2
+  soundEffects:
+  - id: UiTouch
+    clip: {fileID: 8300000, guid: e974d8e4b5ad18c40a17b3328f96d432, type: 3}
+    volume: 1
+  - id: PlayerAttack
+    clip: {fileID: 8300000, guid: 11011710b6d0ea44095cd458e0fcdf80, type: 3}
+    volume: 0.16
+  - id: EnemyDeath/GoblinMelee
+    clip: {fileID: 8300000, guid: 9048a67d7617e494dbfafa135937191d, type: 3}
+    volume: 0.5
+  - id: EnemyDeath/GoblinRanged
+    clip: {fileID: 8300000, guid: 9048a67d7617e494dbfafa135937191d, type: 3}
+    volume: 0.5
+  - id: EnemyDeath/ShieldSkeleton
+    clip: {fileID: 0}
+    volume: 1
+  - id: EnemyDeath/GoblinBoss
+    clip: {fileID: 8300000, guid: 39cb24c23f2b0bb4a8a857ed73042d5e, type: 3}
+    volume: 1
+  - id: EnemyDeath/MushroomBoss
+    clip: {fileID: 8300000, guid: 39cb24c23f2b0bb4a8a857ed73042d5e, type: 3}
+    volume: 1
+  - id: EnemyDeath/FlyingEye
+    clip: {fileID: 0}
+    volume: 1
+  - id: EnemyDeath/FlyingEyeBoss
+    clip: {fileID: 8300000, guid: 39cb24c23f2b0bb4a8a857ed73042d5e, type: 3}
+    volume: 1
+  - id: EnemyDeath/SkeletonBoss
+    clip: {fileID: 8300000, guid: 39cb24c23f2b0bb4a8a857ed73042d5e, type: 3}
+    volume: 1

@@ -393,13 +393,6 @@ namespace SimpleGame
             }
 
             button.onClick.RemoveAllListeners();
-            UiTouchSoundPlayer touchSoundPlayer =
-                GetComponent<UiTouchSoundPlayer>();
-            if (touchSoundPlayer != null)
-            {
-                button.onClick.AddListener(touchSoundPlayer.Play);
-            }
-
             if (callback != null)
             {
                 button.onClick.AddListener(() => callback());

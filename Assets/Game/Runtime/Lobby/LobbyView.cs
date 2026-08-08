@@ -109,6 +109,11 @@ namespace SimpleGame
             }
 
             initialized = true;
+            if (Application.isPlaying && gameData?.AudioSettings != null)
+            {
+                GameManager.Instance.ConfigureAudio(
+                    gameData.AudioSettings);
+            }
             LocalizeStaticLabels();
             ConfigureNavigationButtons();
             ConfigureDifficultyButtons();

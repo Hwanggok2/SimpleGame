@@ -11,7 +11,6 @@ namespace SimpleGame
         [SerializeField] private AudioClip touchClip;
 
         private readonly List<RaycastResult> raycastResults = new();
-        private AudioSource source;
         private int lastPlayedFrame = -1;
 
         public AudioClip TouchClip => touchClip;
@@ -23,15 +22,17 @@ namespace SimpleGame
 
         public void Play()
         {
-            if (touchClip == null ||
-                source == null ||
-                lastPlayedFrame == Time.frameCount)
+            if (lastPlayedFrame == Time.frameCount)
             {
                 return;
             }
 
-            source.PlayOneShot(touchClip);
-            lastPlayedFrame = Time.frameCount;
+            if (GameManager.Instance.PlaySoundEffect(
+                    GameAudioIds.UiTouch,
+                    touchClip))
+            {
+                lastPlayedFrame = Time.frameCount;
+            }
         }
 
         public static bool ShouldPlayFor(GameObject hitObject)
@@ -51,16 +52,6 @@ namespace SimpleGame
             }
 
             return selectable.GetComponent<AttackCommandButton>() == null;
-        }
-
-        private void Awake()
-        {
-            if (!Application.isPlaying)
-            {
-                return;
-            }
-
-            source = GameManager.Instance.UiAudioSource;
         }
 
         private void Update()

@@ -193,6 +193,7 @@ namespace SimpleGame
                 return;
             }
 
+            GameManager.Instance.ConfigureAudio(gameData.AudioSettings);
             EnsureCombatFeedback();
             player.Configure(
                 this,

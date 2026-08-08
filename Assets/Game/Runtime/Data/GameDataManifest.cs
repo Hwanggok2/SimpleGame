@@ -23,6 +23,7 @@ namespace SimpleGame
         [Header("Unity Asset Catalogs")]
         [SerializeField] private EnemyAssetCatalog enemyAssets;
         [SerializeField] private CombatFeedbackProfile combatFeedback;
+        [SerializeField] private AudioSettingsProfile audioSettings;
 
         public EnemyBalanceTable EnemyBalance => enemyBalance;
         public StageSpawnSchedule StageSpawnSchedule => stageSpawnSchedule;
@@ -39,6 +40,7 @@ namespace SimpleGame
         public ControlSettingsProfile ControlSettings => controlSettings;
         public EnemyAssetCatalog EnemyAssets => enemyAssets;
         public CombatFeedbackProfile CombatFeedback => combatFeedback;
+        public AudioSettingsProfile AudioSettings => audioSettings;
 
         public bool IsConfigured =>
             enemyBalance != null &&
@@ -67,7 +69,8 @@ namespace SimpleGame
             GameStringTable configuredGameStrings = null,
             ImageDataTable configuredImageData = null,
             LobbyDifficultyTable configuredLobbyDifficulties = null,
-            ControlSettingsProfile configuredControlSettings = null)
+            ControlSettingsProfile configuredControlSettings = null,
+            AudioSettingsProfile configuredAudioSettings = null)
         {
             enemyBalance = configuredEnemyBalance;
             stageSpawnSchedule = configuredStageSpawnSchedule;
@@ -82,6 +85,7 @@ namespace SimpleGame
             controlSettings = configuredControlSettings;
             enemyAssets = configuredEnemyAssets;
             combatFeedback = configuredCombatFeedback;
+            audioSettings = configuredAudioSettings;
         }
     }
 }

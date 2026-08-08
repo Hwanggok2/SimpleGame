@@ -25,3 +25,4 @@ MonoBehaviour:
   controlSettings: {fileID: 11400000, guid: c0dec0dec0de4085a001000000000001, type: 2}
   enemyAssets: {fileID: 11400000, guid: e9806be1e373d924ba00e1fdd739cbb3, type: 2}
   combatFeedback: {fileID: 11400000, guid: 93ce08b6cd9e73b4ab5dc095db21fae1, type: 2}
+  audioSettings: {fileID: 11400000, guid: 577aa76fd8a8ecc44a9d6bdebb73759a, type: 2}
